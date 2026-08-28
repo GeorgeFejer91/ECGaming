@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#07131f" />
+    <meta
+      name="description"
+      content="Connect a Polar H10 directly to a compatible smartphone browser and play Heartbeat Flight."
+    />
+    <link rel="icon" href="../favicon.svg" />
+    <title>Smartphone Flight · EC Gaming</title>
+  </head>
+  <body class="flight-body mobile-body">
+    <a class="skip-link" href="#mobile-controls">Skip to signal controls</a>
+    <main id="mobile-shell" class="flight-shell mobile-shell">
+      <div
+        id="game-canvas"
+        class="game-canvas"
+        aria-label="3D airplane game controlled by phone and heart signals"
+      ></div>
+      <header class="mobile-header">
+        <a class="brand brand-light" href="../" aria-label="EC Gaming home"
+          ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
+          ><span>EC GAMING</span></a
+        >
+        <div class="mobile-live-state">
+          <span id="mobile-state-dot" class="state-dot"></span>
+          <span id="mobile-state">SIGNAL SETUP</span>
+        </div>
+        <div class="mobile-header-actions">
+          <button id="mobile-fullscreen" class="hud-button" type="button">
+            FULLSCREEN
+          </button>
+          <button
+            id="mobile-controls-toggle"
+            class="hud-button emphasis"
+            type="button"
+            aria-controls="mobile-controls"
+            aria-expanded="true"
+          >
+            SIGNAL
+          </button>
+        </div>
+      </header>
+
+      <section class="mobile-hud" aria-label="Flight status">
+        <div>
+          <span>HEART</span><strong id="mobile-hr">--</strong><small>BPM</small>
+        </div>
+        <div>
+          <span>CONTROL</span><strong id="mobile-signal-value">--</strong>
+        </div>
+        <div><span>SCORE</span><strong id="score">000</strong></div>
+        <div>
+          <span>LIVES</span
+          ><strong id="lives" aria-label="3 lives">♥ ♥ ♥</strong>
+        </div>
+      </section>
+
+      <aside
+        id="mobile-controls"
+        class="mobile-controls is-open"
+        aria-label="Smartphone signal controls"
+      >
+        <div class="mobile-controls-head">
+          <div>
+            <p class="eyebrow">DIRECT PHONE MODE</p>
+            <h1>Polar to flight</h1>
+          </div>
+          <button
+            id="mobile-controls-close"
+            class="drawer-close"
+            type="button"
+            aria-label="Close signal controls"
+          >
+            ×
+          </button>
+        </div>
+
+        <div id="mobile-support" class="mobile-support" role="status">
+          Checking this browser…
+        </div>
+        <p id="mobile-support-copy" class="fine-print"></p>
+        <div class="button-row mobile-pair-actions">
+          <button id="mobile-connect" class="button primary" type="button">
+            Connect Polar H10
+          </button>
+          <button
+            id="mobile-disconnect"
+            class="button ghost"
+            type="button"
+            disabled
+          >
+            Disconnect
+          </button>
+        </div>
+
+        <details class="mobile-accordion" open>
+          <summary>
+            <span><b>01</b> Readiness</span><i>CHECK</i>
+          </summary>
+          <div class="mobile-accordion-body">
+            <ul class="mobile-readiness" aria-live="polite">
+              <li id="ready-source">
+                <i></i><span>Polar connection</span><b>WAIT</b>
+              </li>
+              <li id="ready-heart">
+                <i></i><span>Heart rate</span><b>WAIT</b>
+              </li>
+              <li id="ready-rr">
+                <i></i><span>RR notifications</span><b>WAIT</b>
+              </li>
+              <li id="ready-ecg">
+                <i></i><span>Live ECG stream</span><b>WAIT</b>
+              </li>
+              <li id="ready-mapping">
+                <i></i><span>Selected control metric</span><b>WAIT</b>
+              </li>
+              <li id="ready-beat">
+                <i></i><span>Beat timing source</span><b>WAIT</b>
+              </li>
+            </ul>
+            <dl class="mobile-metrics">
+              <div>
+                <dt>RR</dt>
+                <dd><span id="mobile-rr">--</span> ms</dd>
+              </div>
+              <div>
+                <dt>Excitement</dt>
+                <dd id="mobile-excitement">--</dd>
+              </div>
+              <div>
+                <dt>ECG</dt>
+                <dd><span id="mobile-ecg-rate">--</span> Hz</dd>
+              </div>
+            </dl>
+            <canvas
+              id="mobile-ecg"
+              width="600"
+              height="90"
+              aria-label="Recent ECG waveform"
+            ></canvas>
+          </div>
+        </details>
+
+        <details class="mobile-accordion">
+          <summary>
+            <span><b>02</b> What drives flight</span><i>MAP</i>
+          </summary>
+          <div class="mobile-accordion-body mobile-fields">
+            <label
+              >Altitude signal
+              <select id="mobile-altitude-mode">
+                <option value="excitement_score">Excitement score</option>
+                <option value="heart_rate">Heart rate</option>
+                <option value="rr_interval">RR interval</option>
+                <option value="manual">Manual slider</option>
+              </select>
+            </label>
+            <label
+              >Beat timing
+              <select id="mobile-beat-source">
+                <option value="ecg-rpeak">ECG R-peak · experimental</option>
+                <option value="polar-rr">Polar RR notification</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+            <label id="mobile-altitude-field"
+              >Manual altitude <output id="mobile-altitude-output">50%</output>
+              <input
+                id="mobile-altitude"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.5"
+              />
+            </label>
+            <label
+              >Throttle <output id="mobile-throttle-output">50%</output>
+              <input
+                id="mobile-throttle"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.5"
+              />
+            </label>
+            <label
+              >Ring traffic <output id="mobile-traffic-output">50%</output>
+              <input
+                id="mobile-traffic"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.5"
+              />
+            </label>
+            <p class="fine-print">
+              RR notifications may be batched. ECG R-peak timing is causal,
+              experimental, and non-medical.
+            </p>
+          </div>
+        </details>
+
+        <details class="mobile-accordion">
+          <summary>
+            <span><b>03</b> Test & privacy</span><i>LOCAL</i>
+          </summary>
+          <div class="mobile-accordion-body mobile-fields">
+            <label class="check-row sim-warning"
+              ><input id="mobile-simulated" type="checkbox" /><span
+                >Use visibly simulated heart data</span
+              ></label
+            >
+            <label
+              >Simulated heart rate
+              <output id="mobile-sim-bpm-output">72 bpm</output>
+              <input
+                id="mobile-sim-bpm"
+                type="range"
+                min="45"
+                max="160"
+                value="72"
+              />
+            </label>
+            <label
+              >Simulated excitement
+              <output id="mobile-sim-excite-output">0.35</output>
+              <input
+                id="mobile-sim-excite"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.35"
+              />
+            </label>
+            <label class="check-row"
+              ><input id="mobile-log-enabled" type="checkbox" /><span
+                >Record derived session CSV</span
+              ></label
+            >
+            <button
+              id="mobile-log-export"
+              class="button ghost"
+              type="button"
+              disabled
+            >
+              Export CSV
+            </button>
+            <p class="fine-print">
+              Raw ECG stays in this tab and is never written to the CSV. No
+              VDO.Ninja room is used in direct phone mode.
+            </p>
+          </div>
+        </details>
+
+        <div class="mobile-start-block">
+          <p id="mobile-ready-copy">
+            Connect a worn H10 or enable the simulator.
+          </p>
+          <button
+            id="mobile-start"
+            class="button primary"
+            type="button"
+            disabled
+          >
+            Start flight
+          </button>
+          <small>Drag anywhere on the sky to steer left or right.</small>
+        </div>
+
+        <div id="mobile-network-fallback" class="mobile-fallback">
+          <strong>Phone cannot pair directly?</strong>
+          <span
+            >Run Ground Control on a compatible computer, then use this phone as
+            the Bluetooth-free receiver.</span
+          >
+          <a class="button ghost" href="../flight/"
+            >Open network Flight Deck →</a
+          >
+        </div>
+      </aside>
+
+      <section
+        id="mobile-pause"
+        class="pause-panel"
+        hidden
+        aria-live="assertive"
+      >
+        <span>SIGNAL HOLD</span><strong>Holding pattern</strong>
+        <p id="mobile-pause-copy">Waiting for the selected heart signal…</p>
+        <button id="mobile-open-controls" class="button ghost" type="button">
+          Open signal controls
+        </button>
+      </section>
+
+      <section id="mobile-game-over" class="game-over" hidden>
+        <span>FLIGHT COMPLETE</span><strong>GAME OVER</strong>
+        <p>Final score <b id="mobile-final-score">0</b></p>
+        <button id="mobile-restart" class="button primary" type="button">
+          Fly again
+        </button>
+      </section>
+
+      <div class="mobile-steer-hint">← DRAG TO STEER →</div>
+    </main>
+    <script type="module" src="/src/mobile.ts"></script>
+  </body>
+</html>

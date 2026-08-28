@@ -8,21 +8,27 @@
 
 ## How it works
 
-There are two deliberately separate browser roles:
+There are two play paths and three deliberately scoped browser roles:
 
-1. **Ground Control** runs in desktop Chrome or Edge. It connects to a worn Polar H10 over Web Bluetooth, derives metrics locally, maps them to game commands, and broadcasts normalized controls.
-2. **Flight Deck** runs in a normal browser or Meta Quest Browser. It receives only game commands through a data-only VDO.Ninja/WebRTC bridge. It never requests Bluetooth, camera, or microphone access.
+1. **Smartphone Flight** combines Polar acquisition and the game in one tab. A compatible Android browser connects directly to a worn Polar H10 over Web Bluetooth; raw ECG and derived controls stay on that phone.
+2. **Ground Control** runs in desktop Chrome or Edge. It connects to a worn Polar H10 over Web Bluetooth, derives metrics locally, maps them to game commands, and broadcasts normalized controls.
+3. **Flight Deck** runs in a normal browser, iPhone/iPad, or Meta Quest Browser. It receives only game commands through a data-only VDO.Ninja/WebRTC bridge. It never requests Bluetooth, camera, or microphone access.
 
 ```text
-Polar H10 ──Bluetooth──▶ Ground Control ──WebRTC data──▶ Flight Deck
- ECG 130 Hz + HR/RR       derive + map locally            flat 3D / WebXR
+Direct phone:  Polar H10 ──Bluetooth──▶ Smartphone Flight
+                                         derive + play locally
+
+Network:       Polar H10 ──Bluetooth──▶ Ground Control ──WebRTC data──▶ Flight Deck
+                ECG 130 Hz + HR/RR       derive + map locally           flat 3D / WebXR
 ```
+
+Direct phone pairing is feature-detected, requires HTTPS, and must begin with the **Connect Polar H10** tap. Chrome for Android and compatible Chromium-based Android browsers are the supported path. Safari/WebKit does not expose native Web Bluetooth, so iPhone and iPad use Flight Deck with Ground Control running on another supported device. The deterministic simulator remains available on every browser and is always labelled simulated.
 
 The fixed discovery room is `ecgaming_flight_v1`. It is **public and unauthenticated**. Anonymous random source IDs help identify a session, but they are not access control. Do not transmit sensitive data or use a source you do not recognize.
 
 ## Controls and signal mapping
 
-Ground Control exposes one-open-at-a-time aviation panels for the Polar link, flight commands, broadcast tower, and simulator. Each continuous command can use a derived metric or a manual value, with input range, reversal, and attack/release smoothing.
+Ground Control exposes one-open-at-a-time aviation panels for the Polar link, flight commands, broadcast tower, and simulator. Smartphone Flight exposes the core choices in a touch-friendly side drawer. Each continuous command can use a derived metric or a manual value, with input range, reversal, and attack/release smoothing.
 
 | Command   | Default                         | Game range                  |
 | --------- | ------------------------------- | --------------------------- |
@@ -53,7 +59,7 @@ npm install
 npm run dev
 ```
 
-Then open the printed `/ECGaming/` URL. Use two tabs or devices: Ground Control first, Flight Deck second.
+Then open the printed `/ECGaming/` URL. Use Smartphone Flight for one-device play, or use two tabs/devices with Ground Control first and Flight Deck second.
 
 ```bash
 npm test          # codecs, mapping, detector, transport, rules, privacy
@@ -66,6 +72,7 @@ Use `?remote-force-turn=1` on both pages to request a TURN-relayed WebRTC path f
 ## Data and privacy
 
 - Raw ECG samples stay inside Ground Control and are used only for the rolling preview and detector.
+- In Smartphone Flight, raw ECG likewise stays in the current phone tab and is never sent to a relay room.
 - The 32-byte realtime frame contains normalized altitude, throttle, traffic, beat counter/age, quality, and readiness flags.
 - A versioned configuration snapshot is sent separately on a reliable ordered data channel.
 - Session CSV logging is off by default, bounded in memory, and exported only by an explicit local download.
@@ -79,6 +86,8 @@ See [the wire protocol](docs/PROTOCOL.md) for the exact contract.
 ```text
 ground-control/        Polar connection, mapping, broadcast UI
 flight/                flat/WebXR receiver and game UI
+mobile/                direct Polar + touch flight UI for phones
+src/mobile.ts           local signal-to-game orchestration (no VDO.Ninja)
 src/signals/           mappings and experimental R-peak detector
 src/protocol/          versioned frames and VDO.Ninja transport
 src/game/              reusable game module and Heartbeat Flight

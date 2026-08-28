@@ -13,6 +13,7 @@ export default defineConfig({
           "ground-control/index.html",
         ),
         flight: resolve(import.meta.dirname, "flight/index.html"),
+        mobile: resolve(import.meta.dirname, "mobile/index.html"),
       },
     },
   },

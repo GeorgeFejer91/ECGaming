@@ -18,6 +18,16 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Stop Ground Control: Flight pauses within the two-second stale contract.
 - Restart the same workflow: three fresh frames and the three-second countdown are visible before movement resumes.
 
+## Smartphone direct mode
+
+- Android Chrome or another explicitly qualified Chromium-based Android browser exposes the Web Bluetooth chooser from the Connect tap on the HTTPS GitHub Pages origin.
+- The worn H10 delivers HR, RR, and continuous PMD ECG while the airplane renders and touch steering remains responsive.
+- Switch altitude among excitement, heart rate, RR interval, and manual control; each selection remains fail-closed until its required signal is ready.
+- Background the tab or interrupt Bluetooth: flight enters the visible holding pattern instead of silently substituting manual data.
+- Restore the tab/signal: the three-second recovery countdown completes before movement resumes.
+- Screen Wake Lock and fullscreen/orientation requests are treated as optional and do not block play when the browser declines them.
+- On an iPhone/iPad browser with no native Web Bluetooth, direct Connect is disabled and the network Flight Deck fallback remains usable.
+
 ## Meta Quest
 
 - Meta Quest Browser never opens a Bluetooth, camera, or microphone prompt.

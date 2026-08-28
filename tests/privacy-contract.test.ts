@@ -19,4 +19,12 @@ describe("page authority boundaries", () => {
     );
     expect(source).not.toMatch(/microvolts|raw.?ecg|ecgSamples/i);
   });
+  it("keeps smartphone direct mode local and out of the VDO.Ninja room", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/mobile.ts"),
+      "utf8",
+    );
+    expect(source).toMatch(/PolarH10BrowserSession/);
+    expect(source).not.toMatch(/FlightBroadcaster|FlightReceiver|VDONinjaSDK/);
+  });
 });

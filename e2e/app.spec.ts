@@ -11,7 +11,9 @@ window.VDONinjaSDK=class extends EventTarget {
   frame(){this.sequence++;if(this.sequence%12===1)this.beat++;const b=new ArrayBuffer(32),v=new DataView(b);v.setUint32(0,this.sequence,true);v.setUint32(4,this.beat,true);v.setFloat32(8,.25,true);v.setFloat32(12,.5,true);v.setFloat32(16,.5,true);v.setFloat32(20,this.sequence%12===1?20:600,true);v.setFloat32(24,.9,true);v.setUint32(28,1|4,true);this.channel.dispatchEvent(new MessageEvent('message',{data:b}))}
 }`;
 
-test("landing exposes the two-role workflow", async ({ page }) => {
+test("landing exposes phone, ground, and receiver workflows", async ({
+  page,
+}) => {
   await page.goto("./");
   await expect(
     page.getByRole("heading", { name: /your heartbeat/i }),
@@ -22,6 +24,67 @@ test("landing exposes the two-role workflow", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: /open flight deck/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /play on this phone/i }),
+  ).toBeVisible();
+});
+
+test("Smartphone Flight offers an honest fallback and a playable simulator", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    try {
+      Object.defineProperty(navigator, "bluetooth", {
+        configurable: true,
+        value: undefined,
+      });
+    } catch {}
+  });
+  await page.goto("./mobile/");
+  await expect(page.locator("#mobile-support")).toContainText(
+    "DIRECT BLUETOOTH UNAVAILABLE",
+  );
+  await expect(
+    page.getByRole("link", { name: /open network flight deck/i }),
+  ).toBeVisible();
+  await page.locator(".mobile-accordion").nth(2).locator("summary").click();
+  await page.getByLabel("Use visibly simulated heart data").check();
+  await expect(
+    page.getByRole("button", { name: "Start flight" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Start flight" }).click();
+  await expect(page.locator("#mobile-state")).toHaveText("SIMULATED READY");
+  await expect(page.locator("#mobile-controls")).not.toHaveClass(/is-open/);
+  await expect(page.locator("#mobile-hr")).toHaveText("72");
+});
+
+test("Smartphone Flight requests Polar from the Connect tap", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    (window as any).__bluetoothRequests = 0;
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice() {
+          (window as any).__bluetoothRequests += 1;
+          return Promise.reject(
+            new DOMException("Chooser closed for test", "NotFoundError"),
+          );
+        },
+      },
+    });
+  });
+  await page.goto("./mobile/");
+  await expect(page.locator("#mobile-support")).toContainText(
+    "DIRECT BLUETOOTH AVAILABLE",
+  );
+  await page.getByRole("button", { name: "Connect Polar H10" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__bluetoothRequests))
+    .toBe(1);
+  await expect(page.locator("#mobile-state")).toHaveText("PAIRING FAILED");
 });
 
 test("Ground Control keeps exactly one aviation accordion open", async ({
