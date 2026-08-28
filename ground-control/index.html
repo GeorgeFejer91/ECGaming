@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#07131f" />
+    <meta
+      name="description"
+      content="Connect a Polar H10 and map heart signals to EC Gaming flight controls."
+    />
+    <link rel="icon" href="../favicon.svg" />
+    <title>Ground Control · EC Gaming</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to controls</a>
+    <main id="main" class="app-shell control-shell">
+      <header class="app-header">
+        <a class="brand" href="../"
+          ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
+          ><span>EC GAMING</span></a
+        >
+      <h1 class="page-title">
+          <span>GROUND CONTROL</span><strong>SIGNAL MAPPING & BROADCAST</strong>
+      </h1>
+        <div class="header-state">
+          <span id="polar-header-dot" class="state-dot"></span
+          ><span id="polar-header-state">POLAR OFFLINE</span>
+        </div>
+      </header>
+      <section class="control-workspace">
+        <aside class="control-panel" aria-label="Ground Control settings">
+          <div class="public-warning">
+            <strong>PUBLIC DATA ROOM</strong
+            ><span
+              >Anyone in the fixed room can discover command broadcasts. Raw ECG
+              never leaves this browser.</span
+            >
+          </div>
+          <div id="accordion" class="accordion">
+            <section class="accordion-item is-open" data-section="polar">
+              <button
+                class="accordion-trigger"
+                type="button"
+                aria-expanded="true"
+              >
+                <span><b>01</b> Polar Link</span><i>−</i>
+              </button>
+              <div class="accordion-body">
+                <div class="status-card">
+                  <span class="status-orbit"><i></i></span>
+                  <div>
+                    <strong id="polar-state">Ready to connect</strong
+                    ><small id="polar-detail"
+                      >Use a worn Polar H10 in desktop Chrome or Edge.</small
+                    >
+                  </div>
+                </div>
+                <div class="button-row">
+                  <button
+                    id="connect-polar"
+                    class="button primary"
+                    type="button"
+                  >
+                    Connect Polar H10</button
+                  ><button
+                    id="disconnect-polar"
+                    class="button ghost"
+                    type="button"
+                    disabled
+                  >
+                    Disconnect
+                  </button>
+                </div>
+                <dl class="metric-grid">
+                  <div>
+                    <dt>HEART RATE</dt>
+                    <dd>
+                      <span id="metric-heart_rate">--</span> <small>BPM</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>RR INTERVAL</dt>
+                    <dd>
+                      <span id="metric-rr_interval">--</span> <small>MS</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>EXCITEMENT</dt>
+                    <dd><span id="metric-excitement_score">--</span></dd>
+                  </div>
+                  <div>
+                    <dt>ECG STREAM</dt>
+                    <dd><span id="ecg-rate">--</span> <small>HZ</small></dd>
+                  </div>
+                </dl>
+                <canvas
+                  id="ecg-preview"
+                  class="ecg-preview"
+                  width="560"
+                  height="100"
+                  aria-label="Recent ECG waveform preview"
+                ></canvas>
+                <p class="fine-print">
+                  Experimental, non-medical software. The live R-peak detector
+                  estimates beat timing; Polar RR remains the reference interval
+                  stream.
+                </p>
+              </div>
+            </section>
+            <section class="accordion-item" data-section="mapping">
+              <button
+                class="accordion-trigger"
+                type="button"
+                aria-expanded="false"
+              >
+                <span><b>02</b> Flight Commands</span><i>+</i>
+              </button>
+              <div class="accordion-body" hidden>
+                <div id="mapping-controls"></div>
+                <div class="button-row">
+                  <button
+                    id="export-settings"
+                    class="button ghost"
+                    type="button"
+                  >
+                    Export settings</button
+                  ><label class="button ghost file-button"
+                    >Import settings<input
+                      id="import-settings"
+                      type="file"
+                      accept="application/json"
+                  /></label>
+                </div>
+              </div>
+            </section>
+            <section class="accordion-item" data-section="broadcast">
+              <button
+                class="accordion-trigger"
+                type="button"
+                aria-expanded="false"
+              >
+                <span><b>03</b> Broadcast Tower</span><i>+</i>
+              </button>
+              <div class="accordion-body" hidden>
+                <p class="tower-id">
+                  <span>FIXED ROOM</span><strong>ecgaming_flight_v1</strong>
+                </p>
+                <div class="button-row">
+                  <button
+                    id="start-broadcast"
+                    class="button primary"
+                    type="button"
+                  >
+                    Start broadcast</button
+                  ><button
+                    id="stop-broadcast"
+                    class="button ghost"
+                    type="button"
+                    disabled
+                  >
+                    Stop
+                  </button>
+                </div>
+                <dl class="diagnostic-list">
+                  <div>
+                    <dt>Source</dt>
+                    <dd id="broadcast-source">Not announced</dd>
+                  </div>
+                  <div>
+                    <dt>Listeners</dt>
+                    <dd id="broadcast-listeners">0</dd>
+                  </div>
+                  <div>
+                    <dt>Route</dt>
+                    <dd id="broadcast-route">—</dd>
+                  </div>
+                  <div>
+                    <dt>Round trip</dt>
+                    <dd id="broadcast-rtt">—</dd>
+                  </div>
+                  <div>
+                    <dt>Dropped</dt>
+                    <dd id="broadcast-dropped">0</dd>
+                  </div>
+                </dl>
+                <label class="check-row"
+                  ><input id="ground-log-enabled" type="checkbox" /><span
+                    >Record derived session CSV (no raw ECG)</span
+                  ></label
+                >
+                <div class="button-row">
+                  <button
+                    id="ground-log-export"
+                    class="button ghost"
+                    type="button"
+                    disabled
+                  >
+                    Export CSV</button
+                  ><button
+                    id="ground-log-reset"
+                    class="button text-button"
+                    type="button"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </section>
+            <section class="accordion-item" data-section="simulator">
+              <button
+                class="accordion-trigger"
+                type="button"
+                aria-expanded="false"
+              >
+                <span><b>04</b> Simulator</span><i>+</i>
+              </button>
+              <div class="accordion-body" hidden>
+                <div class="sim-warning">
+                  SIMULATED SIGNAL — never counts as Polar readiness
+                </div>
+                <label class="check-row"
+                  ><input id="sim-enabled" type="checkbox" /><span
+                    >Enable deterministic heart simulator</span
+                  ></label
+                >
+                <label class="field"
+                  ><span
+                    >Simulated heart rate
+                    <output id="sim-bpm-output">72 bpm</output></span
+                  ><input
+                    id="sim-bpm"
+                    type="range"
+                    min="45"
+                    max="160"
+                    value="72" /></label
+                ><label class="field"
+                  ><span
+                    >Simulated excitement
+                    <output id="sim-excite-output">0.35</output></span
+                  ><input
+                    id="sim-excite"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.35"
+                /></label>
+              </div>
+            </section>
+          </div>
+        </aside>
+        <section class="tower-display" aria-label="Live command preview">
+          <div class="tower-grid"></div>
+          <div class="tower-topline">
+            <span>COMMAND BUS · ECGFLIGHTV1</span
+            ><span id="clock">00:00:00</span>
+          </div>
+          <div class="radar-stage">
+            <div class="radar-scope">
+              <i class="sweep"></i><b class="radar-plane">✦</b
+              ><span class="radar-beat"></span>
+            </div>
+            <div class="command-readouts">
+              <article>
+                <span>ALTITUDE</span><strong id="command-altitude">+0.00</strong
+                ><meter
+                  id="command-altitude-meter"
+                  min="-1"
+                  max="1"
+                  value="0"
+                ></meter>
+              </article>
+              <article>
+                <span>THROTTLE</span><strong id="command-throttle">50%</strong
+                ><meter
+                  id="command-throttle-meter"
+                  min="0"
+                  max="1"
+                  value="0.5"
+                ></meter>
+              </article>
+              <article>
+                <span>TRAFFIC</span><strong id="command-traffic">50%</strong
+                ><meter
+                  id="command-traffic-meter"
+                  min="0"
+                  max="1"
+                  value="0.5"
+                ></meter>
+              </article>
+              <article class="beat-readout">
+                <span>BEAT COUNTER</span
+                ><strong id="command-beat">000000</strong
+                ><small id="beat-source-state">ECG R-PEAK ARMED</small>
+              </article>
+            </div>
+          </div>
+          <div class="tower-footer">
+            <span id="command-readiness"
+              >CONTROL HOLD · CONNECT POLAR OR ENABLE SIMULATOR</span
+            ><a href="../flight/">OPEN FLIGHT DECK →</a>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js"></script>
+    <script type="module" src="/src/ground-control.ts"></script>
+  </body>
+</html>

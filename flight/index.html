@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#8ed9ee" />
+    <meta
+      name="description"
+      content="Fly EC Gaming's heart-controlled airplane in a browser or WebXR headset."
+    />
+    <link rel="icon" href="../favicon.svg" />
+    <title>Flight Deck · EC Gaming</title>
+  </head>
+  <body class="flight-body">
+    <a class="skip-link" href="#flight-main">Skip to flight</a>
+    <main id="flight-main" class="flight-shell">
+      <div
+        id="game-canvas"
+        class="game-canvas"
+        aria-label="3D airplane game"
+      ></div>
+      <header class="flight-header">
+        <a class="brand brand-light" href="../"
+          ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
+          ><span>EC GAMING</span></a
+        >
+        <div class="flight-state">
+          <span id="link-dot" class="state-dot"></span
+          ><span id="link-state">GROUND LINK OFFLINE</span>
+        </div>
+        <div class="flight-actions">
+          <button
+            id="mute"
+            class="hud-button"
+            type="button"
+            aria-pressed="false"
+          >
+            SOUND ON</button
+          ><button
+            id="enter-xr"
+            class="hud-button emphasis"
+            type="button"
+            hidden
+          >
+            ENTER IMMERSIVE
+          </button>
+        </div>
+      </header>
+      <section class="flight-hud" aria-label="Flight status">
+        <div class="hud-cluster score">
+          <span>SCORE</span><strong id="score">000</strong>
+        </div>
+        <div class="hud-cluster lives">
+          <span>LIVES</span
+          ><strong id="lives" aria-label="3 lives">♥ ♥ ♥</strong>
+        </div>
+        <div class="hud-cluster signal">
+          <span>EXCITEMENT</span><strong id="hud-excitement">0.00</strong
+          ><i id="hud-bar"><b></b></i>
+        </div>
+        <div class="hud-cluster route">
+          <span>LINK</span><strong id="hud-route">—</strong
+          ><small id="hud-latency">— MS</small>
+        </div>
+      </section>
+      <section
+        id="connection-panel"
+        class="connection-panel"
+        aria-labelledby="connection-title"
+      >
+        <p class="eyebrow">FLIGHT DECK · DATA RECEIVER</p>
+        <h1 id="connection-title">Waiting at the runway.</h1>
+        <p id="connection-copy">
+          Start a Ground Control broadcast in another browser, then find it
+          here. This page never asks for Bluetooth, a camera, or a microphone.
+        </p>
+        <button id="find-ground" class="button primary" type="button">
+          Find Ground Control
+        </button>
+        <div id="source-list" class="source-list" aria-live="polite"></div>
+        <p class="fine-print">
+          Room <code>ecgaming_flight_v1</code> is public and unauthenticated.
+          Pick only a source you recognize.
+        </p>
+      </section>
+      <section id="start-panel" class="start-panel" hidden>
+        <span>GROUND LINK READY</span><strong>HEARTBEAT FLIGHT</strong
+        ><button id="start-flight" class="button primary" type="button">
+          Start flight</button
+        ><small
+          >Move left/right with A/D, arrow keys, touch, or a Quest thumbstick.
+          Altitude comes from Ground Control.</small
+        >
+      </section>
+      <section
+        id="pause-panel"
+        class="pause-panel"
+        hidden
+        aria-live="assertive"
+      >
+        <span>SIGNAL LOST</span><strong>Holding pattern</strong>
+        <p id="pause-copy">Waiting for three fresh command frames…</p>
+      </section>
+      <section id="game-over" class="game-over" hidden>
+        <span>FLIGHT COMPLETE</span><strong>GAME OVER</strong>
+        <p>Final score <b id="final-score">0</b></p>
+        <button id="restart-flight" class="button primary" type="button">
+          Fly again
+        </button>
+      </section>
+      <div class="flight-bottom">
+        <span>A / D · ← / → · DRAG · THUMBSTICK</span
+        ><label class="check-row compact"
+          ><input id="flight-log-enabled" type="checkbox" /><span
+            >SESSION CSV</span
+          ></label
+        ><button
+          id="flight-log-export"
+          class="hud-button"
+          type="button"
+          disabled
+        >
+          EXPORT LOG
+        </button>
+      </div>
+    </main>
+    <script src="/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js"></script>
+    <script type="module" src="/src/flight.ts"></script>
+  </body>
+</html>

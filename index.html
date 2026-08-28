@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07131f" />
+    <meta
+      name="description"
+      content="Fly a browser and WebXR airplane with live Polar H10 heart signals."
+    />
+    <meta property="og:title" content="EC Gaming — Heartbeat Flight" />
+    <meta
+      property="og:description"
+      content="Open-source games powered by live ECG signals."
+    />
+    <meta property="og:image" content="./og-card.png" />
+    <link rel="icon" href="./favicon.svg" />
+    <title>EC Gaming · Heartbeat Flight</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <main id="main" class="landing-shell">
+      <nav class="topbar" aria-label="Main navigation">
+        <a class="brand" href="./" aria-label="EC Gaming home"
+          ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
+          ><span>EC GAMING</span></a
+        >
+        <a class="nav-link" href="https://github.com/GeorgeFejer91/ECGaming"
+          >GitHub ↗</a
+        >
+      </nav>
+      <section class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="live-dot"></span> Open bio-signal playground
+          </p>
+          <h1>Your heartbeat.<br /><em>Your flight.</em></h1>
+          <p class="lede">
+            Turn live Polar H10 signals into altitude, speed, traffic, and
+            perfectly timed moments—on a flat screen or inside WebXR.
+          </p>
+          <div class="role-cards" aria-label="Choose a role">
+            <a class="role-card ground-role" href="./ground-control/">
+              <span class="role-index">01 · DESKTOP CHROME</span
+              ><span class="role-icon radar-icon" aria-hidden="true"
+                ><i></i
+              ></span>
+              <strong>Ground Control</strong
+              ><span
+                >Connect the Polar H10, choose the signal mapping, then
+                broadcast flight commands.</span
+              ><b>OPEN CONTROL TOWER <i>→</i></b>
+            </a>
+            <a class="role-card flight-role" href="./flight/">
+              <span class="role-index">02 · BROWSER / QUEST</span
+              ><span class="role-icon plane-icon" aria-hidden="true">✦</span>
+              <strong>Flight Deck</strong
+              ><span
+                >Find a Ground Control source and fly. Enter immersive mode from
+                a compatible headset.</span
+              ><b>OPEN FLIGHT DECK <i>→</i></b>
+            </a>
+          </div>
+        </div>
+        <div
+          class="hero-visual"
+          aria-label="Stylized airplane flying through a ring"
+        >
+          <div class="sun-disc"></div>
+          <div class="hero-ring ring-a"></div>
+          <div class="hero-ring ring-b"></div>
+          <div class="hero-plane" aria-hidden="true">
+            <span class="wing wing-left"></span><span class="fuselage"></span
+            ><span class="wing wing-right"></span><span class="tail"></span>
+          </div>
+          <svg class="heartbeat-line" viewBox="0 0 500 110" aria-hidden="true">
+            <path d="M0 70H145l18-2 11-28 16 57 17-43 13 16h280" />
+          </svg>
+          <div class="telemetry-stamp">
+            <span>ECG SIGNAL</span><strong>LIVE</strong
+            ><small>130 HZ · DATA ONLY</small>
+          </div>
+        </div>
+      </section>
+      <section class="how-it-works" aria-labelledby="how-title">
+        <p class="eyebrow">ONE SIGNAL · TWO BROWSERS</p>
+        <h2 id="how-title">Bluetooth stays on the ground.</h2>
+        <div class="flow-strip">
+          <div><span>POLAR H10</span><strong>ECG + HR/RR</strong></div>
+          <i>→</i>
+          <div><span>GROUND CONTROL</span><strong>MAP SIGNALS</strong></div>
+          <i>→</i>
+          <div><span>VDO.NINJA</span><strong>DATA BRIDGE</strong></div>
+          <i>→</i>
+          <div><span>FLIGHT DECK</span><strong>FLAT + WEBXR</strong></div>
+        </div>
+        <p class="privacy-note">
+          The relay room is public and unauthenticated. Only normalized game
+          commands and optional derived metrics are transmitted—never raw ECG
+          samples.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="/src/landing.ts"></script>
+  </body>
+</html>
