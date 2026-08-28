@@ -37,7 +37,7 @@ Ground Control exposes one-open-at-a-time aviation panels for the Polar link, fl
 | Traffic   | Manual `0.5`                    | one ring every 10–3 seconds |
 | Heartbeat | Experimental ECG R-peak         | visual and engine pulse     |
 
-The optional **heartbeat lift** action replaces the continuous altitude target; the two vertical-control modes are mutually exclusive. Horizontal steering remains local: A/D, arrow keys, touch drag, or a Quest thumbstick.
+The optional **heartbeat lift** action replaces the continuous altitude target; the two vertical-control modes are mutually exclusive. Horizontal steering remains local: A/D, arrow keys, touch drag, or a Quest thumbstick. Heartbeat Flight is an endless forward course, so steering moves the airplane laterally through the rings while the model banks and briefly yaws into the input; it does not change to an unrestricted compass heading.
 
 Polar Heart Rate Service RR notifications are available as an alternate beat source. They can contain multiple intervals in one notification, so they are useful interval data but not guaranteed exact beat-arrival timing. The ECG R-peak path reconstructs the 130 Hz sample timestamps and applies a causal adaptive detector with a 250 ms refractory period and RR cross-check. It is experimental and not a medical detector.
 

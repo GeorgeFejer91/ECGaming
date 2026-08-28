@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aircraftAttitude,
   applyRingResult,
   ringIntervalSeconds,
   ringPassed,
@@ -25,5 +26,12 @@ describe("heartbeat flight rules", () => {
       lives: 0,
       gameOver: true,
     });
+  });
+  it("banks and yaws into lateral steering without exceeding visual limits", () => {
+    expect(aircraftAttitude(3).roll).toBeCloseTo(-0.3);
+    expect(aircraftAttitude(3).yaw).toBeCloseTo(-0.105);
+    expect(aircraftAttitude(-3).roll).toBeCloseTo(0.3);
+    expect(aircraftAttitude(-3).yaw).toBeCloseTo(0.105);
+    expect(aircraftAttitude(99, 99)).toEqual({ roll: -0.48, yaw: -0.16 });
   });
 });

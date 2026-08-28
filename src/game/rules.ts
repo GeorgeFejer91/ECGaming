@@ -9,6 +9,18 @@ export const ringPassed = (
   ringY: number,
   radius = 1.92,
 ) => Math.hypot(ringX - planeX, ringY - planeY) < radius;
+
+export const aircraftAttitude = (
+  horizontalVelocity: number,
+  dragBankVelocity = 0,
+) => {
+  const lateralVelocity = horizontalVelocity + dragBankVelocity;
+  return {
+    roll: Math.max(-0.48, Math.min(0.48, -lateralVelocity * 0.1)),
+    yaw: Math.max(-0.16, Math.min(0.16, -lateralVelocity * 0.035)),
+  };
+};
+
 export const applyRingResult = (
   score: number,
   lives: number,
