@@ -32,7 +32,7 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 
 - Meta Quest Browser never opens a Bluetooth, camera, or microphone prompt.
 - Ground source can be selected and a valid configuration is shown.
-- Flat mode and immersive WebXR share score/lives/ring state.
+- Flat mode and immersive WebXR share reward score and ring state; misses remain neutral in both modes.
 - Seated local horizon remains stable; airplane bank does not rotate the camera.
 - Sustained immersive render target: at least 60 frames/second for ten minutes on the target headset.
 

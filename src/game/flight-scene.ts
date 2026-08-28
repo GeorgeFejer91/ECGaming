@@ -1,9 +1,17 @@
 import * as THREE from "three";
 import type { FlightFrame } from "../protocol/types";
+import {
+  createProceduralAircraftVisual,
+  DEFAULT_AIRCRAFT_ID,
+  disposeAircraftVisual,
+  loadAircraftVisual,
+  type AircraftId,
+} from "./aircraft";
 import type { EcgGameModule, GameSnapshot } from "./ecg-game-module";
 import {
   aircraftAttitude,
   applyRingResult,
+  headTiltSteering,
   ringIntervalSeconds,
   ringPassed,
   worldSpeed,
@@ -31,12 +39,16 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   readonly camera = new THREE.PerspectiveCamera(58, 1, 0.1, 450);
   readonly renderer: THREE.WebGLRenderer;
   readonly plane = new THREE.Group();
+  private readonly aircraftPulseRoot = new THREE.Group();
+  private aircraftVisual?: THREE.Group;
+  private propellers: THREE.Group[] = [];
+  private aircraftId: AircraftId = DEFAULT_AIRCRAFT_ID;
+  private aircraftLoadToken = 0;
   private rings: RingActor[] = [];
   private worldActors: WorldActor[] = [];
   private running = false;
   private paused = false;
   private score = 0;
-  private lives = 3;
   private frame: FlightFrame = {
     sequence: 0,
     beatCounter: 0,
@@ -54,8 +66,11 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private keys = new Set<string>();
   private touchX?: number;
   private dragBankVelocity = 0;
+  private steeringAxis = 0;
   private pulse = 0;
   private disposed = false;
+  private readonly headsetQuaternion = new THREE.Quaternion();
+  private readonly headsetEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
   constructor(private container: HTMLElement) {
     super();
@@ -101,222 +116,11 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.scene.add(disc);
   }
   private buildPlane() {
-    const yellow = new THREE.MeshStandardMaterial({
-        color: "#f4b33a",
-        roughness: 0.58,
-        metalness: 0.08,
-      }),
-      navy = new THREE.MeshStandardMaterial({
-        color: "#123a58",
-        roughness: 0.68,
-      }),
-      orange = new THREE.MeshStandardMaterial({
-        color: "#e95f37",
-        roughness: 0.62,
-      }),
-      glass = new THREE.MeshStandardMaterial({
-        color: "#71cfe0",
-        roughness: 0.18,
-        metalness: 0.24,
-      }),
-      rubber = new THREE.MeshStandardMaterial({
-        color: "#17222a",
-        roughness: 0.92,
-      }),
-      redLight = new THREE.MeshStandardMaterial({
-        color: "#ff4e43",
-        emissive: "#ff2417",
-        emissiveIntensity: 1.8,
-      }),
-      greenLight = new THREE.MeshStandardMaterial({
-        color: "#67e88d",
-        emissive: "#1ed760",
-        emissiveIntensity: 1.8,
-      });
-    const add = (
-      geometry: THREE.BufferGeometry,
-      material: THREE.Material,
-      position: [number, number, number],
-      rotation: [number, number, number] = [0, 0, 0],
-    ) => {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(...position);
-      mesh.rotation.set(...rotation);
-      mesh.castShadow = true;
-      this.plane.add(mesh);
-      return mesh;
-    };
-
-    const surface = (
-      points: [number, number][],
-      thickness: number,
-      material: THREE.Material,
-      y: number,
-    ) => {
-      const shape = new THREE.Shape();
-      points.forEach(([x, z], index) => {
-        if (index === 0) shape.moveTo(x, z);
-        else shape.lineTo(x, z);
-      });
-      shape.closePath();
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: thickness,
-        bevelEnabled: false,
-      });
-      geometry.rotateX(Math.PI / 2);
-      geometry.translate(0, thickness / 2, 0);
-      return add(geometry, material, [0, y, 0]);
-    };
-
-    // The airplane points down -Z. A tapered low wing and swept tailplane
-    // keep its silhouette readable from the game's rear chase camera.
-    add(
-      new THREE.CapsuleGeometry(0.62, 3.75, 7, 16),
-      yellow,
-      [0, 0.03, -0.05],
-      [Math.PI / 2, 0, 0],
-    );
-    add(
-      new THREE.CylinderGeometry(0.64, 0.59, 0.72, 16),
-      orange,
-      [0, 0.02, -2.18],
-      [Math.PI / 2, 0, 0],
-    );
-    add(
-      new THREE.ConeGeometry(0.59, 0.92, 16),
-      yellow,
-      [0, 0.02, -2.99],
-      [-Math.PI / 2, 0, 0],
-    );
-    add(new THREE.BoxGeometry(0.72, 0.16, 3.45), navy, [0, -0.55, 0.05]);
-
-    surface(
-      [
-        [-0.25, -0.72],
-        [-3.28, -0.04],
-        [-3, 0.77],
-        [-0.2, 0.93],
-        [0.2, 0.93],
-        [3, 0.77],
-        [3.28, -0.04],
-        [0.25, -0.72],
-      ],
-      0.17,
-      navy,
-      -0.08,
-    );
-    surface(
-      [
-        [-0.38, 0.63],
-        [-3.02, 0.57],
-        [-2.94, 0.78],
-        [-0.34, 0.88],
-      ],
-      0.055,
-      orange,
-      0.025,
-    );
-    surface(
-      [
-        [0.38, 0.63],
-        [3.02, 0.57],
-        [2.94, 0.78],
-        [0.34, 0.88],
-      ],
-      0.055,
-      orange,
-      0.025,
-    );
-    surface(
-      [
-        [-0.16, 1.22],
-        [-1.68, 1.58],
-        [-1.45, 2.16],
-        [-0.12, 1.98],
-        [0.12, 1.98],
-        [1.45, 2.16],
-        [1.68, 1.58],
-        [0.16, 1.22],
-      ],
-      0.13,
-      yellow,
-      0.12,
-    );
-
-    const finShape = new THREE.Shape();
-    finShape.moveTo(1.16, 0);
-    finShape.lineTo(1.43, 1.52);
-    finShape.lineTo(2.05, 0.32);
-    finShape.lineTo(2.18, 0);
-    finShape.closePath();
-    const finGeometry = new THREE.ShapeGeometry(finShape);
-    finGeometry.rotateY(-Math.PI / 2);
-    const fin = add(finGeometry, navy, [0, 0.25, 0]);
-    fin.material.side = THREE.DoubleSide;
-
-    const rudderShape = new THREE.Shape();
-    rudderShape.moveTo(1.72, 0.25);
-    rudderShape.lineTo(1.47, 1.34);
-    rudderShape.lineTo(2.01, 0.31);
-    rudderShape.closePath();
-    const rudderGeometry = new THREE.ShapeGeometry(rudderShape);
-    rudderGeometry.rotateY(-Math.PI / 2);
-    const rudder = add(rudderGeometry, orange, [-0.012, 0.25, 0]);
-    rudder.material.side = THREE.DoubleSide;
-
-    add(
-      new THREE.SphereGeometry(0.5, 16, 10),
-      glass,
-      [0, 0.51, -0.28],
-      [0, 0, 0],
-    ).scale.set(0.88, 0.72, 1.45);
-    add(new THREE.BoxGeometry(0.92, 0.07, 0.1), navy, [0, 0.58, -0.27]);
-
-    const propeller = new THREE.Group();
-    propeller.name = "propeller";
-    propeller.position.set(0, 0.02, -3.48);
-    for (const angle of [0, Math.PI / 2]) {
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.5, 0.09), navy);
-      blade.rotation.z = angle;
-      blade.castShadow = true;
-      propeller.add(blade);
-    }
-    this.plane.add(propeller);
-    add(
-      new THREE.CylinderGeometry(0.2, 0.2, 0.28, 12),
-      orange,
-      [0, 0.02, -3.35],
-      [Math.PI / 2, 0, 0],
-    );
-
-    for (const side of [-1, 1]) {
-      add(
-        new THREE.BoxGeometry(0.08, 0.92, 0.08),
-        navy,
-        [side * 0.72, -0.41, 0.12],
-        [0, 0, side * 0.38],
-      );
-      add(
-        new THREE.CylinderGeometry(0.23, 0.23, 0.15, 12),
-        rubber,
-        [side * 1.02, -0.79, 0.13],
-        [0, 0, Math.PI / 2],
-      );
-      add(
-        new THREE.CylinderGeometry(0.08, 0.08, 0.17, 10),
-        orange,
-        [side * 1.02, -0.79, 0.13],
-        [0, 0, Math.PI / 2],
-      );
-    }
-
-    add(new THREE.SphereGeometry(0.105, 10, 7), redLight, [-3.25, 0.01, -0.03]);
-    add(
-      new THREE.SphereGeometry(0.105, 10, 7),
-      greenLight,
-      [3.25, 0.01, -0.03],
-    );
-
+    const visual = createProceduralAircraftVisual();
+    this.aircraftPulseRoot.add(visual.root);
+    this.aircraftVisual = visual.root;
+    this.propellers = visual.propellers;
+    this.plane.add(this.aircraftPulseRoot);
     this.plane.position.set(0, 2.4, 0);
     this.scene.add(this.plane);
   }
@@ -490,16 +294,26 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.renderer.render(this.scene, this.camera);
   };
   private updateInput(delta: number) {
-    let axis =
-      (this.keys.has("a") || this.keys.has("arrowleft") ? -1 : 0) +
-      (this.keys.has("d") || this.keys.has("arrowright") ? 1 : 0);
-    for (const pad of navigator.getGamepads?.() ?? []) {
-      if (!pad) continue;
-      const candidate =
-        Math.abs(pad.axes[2] ?? 0) > 0.1
-          ? (pad.axes[2] ?? 0)
-          : (pad.axes[0] ?? 0);
-      if (Math.abs(candidate) > 0.12) axis = candidate;
+    let axis: number;
+    if (this.renderer.xr.isPresenting) {
+      const xrCamera = this.renderer.xr.getCamera();
+      const headsetCamera = xrCamera.cameras[0] ?? xrCamera;
+      headsetCamera.getWorldQuaternion(this.headsetQuaternion);
+      this.headsetEuler.setFromQuaternion(this.headsetQuaternion, "YXZ");
+      axis = headTiltSteering(this.headsetEuler.z);
+    } else {
+      const keyboard =
+        (this.keys.has("a") || this.keys.has("arrowleft") ? -1 : 0) +
+        (this.keys.has("d") || this.keys.has("arrowright") ? 1 : 0);
+      axis = clamp(this.steeringAxis + keyboard, -1, 1);
+      for (const pad of navigator.getGamepads?.() ?? []) {
+        if (!pad) continue;
+        const candidate =
+          Math.abs(pad.axes[2] ?? 0) > 0.1
+            ? (pad.axes[2] ?? 0)
+            : (pad.axes[0] ?? 0);
+        if (Math.abs(candidate) > 0.12) axis = candidate;
+      }
     }
     this.horizontalVelocity +=
       (axis * 9 - this.horizontalVelocity) * Math.min(1, delta * 7);
@@ -528,10 +342,10 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.plane.rotation.y +=
       (attitude.yaw - this.plane.rotation.y) * Math.min(1, delta * 4.5);
     this.plane.rotation.x = Math.sin(time * 0.002) * 0.025;
-    this.plane.getObjectByName("propeller")!.rotation.z +=
-      delta * (30 + this.frame.throttle * 45);
+    for (const propeller of this.propellers)
+      propeller.rotation.z += delta * (30 + this.frame.throttle * 45);
     this.pulse = Math.max(0, this.pulse - delta * 3.5);
-    this.plane.scale.setScalar(1 + this.pulse * 0.08);
+    this.aircraftPulseRoot.scale.setScalar(1 + this.pulse * 0.06);
     for (const actor of this.worldActors) {
       actor.object.position.z += speed * delta;
       if (actor.object.position.z > 25)
@@ -554,14 +368,13 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
           ring.mesh.position.x,
           ring.mesh.position.y,
         );
-        const result = applyRingResult(this.score, this.lives, passed);
+        const result = applyRingResult(this.score, passed);
         this.score = result.score;
-        this.lives = result.lives;
         if (passed) {
           this.dispatchEvent(
             event("score", {
               score: this.score,
-              lives: this.lives,
+              points: result.points,
               kind: "pass",
             }),
           );
@@ -570,19 +383,15 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
           this.dispatchEvent(
             event("score", {
               score: this.score,
-              lives: this.lives,
+              points: result.points,
               kind: "miss",
             }),
           );
-          if (result.gameOver) {
-            this.running = false;
-            this.dispatchEvent(event("gameover", this.snapshot()));
-          }
         }
-        if (ring.mesh.position.z > 24) {
-          this.scene.remove(ring.mesh);
-          this.rings.splice(this.rings.indexOf(ring), 1);
-        }
+      }
+      if (ring.mesh.position.z > 24) {
+        this.scene.remove(ring.mesh);
+        this.rings.splice(this.rings.indexOf(ring), 1);
       }
     }
   }
@@ -593,7 +402,8 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.plane.position.y +=
       (2.4 + Math.sin(time * 0.0014) * 0.18 - this.plane.position.y) *
       Math.min(1, delta * 2);
-    this.plane.getObjectByName("propeller")!.rotation.z += delta * 18;
+    for (const propeller of this.propellers)
+      propeller.rotation.z += delta * 18;
   }
   start() {
     this.running = true;
@@ -605,7 +415,6 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.rings = [];
     for (let index = 0; index < 4; index += 1) this.spawnRing(-28 - index * 32);
     this.score = 0;
-    this.lives = 3;
     this.spawnClock = 0;
     this.horizontal = 0;
     this.horizontalVelocity = 0;
@@ -613,10 +422,56 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.plane.position.set(0, 2.4, 0);
     this.plane.rotation.set(0, 0, 0);
     this.start();
-    this.dispatchEvent(event("score", { score: 0, lives: 3, kind: "restart" }));
+    this.dispatchEvent(
+      event("score", { score: 0, points: 0, kind: "restart" }),
+    );
   }
   setControls(frame: FlightFrame) {
     this.frame = { ...frame };
+  }
+  setSteering(axis: number) {
+    this.steeringAxis = Number.isFinite(axis) ? clamp(axis, -1, 1) : 0;
+  }
+  async setAircraft(requestedId: AircraftId) {
+    const token = ++this.aircraftLoadToken;
+    let visual;
+    let loadError: unknown;
+    try {
+      visual = await loadAircraftVisual(requestedId);
+    } catch (error) {
+      loadError = error;
+      visual = await loadAircraftVisual(DEFAULT_AIRCRAFT_ID);
+    }
+
+    if (this.disposed || token !== this.aircraftLoadToken) {
+      disposeAircraftVisual(visual.root);
+      return this.aircraftId;
+    }
+
+    const previous = this.aircraftVisual;
+    this.aircraftPulseRoot.clear();
+    this.aircraftPulseRoot.add(visual.root);
+    this.aircraftVisual = visual.root;
+    this.propellers = visual.propellers;
+    this.aircraftId = visual.id;
+    if (previous) disposeAircraftVisual(previous);
+    const detail = {
+      requestedId,
+      aircraftId: visual.id,
+      fallback: visual.id !== requestedId,
+    };
+    this.dispatchEvent(event("aircraftchange", detail));
+    if (loadError)
+      this.dispatchEvent(
+        event("aircrafterror", {
+          ...detail,
+          message:
+            loadError instanceof Error
+              ? loadError.message
+              : "The aircraft model could not be loaded.",
+        }),
+      );
+    return visual.id;
   }
   setPaused(value: boolean) {
     if (this.paused === value) return;
@@ -632,8 +487,8 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       running: this.running,
       paused: this.paused,
       score: this.score,
-      lives: this.lives,
       immersive: this.renderer.xr.isPresenting,
+      aircraftId: this.aircraftId,
     };
   }
   async immersiveSupported() {
@@ -657,7 +512,9 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   }
   dispose() {
     this.disposed = true;
+    this.aircraftLoadToken += 1;
     this.renderer.setAnimationLoop(null);
+    if (this.aircraftVisual) disposeAircraftVisual(this.aircraftVisual);
     this.renderer.dispose();
     this.container.replaceChildren();
     removeEventListener("resize", this.resize);

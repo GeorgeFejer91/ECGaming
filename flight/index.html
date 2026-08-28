@@ -48,11 +48,7 @@
       </header>
       <section class="flight-hud" aria-label="Flight status">
         <div class="hud-cluster score">
-          <span>SCORE</span><strong id="score">000</strong>
-        </div>
-        <div class="hud-cluster lives">
-          <span>LIVES</span
-          ><strong id="lives" aria-label="3 lives">♥ ♥ ♥</strong>
+          <span>REWARD POINTS</span><strong id="score">000</strong>
         </div>
         <div class="hud-cluster signal">
           <span>EXCITEMENT</span><strong id="hud-excitement">0.00</strong
@@ -84,13 +80,21 @@
         </p>
       </section>
       <section id="start-panel" class="start-panel" hidden>
-        <span>GROUND LINK READY</span><strong>HEARTBEAT FLIGHT</strong
-        ><button id="start-flight" class="button primary" type="button">
+        <span>GROUND LINK READY</span><strong>CHOOSE YOUR PLANE</strong>
+        <label class="aircraft-picker" for="flight-aircraft">
+          <span>Aircraft</span>
+          <select
+            id="flight-aircraft"
+            aria-describedby="flight-aircraft-status"
+          ></select>
+          <small id="flight-aircraft-status" role="status">Ready to fly</small>
+        </label>
+        <button id="start-flight" class="button primary" type="button">
           Start flight</button
         ><small
-          >Steer left/right with A/D, arrow keys, touch drag, or a Quest
-          thumbstick. The airplane banks into the turn; altitude comes from
-          Ground Control.</small
+          >On a screen, steer with A/D, arrow keys, touch drag, or a
+          thumbstick. In immersive mode, continuously tilt your head left or
+          right to steer; altitude comes from Ground Control.</small
         >
       </section>
       <section
@@ -102,15 +106,8 @@
         <span>SIGNAL LOST</span><strong>Holding pattern</strong>
         <p id="pause-copy">Waiting for three fresh command frames…</p>
       </section>
-      <section id="game-over" class="game-over" hidden>
-        <span>FLIGHT COMPLETE</span><strong>GAME OVER</strong>
-        <p>Final score <b id="final-score">0</b></p>
-        <button id="restart-flight" class="button primary" type="button">
-          Fly again
-        </button>
-      </section>
       <div class="flight-bottom">
-        <span>A / D · ← / → · DRAG · THUMBSTICK</span
+        <span>A / D · ← / → · DRAG · VR HEAD TILT</span
         ><label class="check-row compact"
           ><input id="flight-log-enabled" type="checkbox" /><span
             >SESSION CSV</span

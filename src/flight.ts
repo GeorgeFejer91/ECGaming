@@ -3,6 +3,12 @@ import { FlightFlags, isFreshBeat } from "./protocol/flight-frame";
 import { FlightReceiver } from "./protocol/remote";
 import type { FlightReceiverSnapshot } from "./protocol/types";
 import { createFlightScene } from "./game/flight-scene";
+import {
+  AIRCRAFT_CATALOG,
+  DEFAULT_AIRCRAFT_ID,
+  isAircraftId,
+  type AircraftId,
+} from "./game/aircraft";
 import { FlightSound } from "./game/sound";
 import { SessionCsvLog } from "./logging/session-log";
 
@@ -15,6 +21,14 @@ const receiver = new FlightReceiver(),
   game = createFlightScene(element("game-canvas")),
   sound = new FlightSound(),
   log = new SessionCsvLog();
+const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
+const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
+let selectedAircraftId: AircraftId =
+  persistedAircraftId && isAircraftId(persistedAircraftId)
+    ? persistedAircraftId
+    : DEFAULT_AIRCRAFT_ID,
+  aircraftReady: Promise<void> = Promise.resolve(),
+  aircraftRequest = 0;
 let started = false,
   muted = false,
   lastBeatCounter: number | undefined,
@@ -22,6 +36,47 @@ let started = false,
   resumeCountdown = 0,
   lastLogAt = -Infinity,
   sourceSignature = "";
+
+function selectAircraft(rawId: string) {
+  const id = isAircraftId(rawId) ? rawId : DEFAULT_AIRCRAFT_ID;
+  const request = ++aircraftRequest;
+  const select = element<HTMLSelectElement>("flight-aircraft");
+  select.disabled = true;
+  setText("flight-aircraft-status", "Loading aircraft…");
+  aircraftReady = game
+    .setAircraft(id)
+    .then((actualId) => {
+      if (request !== aircraftRequest) return;
+      selectedAircraftId = actualId;
+      select.value = actualId;
+      localStorage.setItem(AIRCRAFT_KEY, actualId);
+      setText("flight-aircraft-status", "Propeller ready · sized for every ring");
+    })
+    .catch((error) => {
+      if (request !== aircraftRequest) return;
+      console.error(error);
+      setText("flight-aircraft-status", "Aircraft could not be loaded");
+    })
+    .finally(() => {
+      if (request === aircraftRequest) select.disabled = false;
+    });
+  return aircraftReady;
+}
+
+function hydrateAircraftSelector() {
+  const select = element<HTMLSelectElement>("flight-aircraft");
+  select.replaceChildren(
+    ...AIRCRAFT_CATALOG.map(({ id, label }) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = label;
+      return option;
+    }),
+  );
+  select.value = selectedAircraftId;
+  select.addEventListener("change", () => void selectAircraft(select.value));
+  void selectAircraft(selectedAircraftId);
+}
 
 function renderSources(state: FlightReceiverSnapshot) {
   const nextSignature = state.sources
@@ -132,7 +187,6 @@ function acceptFrame(state: FlightReceiverSnapshot) {
       quality: frame.quality,
       flags: frame.flags,
       score: game.snapshot().score,
-      lives: game.snapshot().lives,
     });
     element<HTMLButtonElement>("flight-log-export").disabled = log.size === 0;
   }
@@ -179,11 +233,11 @@ async function findGround() {
 async function startFlight() {
   const state = receiver.snapshot();
   if (!isReady(state)) return;
+  await aircraftReady;
   await sound.unlock();
   started = true;
   element("start-panel").hidden = true;
   element("connection-panel").hidden = true;
-  element("game-over").hidden = true;
   game.restart();
   if (element<HTMLInputElement>("flight-log-enabled").checked)
     log.add({
@@ -192,19 +246,8 @@ async function startFlight() {
       session_id: state.config?.sessionId ?? "",
       mode: "flat",
       simulation: Boolean(state.latest!.flags & FlightFlags.simulation),
+      aircraft: selectedAircraftId,
     });
-}
-function restart() {
-  started = false;
-  lastBeatCounter = undefined;
-  const state = receiver.snapshot();
-  element("game-over").hidden = true;
-  if (isReady(state)) {
-    started = true;
-    game.restart();
-  } else {
-    element("connection-panel").hidden = false;
-  }
 }
 
 receiver.addEventListener("statechange", ((event: CustomEvent) =>
@@ -219,41 +262,23 @@ receiver.addEventListener("frame", ((event: CustomEvent) => {
   acceptFrame(event.detail);
 }) as EventListener);
 game.addEventListener("score", ((event: CustomEvent) => {
-  const { score, lives, kind } = event.detail;
+  const { score, points, kind } = event.detail;
   setText("score", String(score).padStart(3, "0"));
-  setText(
-    "lives",
-    Array.from({ length: 3 }, (_, index) => (index < lives ? "♥" : "·")).join(
-      " ",
-    ),
-  );
-  element("lives").setAttribute("aria-label", `${lives} lives`);
   if (kind === "pass") sound.ring(true);
-  if (kind === "miss") sound.ring(false);
-  if (element<HTMLInputElement>("flight-log-enabled").checked)
+  if (
+    kind !== "restart" &&
+    element<HTMLInputElement>("flight-log-enabled").checked
+  )
     log.add({
       event: kind,
       score,
-      lives,
+      points,
       mode: game.snapshot().immersive ? "webxr" : "flat",
-    });
-}) as EventListener);
-game.addEventListener("gameover", ((event: CustomEvent) => {
-  started = false;
-  setText("final-score", String(event.detail.score));
-  element("game-over").hidden = false;
-  if (element<HTMLInputElement>("flight-log-enabled").checked)
-    log.add({
-      event: "game_over",
-      score: event.detail.score,
-      lives: 0,
-      mode: event.detail.immersive ? "webxr" : "flat",
     });
 }) as EventListener);
 
 element("find-ground").addEventListener("click", () => void findGround());
 element("start-flight").addEventListener("click", () => void startFlight());
-element("restart-flight").addEventListener("click", restart);
 element<HTMLButtonElement>("mute").addEventListener("click", (event) => {
   muted = !muted;
   sound.setMuted(muted);
@@ -293,3 +318,4 @@ addEventListener("beforeunload", () => {
   void receiver.stop();
   game.dispose();
 });
+hydrateAircraftSelector();

@@ -21,11 +21,28 @@ export const aircraftAttitude = (
   };
 };
 
-export const applyRingResult = (
-  score: number,
-  lives: number,
-  passed: boolean,
-) =>
-  passed
-    ? { score: score + 1, lives, gameOver: false }
-    : { score, lives: Math.max(0, lives - 1), gameOver: lives <= 1 };
+/**
+ * Maps headset roll to a continuous steering axis. WebXR's positive roll is a
+ * right-handed rotation around +Z, so it maps to leftward (-1) steering.
+ */
+export const headTiltSteering = (
+  rollRadians: number,
+  deadzoneRadians = (4 * Math.PI) / 180,
+  saturationRadians = (28 * Math.PI) / 180,
+) => {
+  if (!Number.isFinite(rollRadians)) return 0;
+  const deadzone = Math.max(0, deadzoneRadians);
+  const saturation = Math.max(deadzone + Number.EPSILON, saturationRadians);
+  const magnitude = Math.abs(rollRadians);
+  if (magnitude <= deadzone) return 0;
+  const normalized = Math.min(
+    1,
+    (magnitude - deadzone) / (saturation - deadzone),
+  );
+  return -Math.sign(rollRadians) * normalized;
+};
+
+export const applyRingResult = (score: number, passed: boolean) => {
+  const points = passed ? 1 : 0;
+  return { score: score + points, points };
+};

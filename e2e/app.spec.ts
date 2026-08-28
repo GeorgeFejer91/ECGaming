@@ -42,6 +42,16 @@ test("Smartphone Flight offers an honest fallback and a playable simulator", asy
     } catch {}
   });
   await page.goto("./mobile/");
+  const aircraft = page.getByLabel("Choose your plane");
+  await expect(aircraft).toBeEnabled();
+  expect(await aircraft.locator("option").count()).toBeGreaterThanOrEqual(7);
+  await aircraft.selectOption("og-biplane");
+  await expect(page.locator("#mobile-aircraft-status")).toContainText(
+    "sized for every ring",
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem("ecgaming-aircraft-v1")),
+  ).toBe("og-biplane");
   await expect(page.locator("#mobile-support")).toContainText(
     "DIRECT BLUETOOTH UNAVAILABLE",
   );
@@ -57,6 +67,25 @@ test("Smartphone Flight offers an honest fallback and a playable simulator", asy
   await expect(page.locator("#mobile-state")).toHaveText("SIMULATED READY");
   await expect(page.locator("#mobile-controls")).not.toHaveClass(/is-open/);
   await expect(page.locator("#mobile-hr")).toHaveText("72");
+  await expect(page.locator("#lives")).toHaveCount(0);
+  const left = page.getByRole("button", {
+    name: "Hold to steer airplane left",
+  });
+  const right = page.getByRole("button", {
+    name: "Hold to steer airplane right",
+  });
+  await expect(left).toBeVisible();
+  await expect(right).toBeVisible();
+  await left.dispatchEvent("pointerdown", {
+    pointerId: 7,
+    pointerType: "touch",
+  });
+  await expect(left).toHaveAttribute("aria-pressed", "true");
+  await left.dispatchEvent("pointerup", {
+    pointerId: 7,
+    pointerType: "touch",
+  });
+  await expect(left).toHaveAttribute("aria-pressed", "false");
 });
 
 test("Smartphone Flight requests Polar from the Connect tap", async ({
@@ -85,6 +114,25 @@ test("Smartphone Flight requests Polar from the Connect tap", async ({
     .poll(() => page.evaluate(() => (window as any).__bluetoothRequests))
     .toBe(1);
   await expect(page.locator("#mobile-state")).toHaveText("PAIRING FAILED");
+});
+
+test("every catalog aircraft loads without falling back", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("./mobile/");
+  const aircraft = page.getByLabel("Choose your plane");
+  await expect(aircraft).toBeEnabled();
+  const ids = await aircraft.locator("option").evaluateAll((options) =>
+    options.map((option) => (option as HTMLOptionElement).value),
+  );
+  expect(ids).toHaveLength(21);
+  for (const id of ids) {
+    await aircraft.selectOption(id);
+    await expect(aircraft).toBeEnabled();
+    await expect(aircraft).toHaveValue(id);
+    await expect(page.locator("#mobile-aircraft-status")).toContainText(
+      "sized for every ring",
+    );
+  }
 });
 
 test("Ground Control keeps exactly one aviation accordion open", async ({
@@ -139,6 +187,14 @@ test("Flight receives mocked commands without requesting Bluetooth or media", as
   await expect(page.getByRole("button", { name: "Start flight" })).toBeVisible({
     timeout: 5000,
   });
+  await expect(page.getByLabel("Aircraft")).toBeEnabled();
+  expect(
+    await page.getByLabel("Aircraft").locator("option").count(),
+  ).toBeGreaterThanOrEqual(7);
+  await expect(page.locator("#start-panel")).toContainText(
+    "continuously tilt your head left or right",
+  );
+  await expect(page.locator("#lives")).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).__authority)).toEqual({
     bluetooth: 0,
     media: 0,

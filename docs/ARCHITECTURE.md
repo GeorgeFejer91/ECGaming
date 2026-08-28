@@ -7,7 +7,7 @@ EC Gaming keeps acquisition, command transport, and rendering in explicit author
 | Signal    | Ground Control or Smartphone Flight       | Web Bluetooth, Polar PMD ECG, HR/RR, derived metrics, R-peak estimates | raw ECG transport                |
 | Control   | Ground Control or Smartphone Flight       | mappings, smoothing, readiness, normalized commands                    | unsafe silent fallback           |
 | Transport | Ground Control + Flight Deck network path | discovery, reliable config, low-latency frames, diagnostics            | phone-direct mode, audio/video   |
-| Game      | Flight Deck or Smartphone Flight          | input, physics, rings, score/lives, audio, flat/WebXR render           | signal derivation in Flight Deck |
+| Game      | Flight Deck or Smartphone Flight          | input, physics, rings, reward score, audio, flat/WebXR render          | signal derivation in Flight Deck |
 | Export    | each role                                 | bounded opt-in derived CSV                                             | background upload and raw ECG    |
 
 The `EcgGameModule` interface isolates the reusable game contract: start/restart, pause, accept a `FlightFrame`, receive a heartbeat, enter immersive mode, and expose a small snapshot. A future runner can implement the same interface without owning Polar or VDO.Ninja code.

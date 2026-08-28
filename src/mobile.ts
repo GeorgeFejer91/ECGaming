@@ -1,5 +1,11 @@
 import "./styles.css";
 import { createFlightScene } from "./game/flight-scene";
+import {
+  AIRCRAFT_CATALOG,
+  DEFAULT_AIRCRAFT_ID,
+  isAircraftId,
+  type AircraftId,
+} from "./game/aircraft";
 import { FlightSound } from "./game/sound";
 import { SessionCsvLog } from "./logging/session-log";
 import { FlightFlags } from "./protocol/flight-frame";
@@ -26,6 +32,8 @@ const clamp = (value: number, minimum = 0, maximum = 1) =>
   Math.max(minimum, Math.min(maximum, value));
 
 const SETTINGS_KEY = "ecgaming-mobile-settings-v1";
+const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
+const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
 const session = new PolarH10BrowserSession();
 const detector = new CausalRPeakDetector(130);
 const game = createFlightScene(element("game-canvas"));
@@ -33,6 +41,10 @@ const sound = new FlightSound();
 const log = new SessionCsvLog();
 const metrics: Record<string, number> = {};
 const ecgSamples: number[] = [];
+const steeringPointers = new Map<
+  number,
+  { axis: -1 | 1; button: HTMLButtonElement }
+>();
 const smoothers = {
   altitude: new AttackReleaseSmoother(0),
   throttle: new AttackReleaseSmoother(0.5),
@@ -62,6 +74,123 @@ let settings = sanitizeMobileSettings(
   wakeLock: { release?: () => Promise<void> } | undefined,
   resumeTimer: number | undefined,
   latestCommands = { altitude: 0, throttle: 0.5, traffic: 0.5 };
+let selectedAircraftId: AircraftId =
+  persistedAircraftId && isAircraftId(persistedAircraftId)
+    ? persistedAircraftId
+    : DEFAULT_AIRCRAFT_ID,
+  aircraftReady: Promise<void> = Promise.resolve(),
+  aircraftRequest = 0,
+  rewardTimer: number | undefined;
+
+function selectAircraft(rawId: string) {
+  const id = isAircraftId(rawId) ? rawId : DEFAULT_AIRCRAFT_ID;
+  const request = ++aircraftRequest;
+  const select = element<HTMLSelectElement>("mobile-aircraft");
+  select.disabled = true;
+  setText("mobile-aircraft-status", "Loading aircraft…");
+  aircraftReady = game
+    .setAircraft(id)
+    .then((actualId) => {
+      if (request !== aircraftRequest) return;
+      selectedAircraftId = actualId;
+      select.value = actualId;
+      localStorage.setItem(AIRCRAFT_KEY, actualId);
+      setText("mobile-aircraft-status", "Propeller ready · sized for every ring");
+    })
+    .catch((error) => {
+      if (request !== aircraftRequest) return;
+      console.error(error);
+      setText("mobile-aircraft-status", "Aircraft could not be loaded");
+    })
+    .finally(() => {
+      if (request === aircraftRequest) select.disabled = false;
+    });
+  return aircraftReady;
+}
+
+function hydrateAircraftSelector() {
+  const select = element<HTMLSelectElement>("mobile-aircraft");
+  select.replaceChildren(
+    ...AIRCRAFT_CATALOG.map(({ id, label }) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = label;
+      return option;
+    }),
+  );
+  select.value = selectedAircraftId;
+  select.addEventListener("change", () => void selectAircraft(select.value));
+  void selectAircraft(selectedAircraftId);
+}
+
+function updateSteering() {
+  const latest = Array.from(steeringPointers.values()).at(-1);
+  game.setSteering(latest?.axis ?? 0);
+}
+
+function releaseSteering(pointerId?: number) {
+  if (pointerId === undefined) {
+    for (const { button } of steeringPointers.values()) {
+      button.classList.remove("is-held");
+      button.setAttribute("aria-pressed", "false");
+    }
+    steeringPointers.clear();
+  } else {
+    const active = steeringPointers.get(pointerId);
+    steeringPointers.delete(pointerId);
+    if (
+      active &&
+      !Array.from(steeringPointers.values()).some(
+        ({ button }) => button === active.button,
+      )
+    ) {
+      active.button.classList.remove("is-held");
+      active.button.setAttribute("aria-pressed", "false");
+    }
+  }
+  updateSteering();
+}
+
+function bindSteeringButton(id: string, axis: -1 | 1) {
+  const button = element<HTMLButtonElement>(id);
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    steeringPointers.set(event.pointerId, { axis, button });
+    button.classList.add("is-held");
+    button.setAttribute("aria-pressed", "true");
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch {
+      /* Pointer capture is optional on older mobile browsers. */
+    }
+    updateSteering();
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+    button.addEventListener(type, (event) =>
+      releaseSteering((event as PointerEvent).pointerId),
+    );
+}
+
+function celebrate(points: number, score: number) {
+  const reward = element("mobile-reward");
+  const scoreCard = element("mobile-score-card");
+  const cheers = ["RING CLEARED!", "YAY!", "BEAUTIFUL!", "NICE FLYING!"];
+  setText("mobile-reward-copy", cheers[score % cheers.length]);
+  setText("mobile-reward-points", `+${Math.max(1, points)}`);
+  if (rewardTimer) clearTimeout(rewardTimer);
+  reward.hidden = false;
+  reward.classList.remove("is-visible");
+  scoreCard.classList.remove("is-rewarded");
+  void reward.offsetWidth;
+  reward.classList.add("is-visible");
+  scoreCard.classList.add("is-rewarded");
+  rewardTimer = window.setTimeout(() => {
+    reward.classList.remove("is-visible");
+    scoreCard.classList.remove("is-rewarded");
+    reward.hidden = true;
+    rewardTimer = undefined;
+  }, 1_450);
+}
 
 function drawEcg() {
   const canvas = element<HTMLCanvasElement>("mobile-ecg"),
@@ -392,7 +521,6 @@ function updateLoop(now: number) {
       quality: frame.quality,
       flags: frame.flags,
       score: game.snapshot().score,
-      lives: game.snapshot().lives,
     });
     element<HTMLButtonElement>("mobile-log-export").disabled = log.size === 0;
   }
@@ -435,7 +563,9 @@ function hydrateSettings() {
 }
 
 function setDrawer(open: boolean) {
+  if (open) releaseSteering();
   element("mobile-controls").classList.toggle("is-open", open);
+  element("mobile-shell").classList.toggle("has-open-controls", open);
   const toggle = element<HTMLButtonElement>("mobile-controls-toggle");
   toggle.setAttribute("aria-expanded", String(open));
 }
@@ -454,12 +584,13 @@ async function startFlight() {
     setDrawer(false);
     return;
   }
+  await aircraftReady;
   await sound.unlock();
   void requestWakeLock();
   started = true;
   signalHeld = false;
   element("mobile-pause").hidden = true;
-  element("mobile-game-over").hidden = true;
+  element("mobile-steering").hidden = false;
   game.restart();
   setDrawer(false);
   if (element<HTMLInputElement>("mobile-log-enabled").checked)
@@ -469,19 +600,8 @@ async function startFlight() {
       simulation: simulated,
       altitude_metric: mappings.altitude.metric,
       beat_source: mappings.beatSource,
+      aircraft: selectedAircraftId,
     });
-}
-
-function restartFlight() {
-  if (!currentReady) {
-    started = false;
-    setDrawer(true);
-    return;
-  }
-  started = true;
-  signalHeld = false;
-  element("mobile-game-over").hidden = true;
-  game.restart();
 }
 
 function renderCompatibility() {
@@ -520,7 +640,8 @@ function bindActions() {
     setDrawer(true),
   );
   element("mobile-start").addEventListener("click", () => void startFlight());
-  element("mobile-restart").addEventListener("click", restartFlight);
+  bindSteeringButton("mobile-steer-left", -1);
+  bindSteeringButton("mobile-steer-right", 1);
   for (const id of [
     "mobile-altitude-mode",
     "mobile-beat-source",
@@ -579,30 +700,23 @@ function bindActions() {
 }
 
 game.addEventListener("score", ((event: CustomEvent) => {
-  const { score, lives, kind } = event.detail;
+  const { score, points = 1, kind } = event.detail;
   setText("score", String(score).padStart(3, "0"));
-  setText(
-    "lives",
-    Array.from({ length: 3 }, (_, index) => (index < lives ? "♥" : "·")).join(
-      " ",
-    ),
-  );
-  element("lives").setAttribute("aria-label", `${lives} lives`);
-  if (kind === "pass") sound.ring(true);
-  if (kind === "miss") sound.ring(false);
-}) as EventListener);
-
-game.addEventListener("gameover", ((event: CustomEvent) => {
-  started = false;
-  signalHeld = false;
-  void wakeLock?.release?.();
-  wakeLock = undefined;
-  setText("mobile-final-score", String(event.detail.score));
-  element("mobile-game-over").hidden = false;
+  if (kind === "pass") {
+    sound.ring(true);
+    celebrate(points, score);
+  }
+  if (
+    kind !== "restart" &&
+    element<HTMLInputElement>("mobile-log-enabled").checked
+  )
+    log.add({ event: kind, score, points, mode: "mobile-direct" });
 }) as EventListener);
 
 addEventListener("beforeunload", () => {
   if (resumeTimer) clearInterval(resumeTimer);
+  if (rewardTimer) clearTimeout(rewardTimer);
+  releaseSteering();
   void wakeLock?.release?.();
   void session.disconnect({ emit: false });
   game.dispose();
@@ -612,7 +726,9 @@ document.addEventListener("visibilitychange", () => {
 });
 
 hydrateSettings();
+hydrateAircraftSelector();
 renderCompatibility();
 bindActions();
+setDrawer(true);
 showMetrics();
 requestAnimationFrame(updateLoop);

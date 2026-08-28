@@ -54,10 +54,8 @@
         <div>
           <span>CONTROL</span><strong id="mobile-signal-value">--</strong>
         </div>
-        <div><span>SCORE</span><strong id="score">000</strong></div>
-        <div>
-          <span>LIVES</span
-          ><strong id="lives" aria-label="3 lives">♥ ♥ ♥</strong>
+        <div id="mobile-score-card">
+          <span>REWARDS</span><strong id="score">000</strong>
         </div>
       </section>
 
@@ -263,6 +261,16 @@
         </details>
 
         <div class="mobile-start-block">
+          <label class="aircraft-picker" for="mobile-aircraft">
+            <span>Choose your plane</span>
+            <select
+              id="mobile-aircraft"
+              aria-describedby="mobile-aircraft-status"
+            ></select>
+            <small id="mobile-aircraft-status" role="status"
+              >Ready to fly</small
+            >
+          </label>
           <p id="mobile-ready-copy">
             Connect a worn H10 or enable the simulator.
           </p>
@@ -275,8 +283,8 @@
             Start flight
           </button>
           <small
-            >Drag across the sky to steer. The airplane moves sideways and banks
-            into your turn.</small
+            >Hold the left or right flight button to steer. The airplane banks
+            smoothly into your turn.</small
           >
         </div>
 
@@ -305,15 +313,47 @@
         </button>
       </section>
 
-      <section id="mobile-game-over" class="game-over" hidden>
-        <span>FLIGHT COMPLETE</span><strong>GAME OVER</strong>
-        <p>Final score <b id="mobile-final-score">0</b></p>
-        <button id="mobile-restart" class="button primary" type="button">
-          Fly again
-        </button>
-      </section>
+      <div
+        id="mobile-reward"
+        class="mobile-reward"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        hidden
+      >
+        <span id="mobile-reward-copy">RING CLEARED!</span>
+        <strong id="mobile-reward-points">+1</strong>
+        <div class="reward-sparks" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
 
-      <div class="mobile-steer-hint">← DRAG SKY · BANK & STEER →</div>
+      <div
+        id="mobile-steering"
+        class="mobile-steering"
+        aria-label="Manual airplane steering"
+        hidden
+      >
+        <button
+          id="mobile-steer-left"
+          class="mobile-steer-button left"
+          type="button"
+          aria-label="Hold to steer airplane left"
+          aria-pressed="false"
+        >
+          <b aria-hidden="true">←</b><span>HOLD LEFT</span>
+        </button>
+        <button
+          id="mobile-steer-right"
+          class="mobile-steer-button right"
+          type="button"
+          aria-label="Hold to steer airplane right"
+          aria-pressed="false"
+        >
+          <b aria-hidden="true">→</b><span>HOLD RIGHT</span>
+        </button>
+      </div>
+      <div class="mobile-steer-hint">HOLD TO BANK &amp; STEER</div>
     </main>
     <script type="module" src="/src/mobile.ts"></script>
   </body>

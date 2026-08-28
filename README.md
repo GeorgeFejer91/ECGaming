@@ -1,6 +1,6 @@
 # EC Gaming
 
-**EC Gaming turns live ECG-derived signals into browser games.** The first game, Heartbeat Flight, is an original low-poly airplane experience that runs as a normal 3D web app and can enter immersive WebXR on a compatible headset.
+**EC Gaming turns live ECG-derived signals into browser games.** The first game, Heartbeat Flight, is a low-poly airplane experience that runs as a normal 3D web app and can enter immersive WebXR on a compatible headset.
 
 [Play Heartbeat Flight](https://georgefejer91.github.io/ECGaming/) · [Protocol](docs/PROTOCOL.md) · [Hardware validation](docs/HARDWARE-VALIDATION.md)
 
@@ -37,15 +37,17 @@ Ground Control exposes one-open-at-a-time aviation panels for the Polar link, fl
 | Traffic   | Manual `0.5`                    | one ring every 10–3 seconds |
 | Heartbeat | Experimental ECG R-peak         | visual and engine pulse     |
 
-The optional **heartbeat lift** action replaces the continuous altitude target; the two vertical-control modes are mutually exclusive. Horizontal steering remains local: A/D, arrow keys, touch drag, or a Quest thumbstick. Heartbeat Flight is an endless forward course, so steering moves the airplane laterally through the rings while the model banks and briefly yaws into the input; it does not change to an unrestricted compass heading.
+The optional **heartbeat lift** action replaces the continuous altitude target; the two vertical-control modes are mutually exclusive. Horizontal steering remains local. On desktop, use A/D, the arrow keys, touch drag, or a thumbstick. On Smartphone Flight, hold the large left or right button in the corresponding bottom corner. In immersive WebXR, continuous headset tilt is the primary steering input: tilt left or right to move and bank in that direction. Heartbeat Flight is an endless forward course, so steering moves the airplane laterally through the rings while the model banks and briefly yaws into the input; it does not change to an unrestricted compass heading.
+
+Choose the airplane from the selector on the Flight Deck or Smartphone Flight start menu. The catalog contains the original ECGaming airplane plus redistributable models from OpenGameArt, Tiny Plane Asset Pack, Poly Pizza, and Magic Games, including all 15 Tiny Plane variants. Every selection is centered, oriented, and uniformly scaled at runtime to stay within the ring's safe opening. ECGaming also adds and animates its own propeller on every imported model; the project does not claim that the source authors supplied that animation.
 
 Polar Heart Rate Service RR notifications are available as an alternate beat source. They can contain multiple intervals in one notification, so they are useful interval data but not guaranteed exact beat-arrival timing. The ECG R-peak path reconstructs the 130 Hz sample timestamps and applies a causal adaptive detector with a 250 ms refractory period and RR cross-check. It is experimental and not a medical detector.
 
 ## Game rules
 
 - Fly through a ring: **+1 point**.
-- Miss a ring: **lose one life**.
-- Three lives; restart after game over.
+- A successful pass triggers a bright score celebration on Smartphone Flight.
+- Miss a ring: keep flying. There are no lives, penalties, or game-over interruption.
 - If command data is absent for two seconds, play pauses instead of silently falling back to manual altitude.
 - Three consecutive fresh frames repair the link, followed by a visible three-second countdown.
 - Heartbeat events older than 250 ms are never replayed as late or stacked actions.
@@ -93,7 +95,9 @@ src/protocol/          versioned frames and VDO.Ninja transport
 src/game/              reusable game module and Heartbeat Flight
 src/logging/           opt-in bounded derived CSV
 src/vendor/            BSD Affect Tracker signal code
+public/assets/aircraft/ redistributable aircraft models in runtime GLB form
 public/vendor/         MPL VDO.Ninja SDK and its notices
+scripts/                reproducible aircraft conversion and preview helpers
 ```
 
 `EcgGameModule` is the small game boundary intended for future ECG games, including a heartbeat-synchronized runner. Heartbeat Flight is v1; the runner is not included yet.
@@ -106,6 +110,6 @@ EC Gaming is for games, education, and research prototyping. It is **not a medic
 
 ## License and provenance
 
-EC Gaming is released under the [BSD 3-Clause License](LICENSE). The airplane, rings, terrain, clouds, town, audio, and game logic are original procedural work; no Unity Asset Store/Synty assets or old unlicensed Unity game code are redistributed.
+EC Gaming's original code and procedural assets are released under the [BSD 3-Clause License](LICENSE). The optional aircraft catalog also includes redistributable CC0 and Creative Commons Attribution models. Those aircraft retain their own licenses and author credits; ECGaming's normalization and animated-propeller additions do not replace the source licenses. No Unity Asset Store/Synty assets or old unlicensed Unity game code are redistributed.
 
 The Polar browser signal layer is reused from Affect Tracker under BSD-3-Clause. The vendored VDO.Ninja SDK remains MPL-2.0. Three.js is MIT. Self-hosted Inter and Barlow Condensed fonts are OFL-1.1. Full notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

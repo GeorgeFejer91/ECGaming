@@ -25,6 +25,21 @@ The ECG Flight adapter is independently implemented as BSD-3-Clause project code
 
 Inter and Barlow Condensed are self-hosted through Fontsource packages and licensed under the SIL Open Font License 1.1. Their package license files are retained by npm in `node_modules` during development and their font binaries are included in the production bundle.
 
+## Aircraft models
+
+The following redistributable aircraft are included under `public/assets/aircraft/`. Author names, source pages, and governing licenses are retained here prominently:
+
+- **Low poly cartoon plane** by **alpaqagames** — [source](https://opengameart.org/content/low-poly-cartoon-plane), [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Low-Poly Biplane** by **mfep** — [source](https://opengameart.org/content/low-poly-biplane), [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Tiny Plane Asset Pack** by **styloo**, including all 15 supplied FBX variants — [source](https://styloo.itch.io/plane), [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
+- **very cute airplane** by **Akash Rudra** — [source](https://poly.pizza/m/3UtIosDm9u-), [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Small Airplane** by **Vojtěch Balák** — [source](https://poly.pizza/m/7cvx6ex-xfL), [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Low Poly Airplane** by **Magic Games** — [source](https://magic-games.itch.io/low-poly-airplane), [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+Modifications: source files were downloaded and, where necessary, converted to self-contained runtime GLB files. ECGaming centers, uniformly scales, and orients each model at runtime as needed so it fits the safe opening of every gameplay ring. ECGaming adds its own animated propeller to each imported aircraft. That propeller and its animation are project work; no source-authored propeller animation is claimed. The conversion helper is `scripts/convert_aircraft.py`.
+
+Copies of the applicable Creative Commons legal code and the Magic Games source notice are retained in `public/assets/aircraft/licenses/`.
+
 ## Original game assets
 
-All runtime airplane, ring, terrain, cloud, town, and audio assets are generated procedurally by this repository. The social card is an original generated asset. No Unity Asset Store, Synty, or old Unity repository assets/code are redistributed.
+The ECGaming Classic airplane, rings, terrain, clouds, town, audio, and game logic are original procedural work. The social card is an original generated asset. No Unity Asset Store, Synty, or old Unity repository assets/code are redistributed.
