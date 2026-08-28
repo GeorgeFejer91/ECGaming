@@ -189,6 +189,102 @@ export type AircraftId = (typeof AIRCRAFT_CATALOG)[number]["id"];
 export type AircraftCatalogEntry = (typeof AIRCRAFT_CATALOG)[number];
 export const DEFAULT_AIRCRAFT_ID: AircraftId = "ecgaming-classic";
 
+export interface AircraftPersona {
+  name: string;
+  tagline: string;
+}
+
+/** Player-facing hangar callsigns; source/credit labels remain in the catalog. */
+export const AIRCRAFT_PERSONAS = {
+  "ecgaming-classic": {
+    name: "Pulsefire Mk I",
+    tagline: "The original heartbeat hot-rod.",
+  },
+  "og-cartoon-plane": {
+    name: "Beatwing Scout",
+    tagline: "Light wings. Loud pulse. Zero hesitation.",
+  },
+  "og-biplane": {
+    name: "Double-Bypass",
+    tagline: "Two wings and absolutely no clogged airways.",
+  },
+  "styloo-plancestylized": {
+    name: "Sinus Sprinter",
+    tagline: "Regular rhythm, irregular amounts of speed.",
+  },
+  "styloo-plancestylized-001": {
+    name: "Tachy Turbo",
+    tagline: "Fast enough to raise its own heart rate.",
+  },
+  "styloo-planeanimal": {
+    name: "Atrial Animal",
+    tagline: "Wild-hearted and ring-hungry.",
+  },
+  "styloo-planeanimal-001": {
+    name: "Ventricle Varmint",
+    tagline: "Small body. Four-chamber attitude.",
+  },
+  "styloo-planeazer": {
+    name: "Aorta Arrow",
+    tagline: "Straight out of the heart and into the sky.",
+  },
+  "styloo-planeazer-001": {
+    name: "Systolic Streak",
+    tagline: "Maximum pressure on every pass.",
+  },
+  "styloo-planeazer-002": {
+    name: "Diastolic Dart",
+    tagline: "Relax, refill, and punch it.",
+  },
+  "styloo-planehelice": {
+    name: "Prop Palpitation",
+    tagline: "Every propeller turn skips a beat.",
+  },
+  "styloo-planehelice-001": {
+    name: "R-R Rocket",
+    tagline: "Interval-tuned for perfectly timed trouble.",
+  },
+  "styloo-planehuge": {
+    name: "Big Heart Hauler",
+    tagline: "Cardiomegaly, but make it aerodynamic.",
+  },
+  "styloo-planesty": {
+    name: "Myocardial Maverick",
+    tagline: "Pure muscle from nose to tail.",
+  },
+  "styloo-planesty-001": {
+    name: "SA Node Stinger",
+    tagline: "The natural pacemaker of the flight line.",
+  },
+  "styloo-planesty-002": {
+    name: "AV Node Ace",
+    tagline: "A tiny delay, then full-throttle conduction.",
+  },
+  "styloo-planesty-003": {
+    name: "Purkinje Pursuer",
+    tagline: "Rapid delivery to every wingtip.",
+  },
+  "styloo-planestylized-001": {
+    name: "Visceral Velocity",
+    tagline: "All guts, all heart, all altitude.",
+  },
+  "poly-cute-airplane": {
+    name: "Heartthrob Hopper",
+    tagline: "Cute enough to cause a measurable response.",
+  },
+  "poly-small-airplane": {
+    name: "Little Ventricle",
+    tagline: "Compact chamber. Serious cardiac output.",
+  },
+  "magic-low-poly-airplane": {
+    name: "Cardiac Comet",
+    tagline: "A bright streak on the ECG flight path.",
+  },
+} as const satisfies Record<AircraftId, AircraftPersona>;
+
+export const getAircraftPersona = (id: AircraftId): AircraftPersona =>
+  AIRCRAFT_PERSONAS[id];
+
 export interface AircraftVisual {
   id: AircraftId;
   root: THREE.Group;

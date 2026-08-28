@@ -3,9 +3,11 @@ import type { FlightFrame } from "../protocol/types";
 import {
   AIRCRAFT_CATALOG,
   DEFAULT_AIRCRAFT_ID,
+  getAircraftPersona,
   isAircraftId,
   type AircraftId,
 } from "./aircraft";
+import { AircraftPreview } from "./aircraft-preview";
 import type { EcgGameModule } from "./ecg-game-module";
 import { createFlightScene } from "./flight-scene";
 import { FlightSound } from "./sound";
@@ -81,6 +83,7 @@ export class GroundCockpit extends EventTarget {
   private game?: EcgGameModule;
   private gameFailure?: Error;
   private readonly sound = new FlightSound();
+  private readonly preview: AircraftPreview;
   private started = false;
   private visible = false;
   private muted = false;
@@ -103,6 +106,7 @@ export class GroundCockpit extends EventTarget {
     const persisted = localStorage.getItem(AIRCRAFT_KEY);
     this.selectedAircraftId =
       persisted && isAircraftId(persisted) ? persisted : DEFAULT_AIRCRAFT_ID;
+    this.preview = new AircraftPreview(element("ground-aircraft-preview"));
     this.hydrateAircraftSelector();
     this.bindActions();
   }
@@ -147,52 +151,100 @@ export class GroundCockpit extends EventTarget {
         return option;
       }),
     );
-    select.value = this.selectedAircraftId;
+    this.updateAircraftPresentation(this.selectedAircraftId);
     select.addEventListener("change", () => {
       const id = isAircraftId(select.value)
         ? select.value
         : DEFAULT_AIRCRAFT_ID;
-      this.selectedAircraftId = id;
-      localStorage.setItem(AIRCRAFT_KEY, id);
-      if (this.game) this.aircraftReady = this.selectAircraft(id);
-      else
-        setText(
-          "ground-aircraft-status",
-          "Ready · animated propeller · ring-safe size",
-        );
+      this.aircraftReady = this.selectAircraft(id);
     });
+    element<HTMLButtonElement>("ground-aircraft-prev").addEventListener(
+      "click",
+      () => this.stepAircraft(-1),
+    );
+    element<HTMLButtonElement>("ground-aircraft-next").addEventListener(
+      "click",
+      () => this.stepAircraft(1),
+    );
+    this.aircraftReady = this.selectAircraft(this.selectedAircraftId);
+  }
+
+  private stepAircraft(direction: -1 | 1) {
+    const current = AIRCRAFT_CATALOG.findIndex(
+      ({ id }) => id === this.selectedAircraftId,
+    );
+    const next =
+      (Math.max(0, current) + direction + AIRCRAFT_CATALOG.length) %
+      AIRCRAFT_CATALOG.length;
+    this.aircraftReady = this.selectAircraft(AIRCRAFT_CATALOG[next].id);
+  }
+
+  private updateAircraftPresentation(id: AircraftId) {
+    const index = AIRCRAFT_CATALOG.findIndex((aircraft) => aircraft.id === id);
+    const aircraft = AIRCRAFT_CATALOG[Math.max(0, index)];
+    const persona = getAircraftPersona(id);
+    element<HTMLSelectElement>("ground-aircraft").value = id;
+    setText("ground-aircraft-source-name", aircraft.label);
+    setText("ground-aircraft-name", persona.name);
+    setText("ground-aircraft-tagline", persona.tagline);
     setText(
-      "ground-aircraft-status",
-      "Ready · animated propeller · ring-safe size",
+      "ground-aircraft-counter",
+      `${String(Math.max(0, index) + 1).padStart(2, "0")} / ${AIRCRAFT_CATALOG.length}`,
+    );
+    element("ground-aircraft-preview").setAttribute(
+      "aria-label",
+      `Rotating preview of ${persona.name}`,
     );
   }
 
   private async selectAircraft(id: AircraftId) {
     const request = ++this.aircraftRequest;
     const select = element<HTMLSelectElement>("ground-aircraft");
+    const previous = element<HTMLButtonElement>("ground-aircraft-prev");
+    const next = element<HTMLButtonElement>("ground-aircraft-next");
+    const previewHost = element("ground-aircraft-preview");
     this.aircraftLoading = true;
     this.aircraftAvailable = false;
     select.disabled = true;
-    setText("ground-aircraft-status", "Loading aircraft…");
+    previous.disabled = true;
+    next.disabled = true;
+    previewHost.classList.add("is-loading");
+    this.updateAircraftPresentation(id);
+    setText("ground-aircraft-status", "LOADING // PREPARING FLIGHT MODEL");
     try {
-      const actualId = await this.ensureGame().setAircraft(id);
+      const previewPromise = this.preview.setAircraft(id).catch((error) => {
+        console.warn("Aircraft hangar preview failed", error);
+        return id;
+      });
+      const gamePromise = this.game
+        ? this.game.setAircraft(id)
+        : previewPromise;
+      const [previewId, actualId] = await Promise.all([
+        previewPromise,
+        gamePromise,
+      ]);
+      if (request !== this.aircraftRequest) return;
+      if (actualId !== previewId) await this.preview.setAircraft(actualId);
       if (request !== this.aircraftRequest) return;
       this.selectedAircraftId = actualId;
       this.aircraftAvailable = true;
-      select.value = actualId;
+      this.updateAircraftPresentation(actualId);
       localStorage.setItem(AIRCRAFT_KEY, actualId);
       setText(
         "ground-aircraft-status",
-        "Ready · animated propeller · ring-safe size",
+        "READY // RING-SAFE // ANIMATED PROPELLER",
       );
     } catch (error) {
       if (request !== this.aircraftRequest) return;
       console.error(error);
-      setText("ground-aircraft-status", "Aircraft could not be loaded");
+      setText("ground-aircraft-status", "HANGAR HOLD // AIRCRAFT UNAVAILABLE");
     } finally {
       if (request === this.aircraftRequest) {
         this.aircraftLoading = false;
         select.disabled = false;
+        previous.disabled = false;
+        next.disabled = false;
+        previewHost.classList.remove("is-loading");
       }
     }
   }
@@ -379,6 +431,7 @@ export class GroundCockpit extends EventTarget {
 
   setVisible(visible: boolean) {
     this.visible = visible;
+    this.preview.setActive(!visible);
     if (!visible) this.releaseSteering();
     element("ground-view").hidden = visible;
     element("cockpit-view").hidden = !visible;
@@ -430,6 +483,7 @@ export class GroundCockpit extends EventTarget {
   dispose() {
     if (this.rewardTimer) clearTimeout(this.rewardTimer);
     this.releaseSteering();
+    this.preview.dispose();
     this.game?.dispose();
   }
 }

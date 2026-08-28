@@ -141,10 +141,17 @@
                     <div class="button-row">
                       <button
                         id="connect-polar"
-                        class="button primary"
+                        class="button primary instrument-button"
                         type="button"
                       >
-                        Connect Polar H10</button
+                        <span
+                          class="action-widget action-widget-heart"
+                          aria-hidden="true"
+                          ><i></i><b>♥</b></span
+                        ><span class="action-button-copy"
+                          ><small>WEARABLE LINK</small
+                          ><strong>Connect Polar H10</strong></span
+                        ></button
                       ><button
                         id="disconnect-polar"
                         class="button ghost"
@@ -180,10 +187,17 @@
                     <div class="button-row">
                       <button
                         id="scan-beacons"
-                        class="button primary"
+                        class="button primary instrument-button"
                         type="button"
                       >
-                        Scan beacons</button
+                        <span
+                          class="action-widget action-widget-radar"
+                          aria-hidden="true"
+                          ><i></i><b></b></span
+                        ><span class="action-button-copy"
+                          ><small>AIRSPACE RADAR</small
+                          ><strong>Scan beacons</strong></span
+                        ></button
                       ><button
                         id="stop-beacon-scan"
                         class="button ghost"
@@ -308,10 +322,17 @@
                   <div class="button-row">
                     <button
                       id="start-broadcast"
-                      class="button primary"
+                      class="button primary instrument-button"
                       type="button"
                     >
-                      Start broadcast</button
+                      <span
+                        class="action-widget action-widget-tower"
+                        aria-hidden="true"
+                        ><i></i><b></b></span
+                      ><span class="action-button-copy"
+                        ><small>CONTROL TOWER</small
+                        ><strong>Start broadcast</strong></span
+                      ></button
                     ><button
                       id="stop-broadcast"
                       class="button ghost"
@@ -414,6 +435,69 @@
             </div>
 
             <section
+              id="aircraft-showcase"
+              class="aircraft-showcase"
+              aria-labelledby="ground-aircraft-name"
+            >
+              <header class="aircraft-showcase-header">
+                <span>AIRCRAFT HANGAR</span>
+                <strong id="ground-aircraft-counter">01 / 21</strong>
+              </header>
+              <div class="aircraft-preview-frame">
+                <div
+                  id="ground-aircraft-preview"
+                  class="aircraft-preview"
+                  role="img"
+                  aria-label="Rotating preview of Pulsefire Mk I"
+                >
+                  <div class="aircraft-preview-reticle" aria-hidden="true">
+                    <i></i><i></i><i></i>
+                  </div>
+                </div>
+                <div class="aircraft-nameplate">
+                  <span id="ground-aircraft-source-name">ECGaming Classic</span>
+                  <h2 id="ground-aircraft-name">Pulsefire Mk I</h2>
+                  <p id="ground-aircraft-tagline">
+                    The original heartbeat hot-rod.
+                  </p>
+                </div>
+              </div>
+              <div class="aircraft-carousel-controls">
+                <button
+                  id="ground-aircraft-prev"
+                  class="aircraft-carousel-button"
+                  type="button"
+                  aria-label="Previous aircraft"
+                >
+                  <b aria-hidden="true">‹</b><span>PREVIOUS</span>
+                </button>
+                <div class="aircraft-carousel-pulse" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <button
+                  id="ground-aircraft-next"
+                  class="aircraft-carousel-button"
+                  type="button"
+                  aria-label="Next aircraft"
+                >
+                  <span>NEXT</span><b aria-hidden="true">›</b>
+                </button>
+              </div>
+              <select
+                id="ground-aircraft"
+                class="visually-hidden"
+                aria-label="Selected aircraft"
+                aria-describedby="ground-aircraft-status"
+                tabindex="-1"
+              >
+                <option value="">Loading aircraft…</option>
+              </select>
+              <small id="ground-aircraft-status" role="status"
+                >Preparing aircraft hangar</small
+              >
+            </section>
+
+            <section
               id="flight-gate"
               class="flight-gate"
               aria-labelledby="flight-gate-title"
@@ -447,18 +531,6 @@
                   ><b>WAIT</b>
                 </li>
               </ul>
-              <label class="aircraft-picker gate-aircraft" for="ground-aircraft">
-                <span>Aircraft</span>
-                <select
-                  id="ground-aircraft"
-                  aria-describedby="ground-aircraft-status"
-                >
-                  <option value="">Loading aircraft…</option>
-                </select>
-                <small id="ground-aircraft-status" role="status"
-                  >Preparing aircraft catalog</small
-                >
-              </label>
               <p id="flight-gate-copy">
                 Connect a worn Polar H10 or select a live Ground Control beacon.
                 A connection without a fresh signal cannot start flight.
@@ -470,7 +542,14 @@
                 aria-describedby="flight-gate-copy"
                 disabled
               >
-                Start flight
+                <span
+                  class="action-widget action-widget-runway"
+                  aria-hidden="true"
+                  ><i></i><b>✦</b></span
+                ><span class="action-button-copy"
+                  ><small>COCKPIT LAUNCH</small
+                  ><strong>Start flight</strong></span
+                >
               </button>
             </section>
           </aside>
@@ -622,6 +701,7 @@
                 type="button"
                 aria-controls="cockpit-view"
               >
+                <span class="tower-link-plane" aria-hidden="true">✦</span>
                 VIEW COCKPIT →
               </button>
             </div>

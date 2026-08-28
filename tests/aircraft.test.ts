@@ -6,6 +6,7 @@ import {
   AIRCRAFT_CATALOG,
   AIRCRAFT_MAX_HEIGHT,
   AIRCRAFT_MAX_WIDTH,
+  AIRCRAFT_PERSONAS,
   DEFAULT_AIRCRAFT_ID,
   disposeAircraftVisual,
   loadAircraftVisual,
@@ -44,6 +45,18 @@ describe("aircraft catalog", () => {
       if (!aircraft.assetPath) continue;
       const file = resolve("public", aircraft.assetPath.replace(/^\//, ""));
       expect(existsSync(file), aircraft.id).toBe(true);
+    }
+  });
+
+  it("gives every aircraft a unique cardiac hangar name and tagline", () => {
+    const personas = AIRCRAFT_CATALOG.map(({ id }) => AIRCRAFT_PERSONAS[id]);
+    expect(personas).toHaveLength(AIRCRAFT_CATALOG.length);
+    expect(new Set(personas.map(({ name }) => name)).size).toBe(
+      AIRCRAFT_CATALOG.length,
+    );
+    for (const persona of personas) {
+      expect(persona.name.length).toBeGreaterThan(5);
+      expect(persona.tagline.length).toBeGreaterThan(12);
     }
   });
 

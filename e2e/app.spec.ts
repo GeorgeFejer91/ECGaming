@@ -255,6 +255,67 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
   await expect(start).toBeDisabled();
 });
 
+test("Ground Control hangar previews and persists cardiac aircraft callsigns", async ({
+  page,
+}) => {
+  await page.route("**/vendor/vdoninja/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
+  );
+  await page.goto("./ground-control/");
+
+  const preview = page.locator("#ground-aircraft-preview");
+  const next = page.getByRole("button", { name: "Next aircraft" });
+  await expect(preview.locator("canvas")).toBeVisible();
+  await expect(page.locator("#ground-aircraft-name")).toHaveText(
+    "Pulsefire Mk I",
+  );
+  await expect(page.locator("#ground-aircraft-counter")).toHaveText("01 / 21");
+  await expect(page.locator("#ground-aircraft")).toHaveClass(/visually-hidden/);
+  await expect(next).toBeEnabled();
+
+  await next.click();
+  await expect(page.locator("#ground-aircraft-name")).toHaveText(
+    "Beatwing Scout",
+  );
+  await expect(page.locator("#ground-aircraft-tagline")).toContainText(
+    "Loud pulse",
+  );
+  await expect(page.locator("#ground-aircraft-counter")).toHaveText("02 / 21");
+  await expect(next).toBeEnabled();
+  expect(
+    await page.evaluate(() => localStorage.getItem("ecgaming-aircraft-v1")),
+  ).toBe("og-cartoon-plane");
+
+  await page.reload();
+  await expect(page.locator("#ground-aircraft-name")).toHaveText(
+    "Beatwing Scout",
+  );
+  await expect(page.locator("#ground-aircraft-preview canvas")).toBeVisible();
+  await expect(page.locator(".action-widget-heart")).toBeVisible();
+  await expect(page.locator(".action-widget-runway")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const responsive = await page.evaluate(() => ({
+    overflow:
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+    controls: Array.from(
+      document.querySelectorAll<HTMLElement>(".aircraft-carousel-button"),
+      (button) => ({
+        width: button.getBoundingClientRect().width,
+        height: button.getBoundingClientRect().height,
+      }),
+    ),
+  }));
+  expect(responsive.overflow).toBeLessThanOrEqual(1);
+  expect(responsive.controls).toHaveLength(2);
+  for (const control of responsive.controls) {
+    expect(control.width).toBeGreaterThan(100);
+    expect(control.height).toBeGreaterThanOrEqual(44);
+  }
+});
+
 test("unified Cockpit exposes hold steering on a phone viewport", async ({
   page,
 }) => {

@@ -638,6 +638,207 @@ a {
   margin: 1rem 0;
   flex-wrap: wrap;
 }
+.instrument-button {
+  position: relative;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  min-height: 62px;
+  padding: 0.45rem 0.75rem;
+  overflow: hidden;
+  border-width: 2px;
+  box-shadow:
+    inset 0 -4px 0 rgba(7, 19, 31, 0.16),
+    0 5px 0 rgba(2, 10, 16, 0.28);
+}
+.instrument-button::after,
+.flight-gate-start::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(7, 19, 31, 0.42);
+  box-shadow: 0 42px 0 rgba(7, 19, 31, 0.28);
+  content: "";
+}
+.action-button-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  text-align: left;
+}
+.action-button-copy small,
+.action-button-copy strong {
+  display: block;
+}
+.action-button-copy small {
+  opacity: 0.66;
+  font-size: 0.48rem;
+  letter-spacing: 0.16em;
+}
+.action-button-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+}
+.action-widget {
+  position: relative;
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  place-items: center;
+  color: currentColor;
+  border: 1px solid rgba(7, 19, 31, 0.42);
+  border-radius: 7px;
+  background:
+    linear-gradient(rgba(7, 19, 31, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(7, 19, 31, 0.12) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.18);
+  background-size: 8px 8px, 8px 8px, auto;
+  box-shadow: inset 0 0 11px rgba(255, 255, 255, 0.16);
+}
+.action-widget b,
+.action-widget i {
+  position: absolute;
+  display: block;
+  font-style: normal;
+}
+.action-widget-heart b {
+  z-index: 1;
+  color: #d94d37;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35));
+  font-size: 1.45rem;
+}
+.action-widget-heart i {
+  z-index: 2;
+  width: 34px;
+  height: 12px;
+  background: #fff5ca;
+  clip-path: polygon(0 45%, 27% 45%, 35% 8%, 45% 94%, 55% 32%, 63% 45%, 100% 45%, 100% 58%, 60% 58%, 56% 68%, 46% 100%, 34% 36%, 31% 58%, 0 58%);
+  filter: drop-shadow(0 0 2px rgba(7, 19, 31, 0.45));
+}
+.action-widget-radar {
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 7px, rgba(7, 19, 31, 0.26) 7px 8px),
+    rgba(105, 212, 222, 0.36);
+}
+.action-widget-radar::before,
+.action-widget-radar::after {
+  position: absolute;
+  background: rgba(7, 19, 31, 0.28);
+  content: "";
+}
+.action-widget-radar::before {
+  top: 50%;
+  right: 3px;
+  left: 3px;
+  height: 1px;
+}
+.action-widget-radar::after {
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 1px;
+}
+.action-widget-radar i {
+  z-index: 1;
+  bottom: 50%;
+  left: 50%;
+  width: 2px;
+  height: 18px;
+  background: #073141;
+  transform: rotate(42deg);
+  transform-origin: 50% 100%;
+}
+.action-widget-radar b {
+  z-index: 2;
+  top: 10px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #fff3ad;
+  box-shadow: 0 0 7px #fff3ad;
+}
+.action-widget-tower b {
+  bottom: 5px;
+  left: 16px;
+  width: 12px;
+  height: 22px;
+  border: 2px solid currentColor;
+  border-top-width: 5px;
+  clip-path: polygon(21% 0, 79% 0, 100% 100%, 0 100%);
+}
+.action-widget-tower b::before,
+.action-widget-tower b::after {
+  position: absolute;
+  top: 6px;
+  bottom: 3px;
+  width: 2px;
+  background: currentColor;
+  content: "";
+  transform: rotate(26deg);
+}
+.action-widget-tower b::before {
+  left: 2px;
+}
+.action-widget-tower b::after {
+  right: 2px;
+  transform: rotate(-26deg);
+}
+.action-widget-tower i {
+  top: 6px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e94e37;
+  box-shadow: 0 0 0 5px rgba(233, 78, 55, 0.14), 0 0 8px #e94e37;
+  transform: translateX(-50%);
+}
+.action-widget-tower i::before,
+.action-widget-tower i::after {
+  position: absolute;
+  top: 2px;
+  width: 10px;
+  border-top: 1px solid currentColor;
+  content: "";
+}
+.action-widget-tower i::before {
+  right: 7px;
+}
+.action-widget-tower i::after {
+  left: 7px;
+}
+.action-widget-runway {
+  color: #07131f;
+  background: rgba(105, 212, 222, 0.42);
+}
+.action-widget-runway i {
+  bottom: -4px;
+  left: 11px;
+  width: 22px;
+  height: 42px;
+  border-right: 4px dashed rgba(255, 246, 197, 0.95);
+  border-left: 4px solid rgba(7, 19, 31, 0.62);
+  transform: perspective(30px) rotateX(22deg);
+}
+.action-widget-runway b {
+  z-index: 1;
+  top: 5px;
+  left: 15px;
+  color: #fff5ca;
+  text-shadow: 0 1px 2px #07131f;
+  font-size: 1.15rem;
+  transform: rotate(45deg);
+}
 .file-button {
   position: relative;
   cursor: pointer;
@@ -2506,6 +2707,302 @@ body.cockpit-mode {
   min-height: 44px;
   font-size: 0.68rem;
 }
+.aircraft-showcase {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1 0 420px;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 0.85rem 1.2rem 0.8rem;
+  overflow: hidden;
+  border-top: 1px solid rgba(105, 212, 222, 0.2);
+  background:
+    linear-gradient(rgba(105, 212, 222, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(105, 212, 222, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 42%, rgba(105, 212, 222, 0.11), transparent 43%),
+    #06151f;
+  background-size: 28px 28px, 28px 28px, auto, auto;
+}
+.aircraft-showcase::before,
+.aircraft-showcase::after {
+  position: absolute;
+  z-index: -1;
+  width: 110px;
+  height: 110px;
+  border-color: rgba(244, 179, 58, 0.26);
+  content: "";
+  pointer-events: none;
+}
+.aircraft-showcase::before {
+  top: 0.65rem;
+  left: 0.65rem;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.aircraft-showcase::after {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+}
+.aircraft-showcase-header {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--amber);
+  font:
+    700 0.62rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.18em;
+}
+.aircraft-showcase-header strong {
+  color: var(--cyan);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+.aircraft-preview-frame {
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-rows: minmax(180px, 1fr) auto;
+  min-height: 0;
+  margin-top: 0.45rem;
+  overflow: hidden;
+  border: 1px solid rgba(105, 212, 222, 0.26);
+  background:
+    radial-gradient(circle at 50% 39%, rgba(11, 50, 66, 0.82), transparent 44%),
+    linear-gradient(180deg, rgba(6, 22, 32, 0.2), rgba(4, 15, 23, 0.86));
+  box-shadow: inset 0 0 34px rgba(2, 11, 18, 0.65);
+}
+.aircraft-preview-frame::before {
+  position: absolute;
+  z-index: 2;
+  top: 0.7rem;
+  right: 0.7rem;
+  padding: 0.3rem 0.4rem;
+  color: rgba(111, 219, 155, 0.8);
+  border: 1px solid rgba(111, 219, 155, 0.25);
+  content: "ROTATION // LIVE";
+  font:
+    700 0.48rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.12em;
+}
+.aircraft-preview {
+  position: relative;
+  min-height: 180px;
+  overflow: hidden;
+}
+.aircraft-preview canvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+.aircraft-preview.is-loading canvas {
+  opacity: 0.38;
+  filter: blur(2px);
+}
+.aircraft-preview.is-unavailable::before {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  color: var(--cyan);
+  content: "\2708";
+  filter: drop-shadow(0 0 16px rgba(105, 212, 222, 0.6));
+  font-size: 5.4rem;
+  transform: translate(-50%, -50%) rotate(-8deg);
+}
+.aircraft-preview.is-unavailable + .aircraft-nameplate::before {
+  content: "3D PREVIEW UNAVAILABLE";
+}
+.aircraft-preview-reticle {
+  position: absolute;
+  z-index: 0;
+  top: 44%;
+  left: 50%;
+  width: min(62%, 210px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(105, 212, 222, 0.14);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.aircraft-preview-reticle::before,
+.aircraft-preview-reticle::after,
+.aircraft-preview-reticle i {
+  position: absolute;
+  content: "";
+}
+.aircraft-preview-reticle::before {
+  inset: 17%;
+  border: 1px dashed rgba(244, 179, 58, 0.17);
+  border-radius: 50%;
+}
+.aircraft-preview-reticle::after {
+  top: 50%;
+  right: -18%;
+  left: -18%;
+  border-top: 1px solid rgba(105, 212, 222, 0.12);
+}
+.aircraft-preview-reticle i:nth-child(1) {
+  top: -12%;
+  bottom: -12%;
+  left: 50%;
+  border-left: 1px solid rgba(105, 212, 222, 0.12);
+}
+.aircraft-preview-reticle i:nth-child(2) {
+  inset: 31%;
+  border: 1px solid rgba(105, 212, 222, 0.15);
+  border-radius: 50%;
+}
+.aircraft-preview-reticle i:nth-child(3) {
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 10px rgba(244, 179, 58, 0.75);
+  transform: translate(-50%, -50%);
+}
+.aircraft-nameplate {
+  position: relative;
+  z-index: 3;
+  min-height: 84px;
+  padding: 0.7rem 0.85rem 0.8rem;
+  border-top: 1px solid rgba(244, 179, 58, 0.3);
+  background: linear-gradient(90deg, rgba(6, 21, 31, 0.97), rgba(10, 31, 42, 0.92));
+}
+.aircraft-nameplate::before {
+  position: absolute;
+  top: 0.72rem;
+  right: 0.75rem;
+  color: rgba(111, 219, 155, 0.72);
+  content: "MODEL READY";
+  font:
+    700 0.46rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+}
+.aircraft-nameplate > span {
+  display: block;
+  max-width: 70%;
+  overflow: hidden;
+  color: #78939c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font:
+    700 0.52rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.aircraft-nameplate h2 {
+  margin: 0.28rem 0 0;
+  color: #f6fbfc;
+  text-shadow: 0 0 18px rgba(105, 212, 222, 0.25);
+  font:
+    800 clamp(1.45rem, 5vw, 2rem)/0.94 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+.aircraft-nameplate p {
+  margin: 0.34rem 0 0;
+  color: #9bb1b7;
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+.aircraft-carousel-controls {
+  display: grid;
+  grid-template-columns: minmax(108px, 1fr) auto minmax(108px, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+.aircraft-carousel-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0.55rem 0.75rem;
+  color: #d9e9ec;
+  border: 1px solid rgba(105, 212, 222, 0.34);
+  background: rgba(7, 25, 36, 0.92);
+  cursor: pointer;
+  font:
+    700 0.65rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.12em;
+}
+.aircraft-carousel-button b {
+  color: var(--amber);
+  font-size: 1.5rem;
+  line-height: 0.5;
+}
+.aircraft-carousel-button:hover:not(:disabled),
+.aircraft-carousel-button:focus-visible {
+  color: #fff;
+  border-color: var(--amber);
+  background: rgba(244, 179, 58, 0.1);
+  box-shadow: inset 0 -2px 0 var(--amber);
+}
+.aircraft-carousel-button:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+.aircraft-carousel-pulse {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 35px;
+  height: 30px;
+}
+.aircraft-carousel-pulse i {
+  width: 2px;
+  height: 6px;
+  background: var(--orange);
+  box-shadow: 0 0 6px rgba(233, 95, 55, 0.5);
+  animation: aircraft-pulse 1.25s ease-in-out infinite;
+}
+.aircraft-carousel-pulse i:nth-child(2),
+.aircraft-carousel-pulse i:nth-child(4) {
+  height: 15px;
+  animation-delay: -0.18s;
+}
+.aircraft-carousel-pulse i:nth-child(3) {
+  height: 28px;
+  animation-delay: -0.36s;
+}
+@keyframes aircraft-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleY(0.55);
+  }
+  45% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+#ground-aircraft-status {
+  display: block;
+  min-height: 0.7rem;
+  margin-top: 0.42rem;
+  color: #6fdb9b;
+  font:
+    700 0.52rem/1.2 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
 .flight-gate {
   position: sticky;
   z-index: 7;
@@ -2593,13 +3090,6 @@ body.cockpit-mode {
 .flight-gate-checks li.is-ready b {
   color: var(--green);
 }
-.gate-aircraft {
-  width: 100%;
-  margin: 0 0 0.65rem;
-}
-.gate-aircraft select {
-  min-height: 44px;
-}
 .flight-gate > p {
   margin: 0 0 0.7rem;
   color: #9bb0b6;
@@ -2607,8 +3097,21 @@ body.cockpit-mode {
   line-height: 1.45;
 }
 .flight-gate-start {
+  gap: 0.75rem;
   width: 100%;
-  min-height: 50px;
+  min-height: 64px;
+  justify-content: center;
+}
+.flight-gate-start .action-widget {
+  flex-basis: 42px;
+  width: 42px;
+  height: 42px;
+}
+.flight-gate-start .action-button-copy small {
+  font-size: 0.5rem;
+}
+.flight-gate-start .action-button-copy strong {
+  font-size: 0.82rem;
 }
 .avionics-display {
   min-height: calc(100vh - var(--unified-header-height));
@@ -2827,6 +3330,9 @@ body.cockpit-mode {
   font-size: 1.45rem;
 }
 .tower-mode-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   min-height: 44px;
   padding: 0.55rem 0.75rem;
   color: var(--amber);
@@ -2837,6 +3343,20 @@ body.cockpit-mode {
     700 0.66rem/1 "Barlow Condensed",
     sans-serif;
   letter-spacing: 0.12em;
+}
+.tower-mode-link:hover {
+  color: #07131f;
+  background: var(--amber);
+}
+.tower-link-plane {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 1rem;
+  transform: rotate(45deg);
 }
 .cockpit-view {
   position: relative;
@@ -3100,6 +3620,10 @@ body.cockpit-mode {
   .flight-gate {
     bottom: 0;
   }
+  .aircraft-showcase {
+    flex: 0 0 auto;
+    min-height: 440px;
+  }
 }
 
 @media (max-width: 700px) {
@@ -3207,6 +3731,17 @@ body.cockpit-mode {
   .source-mode-card {
     min-height: 68px;
   }
+  .aircraft-showcase {
+    flex: 0 0 auto;
+    min-height: 420px;
+    padding-inline: 0.8rem;
+  }
+  .aircraft-preview-frame {
+    grid-template-rows: minmax(210px, 1fr) auto;
+  }
+  .aircraft-preview {
+    min-height: 210px;
+  }
   .flight-gate {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(140px, 1fr);
@@ -3222,8 +3757,7 @@ body.cockpit-mode {
     align-items: center;
   }
   .flight-gate-head span,
-  .flight-gate-checks,
-  .gate-aircraft > small {
+  .flight-gate-checks {
     display: none;
   }
   .flight-gate-head h2 {
@@ -3237,14 +3771,9 @@ body.cockpit-mode {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
-  .gate-aircraft {
-    margin: 0;
-  }
-  .gate-aircraft > span {
-    font-size: 0.68rem;
-  }
   .flight-gate-start {
-    min-height: 44px;
+    grid-column: 1/-1;
+    min-height: 58px;
     align-self: end;
   }
   .flight-gate-checks {
@@ -3337,6 +3866,27 @@ body.cockpit-mode {
   .adaptive-range-readout strong {
     font-size: 0.92rem;
   }
+  .aircraft-showcase {
+    min-height: 400px;
+  }
+  .aircraft-preview-frame {
+    grid-template-rows: minmax(190px, 1fr) auto;
+  }
+  .aircraft-preview {
+    min-height: 190px;
+  }
+  .aircraft-nameplate h2 {
+    font-size: 1.45rem;
+  }
+  .aircraft-carousel-controls {
+    grid-template-columns: 1fr 26px 1fr;
+    gap: 0.35rem;
+  }
+  .aircraft-carousel-button {
+    min-width: 0;
+    padding-inline: 0.55rem;
+    letter-spacing: 0.08em;
+  }
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
@@ -3381,6 +3931,16 @@ body.cockpit-mode {
   .ecg-screen {
     height: 64px;
   }
+  .aircraft-showcase {
+    flex: 0 0 auto;
+    min-height: 370px;
+  }
+  .aircraft-preview-frame {
+    grid-template-rows: minmax(160px, 1fr) auto;
+  }
+  .aircraft-preview {
+    min-height: 160px;
+  }
   .flight-gate {
     display: grid;
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
@@ -3393,9 +3953,7 @@ body.cockpit-mode {
     min-width: 0;
   }
   .flight-gate-head > div,
-  .flight-gate-checks,
-  .gate-aircraft > span,
-  .gate-aircraft > small {
+  .flight-gate-checks {
     display: none;
   }
   .flight-gate > p {
@@ -3415,15 +3973,9 @@ body.cockpit-mode {
     padding: 0.35rem;
     place-items: center;
   }
-  .gate-aircraft {
-    margin: 0;
-  }
-  .gate-aircraft select,
-  .flight-gate-start {
-    min-height: 44px;
-  }
   .flight-gate-start {
     grid-column: 1/-1;
+    min-height: 54px;
   }
   .cockpit-view {
     height: calc(100svh - var(--unified-header-height));
