@@ -117,7 +117,10 @@ test("Smartphone Flight requests Polar from the Connect tap", async ({
 });
 
 test("every catalog aircraft loads without falling back", async ({ page }) => {
-  test.setTimeout(60_000);
+  // Software-rendered WebGL on shared CI runners can take roughly a minute to
+  // parse, swap, and dispose all 20 GLBs. Keep the exhaustive runtime check,
+  // but do not make its correctness depend on runner speed.
+  test.setTimeout(180_000);
   await page.goto("./mobile/");
   const aircraft = page.getByLabel("Choose your plane");
   await expect(aircraft).toBeEnabled();
