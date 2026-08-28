@@ -608,9 +608,20 @@ export async function loadAircraftVisual(
   // Leave a little room for the project-owned propeller, then run a final fit
   // pass so even unusually tall or wide source models remain ring-safe.
   normalizeAircraftVisual(root, 3, 2.3);
+  root.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(root);
   const size = bounds.getSize(new THREE.Vector3());
-  const propeller = createOwnedPropeller(bounds.min.z, size.y);
+  // Bounds are in world space while a newly attached propeller is positioned
+  // in the root's local space. Convert both values before attachment; feeding
+  // the world-space nose into a previously translated/scaled root placed some
+  // imported propellers dozens of units away from their aircraft.
+  const noseWorld = bounds.getCenter(new THREE.Vector3());
+  noseWorld.z = bounds.min.z;
+  const noseLocal = root.worldToLocal(noseWorld);
+  const rootScale = root.getWorldScale(new THREE.Vector3());
+  const propeller = createOwnedPropeller(noseLocal.z, size.y / rootScale.y);
+  propeller.position.x = noseLocal.x;
+  propeller.position.y = noseLocal.y;
   root.add(propeller);
   normalizeAircraftVisual(root);
   return { id, root, propellers: [propeller] };

@@ -258,6 +258,7 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
 test("Ground Control hangar previews and persists cardiac aircraft callsigns", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
@@ -272,6 +273,29 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
   await expect(page.locator("#ground-aircraft-counter")).toHaveText("01 / 21");
   await expect(page.locator("#ground-aircraft")).toHaveClass(/visually-hidden/);
   await expect(next).toBeEnabled();
+  await expect(page.locator("#ground-aircraft-name")).toHaveAttribute(
+    "data-pretext-fit",
+    "ready",
+  );
+  const fixedRail = await page.evaluate(() => {
+    const panel = document.querySelector<HTMLElement>(".control-panel")!;
+    const workspace = document.querySelector<HTMLElement>(
+      ".control-workspace",
+    )!;
+    return {
+      panelWidth: panel.getBoundingClientRect().width,
+      workspaceHeight: workspace.getBoundingClientRect().height,
+      panelHeight: panel.getBoundingClientRect().height,
+      rows: getComputedStyle(panel).gridTemplateRows
+        .split(" ")
+        .map(Number.parseFloat),
+    };
+  });
+  expect(fixedRail.panelWidth).toBeCloseTo(430, 0);
+  expect(fixedRail.panelHeight).toBeCloseTo(fixedRail.workspaceHeight, 0);
+  expect(fixedRail.rows).toHaveLength(4);
+  for (const [index, ratio] of [0.11, 0.3, 0.39, 0.2].entries())
+    expect(fixedRail.rows[index] / fixedRail.panelHeight).toBeCloseTo(ratio, 2);
 
   await next.click();
   await expect(page.locator("#ground-aircraft-name")).toHaveText(
@@ -293,6 +317,23 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
   await expect(page.locator("#ground-aircraft-preview canvas")).toBeVisible();
   await expect(page.locator(".action-widget-heart")).toBeVisible();
   await expect(page.locator(".action-widget-runway")).toBeVisible();
+  const fittedText = await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>("[data-fit-text]"),
+      (element) => ({
+        id: element.id,
+        visible: element.getClientRects().length > 0,
+        ready: element.dataset.pretextFit,
+        horizontal: element.scrollWidth - element.clientWidth,
+        vertical: element.scrollHeight - element.clientHeight,
+      }),
+    ).filter((element) => element.visible),
+  );
+  for (const text of fittedText) {
+    expect(text.ready, text.id).toBe("ready");
+    expect(text.horizontal, text.id).toBeLessThanOrEqual(1);
+    expect(text.vertical, text.id).toBeLessThanOrEqual(1);
+  }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
@@ -313,6 +354,51 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
   for (const control of responsive.controls) {
     expect(control.width).toBeGreaterThan(100);
     expect(control.height).toBeGreaterThanOrEqual(44);
+  }
+});
+
+test("every hangar aircraft stays centered at one preview scale", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/vendor/vdoninja/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
+  );
+  await page.goto("./ground-control/");
+  const preview = page.locator("#ground-aircraft-preview");
+  const next = page.getByRole("button", { name: "Next aircraft" });
+  const ids = await page
+    .locator("#ground-aircraft option")
+    .evaluateAll((options) =>
+      options.map((option) => (option as HTMLOptionElement).value),
+    );
+  expect(ids).toHaveLength(21);
+
+  const canvas = preview.locator("canvas");
+  const firstRotationFrame = await canvas.screenshot();
+  await page.waitForTimeout(320);
+  const secondRotationFrame = await canvas.screenshot();
+  expect(Buffer.compare(firstRotationFrame, secondRotationFrame)).not.toBe(0);
+
+  for (const [index, id] of ids.entries()) {
+    await expect(preview).toHaveAttribute("data-aircraft", id);
+    const geometry = await preview.evaluate((element) => ({
+      radius: Number((element as HTMLElement).dataset.previewRadius),
+      envelopeRadius: Number(
+        (element as HTMLElement).dataset.previewEnvelopeRadius,
+      ),
+      center: ((element as HTMLElement).dataset.previewCenter ?? "")
+        .split(",")
+        .map(Number),
+    }));
+    expect(geometry.radius, id).toBeCloseTo(2.15, 3);
+    expect(Math.hypot(...geometry.center), id).toBeLessThan(0.001);
+    expect(geometry.envelopeRadius, id).toBeLessThan(2.7);
+    if (index < ids.length - 1) {
+      await expect(next).toBeEnabled();
+      await next.click();
+    }
   }
 });
 

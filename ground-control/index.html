@@ -67,8 +67,9 @@
         <section class="control-workspace">
           <aside class="control-panel" aria-label="Ground Control settings">
             <div class="public-warning" role="note">
-              <strong>PUBLIC DATA ROOM</strong
-              ><span
+              <strong data-fit-text data-fit-min="9" data-fit-max="13"
+                >PUBLIC DATA ROOM</strong
+              ><span data-fit-text data-fit-min="9" data-fit-max="13" data-fit-lines="3" data-fit-line="1.35"
                 >Ground Control beacons use a fixed, unauthenticated room. Pick
                 only a source you recognize. Raw ECG never leaves the browser
                 that is connected to the Polar.</span
@@ -84,7 +85,7 @@
                   aria-controls="signal-source-panel"
                   aria-expanded="true"
                 >
-                  <span><b>01</b> Polar Link & Beacon Source</span
+                  <span data-fit-text data-fit-min="10" data-fit-max="15"><b>01</b> Polar Link & Beacon Source</span
                   ><i aria-hidden="true">−</i>
                 </button>
                 <div id="signal-source-panel" class="accordion-body">
@@ -101,9 +102,9 @@
                       <span class="source-mode-icon polar-source-icon" aria-hidden="true"
                         >♥</span
                       >
-                      <span
-                        ><strong>Direct Polar H10</strong
-                        ><small>Bluetooth signal from this browser</small></span
+                      <span class="source-mode-copy"
+                        ><strong data-fit-text data-fit-min="9" data-fit-max="13">Direct Polar H10</strong
+                        ><small data-fit-text data-fit-min="8" data-fit-max="11" data-fit-lines="2" data-fit-line="1.25">Bluetooth signal from this browser</small></span
                       >
                     </label>
                     <label class="source-mode-card">
@@ -116,9 +117,9 @@
                       <span class="source-mode-icon beacon-source-icon" aria-hidden="true"
                         ><i></i
                       ></span>
-                      <span
-                        ><strong>Ground Control beacon</strong
-                        ><small>Incoming VDO.Ninja heart/control beacon</small></span
+                      <span class="source-mode-copy"
+                        ><strong data-fit-text data-fit-min="9" data-fit-max="13">Ground Control beacon</strong
+                        ><small data-fit-text data-fit-min="8" data-fit-max="11" data-fit-lines="2" data-fit-line="1.25">Incoming VDO.Ninja heart/control beacon</small></span
                       >
                     </label>
                   </fieldset>
@@ -130,9 +131,9 @@
                   >
                     <div class="status-card">
                       <span class="status-orbit" aria-hidden="true"><i></i></span>
-                      <div>
-                        <strong id="polar-state">Ready to connect</strong
-                        ><small id="polar-detail"
+                      <div class="status-card-copy">
+                        <strong id="polar-state" data-fit-text data-fit-min="10" data-fit-max="17">Ready to connect</strong
+                        ><small id="polar-detail" data-fit-text data-fit-min="8" data-fit-max="11" data-fit-lines="2" data-fit-line="1.25"
                           >Use a worn Polar H10 in desktop Chrome or Edge, or a
                           compatible Android Chromium browser.</small
                         >
@@ -149,8 +150,8 @@
                           aria-hidden="true"
                           ><i></i><b>♥</b></span
                         ><span class="action-button-copy"
-                          ><small>WEARABLE LINK</small
-                          ><strong>Connect Polar H10</strong></span
+                          ><small data-fit-text data-fit-min="7" data-fit-max="10">WEARABLE LINK</small
+                          ><strong data-fit-text data-fit-min="9" data-fit-max="13">Connect Polar H10</strong></span
                         ></button
                       ><button
                         id="disconnect-polar"
@@ -173,9 +174,9 @@
                       <span class="status-orbit beacon-orbit" aria-hidden="true"
                         ><i></i
                       ></span>
-                      <div>
-                        <strong id="beacon-state">Beacon receiver idle</strong
-                        ><small id="beacon-detail"
+                      <div class="status-card-copy">
+                        <strong id="beacon-state" data-fit-text data-fit-min="10" data-fit-max="17">Beacon receiver idle</strong
+                        ><small id="beacon-detail" data-fit-text data-fit-min="8" data-fit-max="11" data-fit-lines="2" data-fit-line="1.25"
                           >Scan the public room for another Ground Control
                           station.</small
                         >
@@ -195,8 +196,8 @@
                           aria-hidden="true"
                           ><i></i><b></b></span
                         ><span class="action-button-copy"
-                          ><small>AIRSPACE RADAR</small
-                          ><strong>Scan beacons</strong></span
+                          ><small data-fit-text data-fit-min="7" data-fit-max="10">AIRSPACE RADAR</small
+                          ><strong data-fit-text data-fit-min="9" data-fit-max="13">Scan beacons</strong></span
                         ></button
                       ><button
                         id="stop-beacon-scan"
@@ -233,7 +234,7 @@
                   aria-controls="flight-commands-panel"
                   aria-expanded="false"
                 >
-                  <span><b>02</b> Flight Commands</span
+                  <span data-fit-text data-fit-min="10" data-fit-max="15"><b>02</b> Flight Commands</span
                   ><i aria-hidden="true">+</i>
                 </button>
                 <div
@@ -312,7 +313,7 @@
                   aria-controls="broadcast-panel"
                   aria-expanded="false"
                 >
-                  <span><b>03</b> Broadcast Tower</span
+                  <span data-fit-text data-fit-min="10" data-fit-max="15"><b>03</b> Broadcast Tower</span
                   ><i aria-hidden="true">+</i>
                 </button>
                 <div id="broadcast-panel" class="accordion-body" hidden>
@@ -330,8 +331,8 @@
                         aria-hidden="true"
                         ><i></i><b></b></span
                       ><span class="action-button-copy"
-                        ><small>CONTROL TOWER</small
-                        ><strong>Start broadcast</strong></span
+                        ><small data-fit-text data-fit-min="7" data-fit-max="10">CONTROL TOWER</small
+                        ><strong data-fit-text data-fit-min="9" data-fit-max="13">Start broadcast</strong></span
                       ></button
                     ><button
                       id="stop-broadcast"
@@ -396,7 +397,7 @@
                   aria-controls="simulator-panel"
                   aria-expanded="false"
                 >
-                  <span><b>04</b> Test Simulator</span
+                  <span data-fit-text data-fit-min="10" data-fit-max="15"><b>04</b> Test Simulator</span
                   ><i aria-hidden="true">+</i>
                 </button>
                 <div id="simulator-panel" class="accordion-body" hidden>
@@ -455,9 +456,9 @@
                   </div>
                 </div>
                 <div class="aircraft-nameplate">
-                  <span id="ground-aircraft-source-name">ECGaming Classic</span>
-                  <h2 id="ground-aircraft-name">Pulsefire Mk I</h2>
-                  <p id="ground-aircraft-tagline">
+                  <span id="ground-aircraft-source-name" data-fit-text data-fit-min="8" data-fit-max="11">ECGaming Classic</span>
+                  <h2 id="ground-aircraft-name" data-fit-text data-fit-min="18" data-fit-max="32">Pulsefire Mk I</h2>
+                  <p id="ground-aircraft-tagline" data-fit-text data-fit-min="9" data-fit-max="12" data-fit-lines="2" data-fit-line="1.2">
                     The original heartbeat hot-rod.
                   </p>
                 </div>
@@ -469,7 +470,7 @@
                   type="button"
                   aria-label="Previous aircraft"
                 >
-                  <b aria-hidden="true">‹</b><span>PREVIOUS</span>
+                  <b aria-hidden="true">‹</b><span data-fit-text data-fit-min="9" data-fit-max="12">PREVIOUS</span>
                 </button>
                 <div class="aircraft-carousel-pulse" aria-hidden="true">
                   <i></i><i></i><i></i><i></i><i></i>
@@ -480,7 +481,7 @@
                   type="button"
                   aria-label="Next aircraft"
                 >
-                  <span>NEXT</span><b aria-hidden="true">›</b>
+                  <span data-fit-text data-fit-min="9" data-fit-max="12">NEXT</span><b aria-hidden="true">›</b>
                 </button>
               </div>
               <select
@@ -505,12 +506,15 @@
               <div class="flight-gate-head">
                 <div>
                   <span>RUNWAY CLEARANCE</span>
-                  <h2 id="flight-gate-title" tabindex="-1">
+                  <h2 id="flight-gate-title" tabindex="-1" data-fit-text data-fit-min="15" data-fit-max="24">
                     Start Cockpit Flight
                   </h2>
                 </div>
                 <strong
                   id="flight-gate-state"
+                  data-fit-text
+                  data-fit-min="9"
+                  data-fit-max="12"
                   role="status"
                   aria-live="polite"
                   aria-atomic="true"
@@ -519,19 +523,19 @@
               </div>
               <ul class="flight-gate-checks" aria-label="Flight readiness">
                 <li id="flight-gate-source">
-                  <i aria-hidden="true"></i><span>Selected source</span
+                  <i aria-hidden="true"></i><span data-fit-text data-fit-min="8" data-fit-max="11">Selected source</span
                   ><b>WAIT</b>
                 </li>
                 <li id="flight-gate-signal">
-                  <i aria-hidden="true"></i><span>Fresh heart signal</span
+                  <i aria-hidden="true"></i><span data-fit-text data-fit-min="8" data-fit-max="11">Fresh heart signal</span
                   ><b>WAIT</b>
                 </li>
                 <li id="flight-gate-mapping">
-                  <i aria-hidden="true"></i><span>Altitude mapping</span
+                  <i aria-hidden="true"></i><span data-fit-text data-fit-min="8" data-fit-max="11">Altitude mapping</span
                   ><b>WAIT</b>
                 </li>
               </ul>
-              <p id="flight-gate-copy">
+              <p id="flight-gate-copy" data-fit-text data-fit-min="9" data-fit-max="12" data-fit-lines="2" data-fit-line="1.25">
                 Connect a worn Polar H10 or select a live Ground Control beacon.
                 A connection without a fresh signal cannot start flight.
               </p>
@@ -547,8 +551,8 @@
                   aria-hidden="true"
                   ><i></i><b>✦</b></span
                 ><span class="action-button-copy"
-                  ><small>COCKPIT LAUNCH</small
-                  ><strong>Start flight</strong></span
+                  ><small data-fit-text data-fit-min="7" data-fit-max="10">COCKPIT LAUNCH</small
+                  ><strong data-fit-text data-fit-min="10" data-fit-max="14">Start flight</strong></span
                 >
               </button>
             </section>

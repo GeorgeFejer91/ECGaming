@@ -21,6 +21,10 @@ The ECG Flight adapter is independently implemented as BSD-3-Clause project code
 
 [Three.js](https://threejs.org/) is distributed under the MIT License. Copyright © 2010–2026 Three.js authors.
 
+## Pretext
+
+[`@chenglou/pretext`](https://github.com/chenglou/pretext) by Cheng Lou is distributed under the MIT License. ECGaming uses its cached text measurement and layout APIs to fit labelled control-room text into fixed instrument cells without repeated DOM text measurement.
+
 ## Fonts
 
 Inter and Barlow Condensed are self-hosted through Fontsource packages and licensed under the SIL Open Font License 1.1. Their package license files are retained by npm in `node_modules` during development and their font binaries are included in the production bundle.

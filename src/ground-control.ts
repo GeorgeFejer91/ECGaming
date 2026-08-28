@@ -33,6 +33,7 @@ import {
 import { CausalRPeakDetector } from "./signals/rpeak";
 import { GroundCockpit, type CockpitTelemetry } from "./game/ground-cockpit";
 import { SessionCsvLog } from "./logging/session-log";
+import { installPretextFit } from "./ui/pretext-fit";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
 import {
   POLAR_METRICS,
@@ -1676,11 +1677,13 @@ addEventListener("beforeunload", () => {
   void broadcaster.stop();
   void receiver.stop();
   cockpit.dispose();
+  disposeTextFit();
 });
 
 setupAccordion();
 renderMappings();
 setupActions();
+const disposeTextFit = installPretextFit();
 syncSourcePanels();
 showView(
   new URL(location.href).searchParams.get("view") === "cockpit"

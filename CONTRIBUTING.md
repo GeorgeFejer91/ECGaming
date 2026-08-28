@@ -27,4 +27,4 @@ Aircraft contributions must include the creator, source URL, exact license and v
 
 Heartbeat Flight is reward-only. A ring pass awards a point; a miss does not remove lives or end the run. Preserve this behavior when changing scoring, HUD, or telemetry.
 
-When changing the unified views, test source switching, launch-gate denial and recovery, Ground Control ⇄ Cockpit state continuity, flat/WebXR parity, and simulator rejection. Keep third-party notices intact for the Affect Tracker signal layer, VDO.Ninja SDK, Three.js, fonts, and aircraft assets.
+When changing the unified views, test source switching, launch-gate denial and recovery, Ground Control ⇄ Cockpit state continuity, flat/WebXR parity, and simulator rejection. Keep third-party notices intact for the Affect Tracker signal layer, VDO.Ninja SDK, Three.js, Pretext, fonts, and aircraft assets.

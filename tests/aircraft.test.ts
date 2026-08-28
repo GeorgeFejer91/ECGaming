@@ -12,6 +12,10 @@ import {
   loadAircraftVisual,
   normalizeAircraftVisual,
 } from "../src/game/aircraft";
+import {
+  AIRCRAFT_PREVIEW_RADIUS,
+  fitAircraftPreviewModel,
+} from "../src/game/aircraft-preview";
 
 describe("aircraft catalog", () => {
   it("offers the project plane and every licensed source-pack aircraft", () => {
@@ -72,6 +76,46 @@ describe("aircraft catalog", () => {
     expect(size.x).toBeLessThanOrEqual(AIRCRAFT_MAX_WIDTH);
     expect(size.y).toBeLessThanOrEqual(AIRCRAFT_MAX_HEIGHT);
     expect(center.length()).toBeLessThan(0.00001);
+  });
+
+  it("centers differently proportioned previews in one rotation-safe sphere", () => {
+    for (const dimensions of [
+      [18, 1, 2],
+      [2, 9, 3],
+      [3, 2, 24],
+    ] as const) {
+      const mount = new THREE.Group();
+      const root = new THREE.Group();
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...dimensions));
+      mesh.position.set(7, -4, 11);
+      root.add(mesh);
+      const fitted = fitAircraftPreviewModel(mount, root);
+      expect(fitted.center.length()).toBeLessThan(0.00001);
+      expect(fitted.radius).toBeCloseTo(AIRCRAFT_PREVIEW_RADIUS, 5);
+      mesh.geometry.dispose();
+    }
+  });
+
+  it("standardizes the airframe without letting an attached propeller move its axis", () => {
+    const mount = new THREE.Group();
+    const root = new THREE.Group();
+    const airframe = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 12));
+    airframe.position.set(5, -2, 9);
+    const propeller = new THREE.Group();
+    propeller.position.set(5, -2, -3.2);
+    propeller.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 0.1)));
+    root.add(airframe, propeller);
+
+    const fitted = fitAircraftPreviewModel(
+      mount,
+      root,
+      AIRCRAFT_PREVIEW_RADIUS,
+      [propeller],
+    );
+    expect(fitted.center.length()).toBeLessThan(0.00001);
+    expect(fitted.radius).toBeCloseTo(AIRCRAFT_PREVIEW_RADIUS, 5);
+    airframe.geometry.dispose();
+    (propeller.children[0] as THREE.Mesh).geometry.dispose();
   });
 
   it("gives the procedural fallback a visible animated propeller", async () => {

@@ -664,13 +664,19 @@ a {
 }
 .action-button-copy {
   display: grid;
+  grid-template-rows: 42% 58%;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
   gap: 0.2rem;
   text-align: left;
 }
 .action-button-copy small,
 .action-button-copy strong {
   display: block;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 .action-button-copy small {
   opacity: 0.66;
@@ -2487,18 +2493,69 @@ body.cockpit-mode {
   transform: rotate(45deg);
 }
 .unified-flight-shell .control-workspace {
-  grid-template-columns: minmax(370px, 430px) minmax(0, 1fr);
-  min-height: calc(100vh - var(--unified-header-height));
+  --control-rail-width: 430px;
+  grid-template-columns: var(--control-rail-width) minmax(0, 1fr);
+  height: calc(100dvh - var(--unified-header-height));
+  min-height: 0;
 }
 .unified-flight-shell .control-panel {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - var(--unified-header-height));
+  display: grid;
+  grid-template-rows: 11% 30% 39% 20%;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
   scrollbar-color: rgba(105, 212, 222, 0.35) #071721;
   scrollbar-width: thin;
 }
+.unified-flight-shell .public-warning {
+  grid-template-rows: 22fr 78fr;
+  min-height: 0;
+  gap: 0.2rem;
+  margin: clamp(0.3rem, 0.7vh, 0.5rem);
+  padding: clamp(0.35rem, 0.7vh, 0.5rem) 0.75rem;
+  overflow: hidden;
+}
+.unified-flight-shell .public-warning strong,
+.unified-flight-shell .public-warning span {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.unified-flight-shell .accordion {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+.unified-flight-shell .accordion-item {
+  display: block;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.unified-flight-shell .accordion-item.is-open {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
 .unified-flight-shell .accordion-trigger {
-  min-height: 48px;
+  flex: 0 0 clamp(40px, 4.8vh, 48px);
+  min-height: 40px;
+  padding: 0.55rem 1rem;
+}
+.unified-flight-shell .accordion-trigger > span {
+  min-width: 0;
+  min-height: 1rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.unified-flight-shell .accordion-item.is-open .accordion-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.75rem 0.9rem 1rem;
+  overflow: auto;
+  scrollbar-color: rgba(105, 212, 222, 0.35) #071721;
+  scrollbar-width: thin;
 }
 .section-intro {
   margin: 0 0 0.9rem;
@@ -2554,6 +2611,21 @@ body.cockpit-mode {
 .source-mode-card small {
   display: block;
 }
+.source-mode-copy {
+  display: grid;
+  grid-template-rows: 42% 58%;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 52px;
+  overflow: hidden;
+}
+.source-mode-copy strong,
+.source-mode-copy small {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
 .source-mode-card strong {
   color: #e8f2f4;
   font:
@@ -2562,7 +2634,7 @@ body.cockpit-mode {
   text-transform: uppercase;
 }
 .source-mode-card small {
-  margin-top: 0.35rem;
+  margin-top: 0;
   padding-right: 0.4rem;
   color: #8fa5ac;
   font-size: 0.64rem;
@@ -2596,6 +2668,22 @@ body.cockpit-mode {
 }
 .source-control-surface {
   padding-top: 0.15rem;
+}
+.status-card-copy {
+  display: grid;
+  flex: 1;
+  grid-template-rows: 38% 62%;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 54px;
+  overflow: hidden;
+}
+.status-card-copy strong,
+.status-card-copy small {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
 }
 .beacon-status-card {
   border-color: rgba(105, 212, 222, 0.24);
@@ -2710,11 +2798,10 @@ body.cockpit-mode {
 .aircraft-showcase {
   position: relative;
   isolation: isolate;
-  display: flex;
-  flex: 1 0 420px;
-  flex-direction: column;
-  min-height: 420px;
-  padding: 0.85rem 1.2rem 0.8rem;
+  display: grid;
+  grid-template-rows: 5% 73% 16% 6%;
+  min-height: 0;
+  padding: clamp(0.45rem, 1vh, 0.7rem) 0.8rem;
   overflow: hidden;
   border-top: 1px solid rgba(105, 212, 222, 0.2);
   background:
@@ -2758,6 +2845,7 @@ body.cockpit-mode {
     700 0.62rem/1 "Barlow Condensed",
     sans-serif;
   letter-spacing: 0.18em;
+  overflow: hidden;
 }
 .aircraft-showcase-header strong {
   color: var(--cyan);
@@ -2767,10 +2855,9 @@ body.cockpit-mode {
 .aircraft-preview-frame {
   position: relative;
   display: grid;
-  flex: 1;
-  grid-template-rows: minmax(180px, 1fr) auto;
+  grid-template-rows: 72% 28%;
   min-height: 0;
-  margin-top: 0.45rem;
+  margin-top: 0;
   overflow: hidden;
   border: 1px solid rgba(105, 212, 222, 0.26);
   background:
@@ -2781,8 +2868,8 @@ body.cockpit-mode {
 .aircraft-preview-frame::before {
   position: absolute;
   z-index: 2;
-  top: 0.7rem;
-  right: 0.7rem;
+  top: 0.4rem;
+  right: 0.4rem;
   padding: 0.3rem 0.4rem;
   color: rgba(111, 219, 155, 0.8);
   border: 1px solid rgba(111, 219, 155, 0.25);
@@ -2794,7 +2881,7 @@ body.cockpit-mode {
 }
 .aircraft-preview {
   position: relative;
-  min-height: 180px;
+  min-height: 0;
   overflow: hidden;
 }
 .aircraft-preview canvas {
@@ -2808,6 +2895,10 @@ body.cockpit-mode {
 .aircraft-preview.is-loading canvas {
   opacity: 0.38;
   filter: blur(2px);
+}
+.aircraft-preview.is-loading + .aircraft-nameplate::before {
+  color: var(--amber);
+  content: "MODEL LOADING";
 }
 .aircraft-preview.is-unavailable::before {
   position: absolute;
@@ -2826,7 +2917,7 @@ body.cockpit-mode {
 .aircraft-preview-reticle {
   position: absolute;
   z-index: 0;
-  top: 44%;
+  top: 50%;
   left: 50%;
   width: min(62%, 210px);
   aspect-ratio: 1;
@@ -2875,15 +2966,18 @@ body.cockpit-mode {
 .aircraft-nameplate {
   position: relative;
   z-index: 3;
-  min-height: 84px;
-  padding: 0.7rem 0.85rem 0.8rem;
+  display: grid;
+  grid-template-rows: 20% 46% 34%;
+  min-height: 0;
+  padding: 0.35rem 0.65rem 0.4rem;
+  overflow: hidden;
   border-top: 1px solid rgba(244, 179, 58, 0.3);
   background: linear-gradient(90deg, rgba(6, 21, 31, 0.97), rgba(10, 31, 42, 0.92));
 }
 .aircraft-nameplate::before {
   position: absolute;
-  top: 0.72rem;
-  right: 0.75rem;
+  top: 0.42rem;
+  right: 0.55rem;
   color: rgba(111, 219, 155, 0.72);
   content: "MODEL READY";
   font:
@@ -2893,7 +2987,8 @@ body.cockpit-mode {
 }
 .aircraft-nameplate > span {
   display: block;
-  max-width: 70%;
+  max-width: 62%;
+  min-height: 0;
   overflow: hidden;
   color: #78939c;
   text-overflow: ellipsis;
@@ -2905,7 +3000,9 @@ body.cockpit-mode {
   text-transform: uppercase;
 }
 .aircraft-nameplate h2 {
-  margin: 0.28rem 0 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
   color: #f6fbfc;
   text-shadow: 0 0 18px rgba(105, 212, 222, 0.25);
   font:
@@ -2915,7 +3012,9 @@ body.cockpit-mode {
   text-transform: uppercase;
 }
 .aircraft-nameplate p {
-  margin: 0.34rem 0 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
   color: #9bb1b7;
   font-size: 0.64rem;
   line-height: 1.35;
@@ -2925,13 +3024,16 @@ body.cockpit-mode {
   grid-template-columns: minmax(108px, 1fr) auto minmax(108px, 1fr);
   align-items: center;
   gap: 0.55rem;
-  margin-top: 0.55rem;
+  min-height: 0;
+  margin-top: 0;
+  padding-top: 0.3rem;
 }
 .aircraft-carousel-button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 46px;
+  height: 100%;
+  min-height: 44px;
   padding: 0.55rem 0.75rem;
   color: #d9e9ec;
   border: 1px solid rgba(105, 212, 222, 0.34);
@@ -2993,9 +3095,11 @@ body.cockpit-mode {
   }
 }
 #ground-aircraft-status {
-  display: block;
-  min-height: 0.7rem;
-  margin-top: 0.42rem;
+  display: grid;
+  min-height: 0;
+  margin-top: 0;
+  place-items: center;
+  overflow: hidden;
   color: #6fdb9b;
   font:
     700 0.52rem/1.2 "Barlow Condensed",
@@ -3004,11 +3108,14 @@ body.cockpit-mode {
   text-align: center;
 }
 .flight-gate {
-  position: sticky;
+  position: relative;
   z-index: 7;
-  bottom: 0;
-  margin-top: auto;
-  padding: 1rem 1.2rem 1.15rem;
+  display: grid;
+  grid-template-rows: 23% 31% 17% 29%;
+  min-height: 0;
+  margin-top: 0;
+  padding: clamp(0.45rem, 1vh, 0.75rem) 0.8rem;
+  overflow: hidden;
   border-top: 2px solid rgba(244, 179, 58, 0.55);
   background:
     radial-gradient(circle at 95% 5%, rgba(244, 179, 58, 0.14), transparent 34%),
@@ -3021,6 +3128,15 @@ body.cockpit-mode {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.8rem;
+  min-height: 0;
+  overflow: hidden;
+}
+.flight-gate-head > div {
+  display: grid;
+  grid-template-rows: 35% 65%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 .flight-gate-head span {
   color: var(--amber);
@@ -3030,13 +3146,16 @@ body.cockpit-mode {
   letter-spacing: 0.16em;
 }
 .flight-gate-head h2 {
-  margin: 0.3rem 0 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
   font:
     800 1.45rem/1 "Barlow Condensed",
     sans-serif;
   text-transform: uppercase;
 }
 .flight-gate-head > strong {
+  align-self: start;
   padding: 0.4rem 0.5rem;
   color: var(--orange);
   border: 1px solid rgba(233, 95, 55, 0.46);
@@ -3054,7 +3173,9 @@ body.cockpit-mode {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.4rem;
-  margin: 0.8rem 0;
+  min-height: 0;
+  margin: 0;
+  padding-block: 0.25rem;
   padding: 0;
   list-style: none;
 }
@@ -3063,7 +3184,9 @@ body.cockpit-mode {
   grid-template-columns: auto 1fr;
   gap: 0.35rem 0.45rem;
   min-width: 0;
-  padding: 0.5rem;
+  min-height: 0;
+  padding: 0.3rem 0.4rem;
+  overflow: hidden;
   border: 1px solid var(--line);
   color: #a7bac0;
   font-size: 0.64rem;
@@ -3091,7 +3214,9 @@ body.cockpit-mode {
   color: var(--green);
 }
 .flight-gate > p {
-  margin: 0 0 0.7rem;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
   color: #9bb0b6;
   font-size: 0.68rem;
   line-height: 1.45;
@@ -3099,13 +3224,16 @@ body.cockpit-mode {
 .flight-gate-start {
   gap: 0.75rem;
   width: 100%;
-  min-height: 64px;
+  height: 100%;
+  min-height: 44px;
+  padding-block: 0.25rem;
+  overflow: hidden;
   justify-content: center;
 }
 .flight-gate-start .action-widget {
-  flex-basis: 42px;
-  width: 42px;
-  height: 42px;
+  flex-basis: clamp(32px, 4.2vh, 42px);
+  width: clamp(32px, 4.2vh, 42px);
+  height: clamp(32px, 4.2vh, 42px);
 }
 .flight-gate-start .action-button-copy small {
   font-size: 0.5rem;
@@ -3563,7 +3691,8 @@ body.cockpit-mode {
     padding-inline: 1rem;
   }
   .unified-flight-shell .control-workspace {
-    grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+    --control-rail-width: 380px;
+    grid-template-columns: var(--control-rail-width) minmax(0, 1fr);
   }
   .avionics-board {
     grid-template-columns: 1fr;
@@ -3599,9 +3728,14 @@ body.cockpit-mode {
   }
   .unified-flight-shell .control-workspace {
     display: flex;
+    height: auto;
     flex-direction: column;
   }
   .unified-flight-shell .control-panel {
+    display: flex;
+    height: auto;
+    grid-template-rows: none;
+    flex-direction: column;
     order: 2;
     max-height: none;
     overflow: visible;
@@ -3618,7 +3752,23 @@ body.cockpit-mode {
     width: min(32vw, 290px);
   }
   .flight-gate {
+    position: sticky;
     bottom: 0;
+    height: auto;
+    grid-template-rows: auto;
+  }
+  .unified-flight-shell .public-warning {
+    grid-template-rows: auto auto;
+  }
+  .unified-flight-shell .accordion {
+    display: block;
+    overflow: visible;
+  }
+  .unified-flight-shell .accordion-item.is-open {
+    display: block;
+  }
+  .unified-flight-shell .accordion-item.is-open .accordion-body {
+    overflow: visible;
   }
   .aircraft-showcase {
     flex: 0 0 auto;
@@ -3669,10 +3819,15 @@ body.cockpit-mode {
   }
   .unified-flight-shell .control-workspace {
     display: flex;
+    height: auto;
     flex-direction: column;
     min-height: calc(100svh - var(--unified-header-height));
   }
   .unified-flight-shell .control-panel {
+    display: flex;
+    height: auto;
+    grid-template-rows: none;
+    flex-direction: column;
     order: 2;
     max-height: none;
     overflow: visible;
@@ -3731,20 +3886,29 @@ body.cockpit-mode {
   .source-mode-card {
     min-height: 68px;
   }
+  .unified-flight-shell .public-warning {
+    grid-template-rows: auto auto;
+  }
+  .unified-flight-shell .accordion {
+    display: block;
+    overflow: visible;
+  }
+  .unified-flight-shell .accordion-item.is-open {
+    display: block;
+  }
+  .unified-flight-shell .accordion-item.is-open .accordion-body {
+    overflow: visible;
+  }
   .aircraft-showcase {
     flex: 0 0 auto;
     min-height: 420px;
     padding-inline: 0.8rem;
   }
-  .aircraft-preview-frame {
-    grid-template-rows: minmax(210px, 1fr) auto;
-  }
-  .aircraft-preview {
-    min-height: 210px;
-  }
   .flight-gate {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(140px, 1fr);
+    grid-template-rows: auto;
+    height: auto;
     gap: 0.45rem 0.6rem;
     padding-top: 0.65rem;
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -3773,6 +3937,7 @@ body.cockpit-mode {
   }
   .flight-gate-start {
     grid-column: 1/-1;
+    height: auto;
     min-height: 58px;
     align-self: end;
   }
@@ -3869,12 +4034,6 @@ body.cockpit-mode {
   .aircraft-showcase {
     min-height: 400px;
   }
-  .aircraft-preview-frame {
-    grid-template-rows: minmax(190px, 1fr) auto;
-  }
-  .aircraft-preview {
-    min-height: 190px;
-  }
   .aircraft-nameplate h2 {
     font-size: 1.45rem;
   }
@@ -3886,6 +4045,53 @@ body.cockpit-mode {
     min-width: 0;
     padding-inline: 0.55rem;
     letter-spacing: 0.08em;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .unified-flight-shell .control-panel {
+    display: flex;
+    height: 100%;
+    grid-template-rows: none;
+    overflow: auto;
+    flex-direction: column;
+  }
+  .unified-flight-shell .public-warning {
+    grid-template-rows: auto auto;
+    flex: 0 0 auto;
+  }
+  .unified-flight-shell .accordion {
+    display: block;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .unified-flight-shell .accordion-item.is-open {
+    display: block;
+  }
+  .unified-flight-shell .accordion-item.is-open .accordion-body {
+    overflow: visible;
+  }
+  .aircraft-showcase {
+    flex: 0 0 380px;
+    min-height: 380px;
+  }
+  .flight-gate {
+    position: sticky;
+    bottom: 0;
+    flex: 0 0 auto;
+    grid-template-rows: auto;
+    height: auto;
+    padding: 0.8rem 1rem 0.95rem;
+  }
+  .flight-gate-checks {
+    margin-block: 0.6rem;
+  }
+  .flight-gate > p {
+    margin-bottom: 0.6rem;
+  }
+  .flight-gate-start {
+    height: auto;
+    min-height: 58px;
   }
 }
 
@@ -3922,6 +4128,28 @@ body.cockpit-mode {
     max-height: none;
     overflow: visible;
   }
+  .unified-flight-shell .control-workspace {
+    height: auto;
+  }
+  .unified-flight-shell .control-panel {
+    display: flex;
+    height: auto;
+    grid-template-rows: none;
+    flex-direction: column;
+  }
+  .unified-flight-shell .public-warning {
+    grid-template-rows: auto auto;
+  }
+  .unified-flight-shell .accordion {
+    display: block;
+    overflow: visible;
+  }
+  .unified-flight-shell .accordion-item.is-open {
+    display: block;
+  }
+  .unified-flight-shell .accordion-item.is-open .accordion-body {
+    overflow: visible;
+  }
   .beacon-instrument {
     min-height: 150px;
   }
@@ -3935,15 +4163,11 @@ body.cockpit-mode {
     flex: 0 0 auto;
     min-height: 370px;
   }
-  .aircraft-preview-frame {
-    grid-template-rows: minmax(160px, 1fr) auto;
-  }
-  .aircraft-preview {
-    min-height: 160px;
-  }
   .flight-gate {
     display: grid;
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    grid-template-rows: auto;
+    height: auto;
     gap: 0.4rem 0.55rem;
     padding: 0.45rem max(0.65rem, env(safe-area-inset-right))
       max(0.45rem, env(safe-area-inset-bottom))
@@ -3975,6 +4199,7 @@ body.cockpit-mode {
   }
   .flight-gate-start {
     grid-column: 1/-1;
+    height: auto;
     min-height: 54px;
   }
   .cockpit-view {

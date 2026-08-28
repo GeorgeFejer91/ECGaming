@@ -7,11 +7,65 @@ import {
   type AircraftVisual,
 } from "./aircraft";
 
+export const AIRCRAFT_PREVIEW_RADIUS = 2.15;
+
+const boundsWithoutRoots = (
+  root: THREE.Object3D,
+  excludedRoots: readonly THREE.Object3D[],
+) => {
+  const excluded = new Set(excludedRoots);
+  const bounds = new THREE.Box3();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    let ancestor: THREE.Object3D | null = object;
+    while (ancestor) {
+      if (excluded.has(ancestor)) return;
+      ancestor = ancestor.parent;
+    }
+    bounds.expandByObject(object, true);
+  });
+  if (bounds.isEmpty()) bounds.setFromObject(root, true);
+  return bounds;
+};
+
+/**
+ * Fits any catalog model into one rotation-safe sphere around the turntable.
+ * A parent mount is used so the gameplay normalization remains untouched.
+ */
+export function fitAircraftPreviewModel(
+  mount: THREE.Group,
+  root: THREE.Object3D,
+  targetRadius = AIRCRAFT_PREVIEW_RADIUS,
+  excludedRoots: readonly THREE.Object3D[] = [],
+) {
+  mount.position.set(0, 0, 0);
+  mount.scale.setScalar(1);
+  mount.add(root);
+  // The mount keeps the previous aircraft's fit until its world matrix is
+  // refreshed. Update the parent first so every new model is measured from a
+  // clean identity transform instead of inheriting the previous model's scale
+  // or the turntable's previous rotation.
+  (mount.parent ?? mount).updateMatrixWorld(true);
+  const sphere = boundsWithoutRoots(root, excludedRoots).getBoundingSphere(
+    new THREE.Sphere(),
+  );
+  if (!Number.isFinite(sphere.radius) || sphere.radius <= 0)
+    throw new Error("Aircraft preview model has no measurable geometry.");
+  const scale = targetRadius / sphere.radius;
+  mount.scale.setScalar(scale);
+  mount.position.copy(sphere.center).multiplyScalar(-scale);
+  mount.updateMatrixWorld(true);
+  return boundsWithoutRoots(root, excludedRoots).getBoundingSphere(
+    new THREE.Sphere(),
+  );
+}
+
 /** Lightweight hangar renderer used only by the Ground Control carousel. */
 export class AircraftPreview {
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+  private readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
   private readonly turntable = new THREE.Group();
+  private readonly modelMount = new THREE.Group();
   private renderer?: THREE.WebGLRenderer;
   private visual?: AircraftVisual;
   private resizeObserver?: ResizeObserver;
@@ -66,8 +120,9 @@ export class AircraftPreview {
   }
 
   private buildScene() {
-    this.camera.position.set(5.6, 2.7, -7.4);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(5.7, 2.65, -7.7);
+    this.camera.lookAt(0, 0.08, 0);
+    this.turntable.add(this.modelMount);
     this.scene.add(this.turntable);
 
     const hemisphere = new THREE.HemisphereLight("#dffcff", "#07131f", 2.2);
@@ -92,7 +147,7 @@ export class AircraftPreview {
         opacity: 0.92,
       }),
     );
-    platform.position.y = -1.38;
+    platform.position.y = -1.62;
     platform.receiveShadow = true;
     this.scene.add(platform);
 
@@ -105,7 +160,7 @@ export class AircraftPreview {
       }),
     );
     halo.rotation.x = Math.PI / 2;
-    halo.position.y = -1.32;
+    halo.position.y = -1.56;
     this.scene.add(halo);
   }
 
@@ -133,14 +188,29 @@ export class AircraftPreview {
       return visual.id;
     }
     if (this.visual) {
-      this.turntable.remove(this.visual.root);
+      this.modelMount.remove(this.visual.root);
       disposeAircraftVisual(this.visual.root);
     }
     this.visual = visual;
-    this.turntable.rotation.set(0, -0.55, 0);
-    this.turntable.add(visual.root);
+    this.turntable.rotation.set(0, 0, 0);
+    const fitted = fitAircraftPreviewModel(
+      this.modelMount,
+      visual.root,
+      AIRCRAFT_PREVIEW_RADIUS,
+      visual.propellers,
+    );
+    const envelope = new THREE.Box3()
+      .setFromObject(visual.root, true)
+      .getBoundingSphere(new THREE.Sphere());
+    this.turntable.rotation.y = -0.55;
     this.host.classList.remove("is-loading");
     this.host.dataset.aircraft = visual.id;
+    this.host.dataset.previewRadius = fitted.radius.toFixed(4);
+    this.host.dataset.previewCenter = fitted.center
+      .toArray()
+      .map((value) => value.toFixed(4))
+      .join(",");
+    this.host.dataset.previewEnvelopeRadius = envelope.radius.toFixed(4);
     return visual.id;
   }
 
@@ -161,7 +231,6 @@ export class AircraftPreview {
     this.lastTime = time;
     if (!this.reduceMotion) {
       this.turntable.rotation.y += delta * 0.00042;
-      this.turntable.position.y = Math.sin(time * 0.0014) * 0.07;
       for (const propeller of this.visual?.propellers ?? [])
         propeller.rotation.z -= delta * 0.024;
     }
