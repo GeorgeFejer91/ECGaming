@@ -1,11 +1,18 @@
 import {
+  decodeSignalBeaconFrame,
   decodeFlightFrame,
+  encodeSignalBeaconFrame,
   encodeFlightFrame,
   FLIGHT_HEARTBEAT_MS,
   FLIGHT_MAX_HZ,
   FLIGHT_RECOVERY_FRAMES,
   FLIGHT_STALE_MS,
   isNewerSequence,
+  SIGNAL_BEACON_CHANNEL,
+  SIGNAL_BEACON_HEARTBEAT_MS,
+  SIGNAL_BEACON_MAX_HZ,
+  SIGNAL_BEACON_METRICS,
+  SIGNAL_BEACON_STALE_MS,
 } from "./flight-frame";
 import type {
   FlightConfigV1,
@@ -13,17 +20,22 @@ import type {
   FlightMappings,
   FlightReceiverSnapshot,
   RemoteSource,
+  SignalBeaconConfigV1,
+  SignalBeaconFrame,
 } from "./types";
 import { sanitizeMappings } from "../signals/mappings";
 
 export const FLIGHT_ROOM = "ecgaming_flight_v1";
 export const FLIGHT_SOURCE_PREFIX = "ecg_ground_";
 export const FLIGHT_CHANNEL = "ecgflightv1";
+export { SIGNAL_BEACON_CHANNEL };
 export const FLIGHT_FORCE_TURN_PARAM = "remote-force-turn";
 const DISCOVERY_SETTLE_MS = 300,
   MIN_INTERVAL = 1000 / FLIGHT_MAX_HZ,
   EARLY_TOLERANCE = 5,
-  MIN_SEPARATION = MIN_INTERVAL - EARLY_TOLERANCE;
+  MIN_SEPARATION = MIN_INTERVAL - EARLY_TOLERANCE,
+  BEACON_MIN_INTERVAL = 1000 / SIGNAL_BEACON_MAX_HZ,
+  BEACON_MIN_SEPARATION = BEACON_MIN_INTERVAL - EARLY_TOLERANCE;
 
 type Sdk = EventTarget & {
   connect(): Promise<void>;
@@ -71,6 +83,11 @@ const randomHex = (length = 4) =>
   Array.from(randomBytes(length), (value) =>
     value.toString(16).padStart(2, "0"),
   ).join("");
+const randomUint32 = () => {
+  const bytes = randomBytes(4),
+    value = new DataView(bytes.buffer).getUint32(0, true);
+  return value || 1;
+};
 export const generateFlightSourceId = () =>
   `${FLIGHT_SOURCE_PREFIX}${randomHex()}`;
 export const formatSourceLabel = (id: string) => {
@@ -115,15 +132,31 @@ const sourceItem = (value: any): RemoteSource => {
 function createConfig(
   sourceId: string,
   mappings: FlightMappings,
+  sessionId = randomHex(8),
 ): FlightConfigV1 {
   return {
     kind: "ecgaming-flight-config",
     protocol: "ecgflightv1",
     schemaVersion: 1,
     sourceId,
-    sessionId: randomHex(8),
+    sessionId,
     createdAt: new Date().toISOString(),
     mappings: structuredClone(mappings),
+  };
+}
+function createBeaconConfig(
+  sourceId: string,
+  sessionId: string,
+): SignalBeaconConfigV1 {
+  return {
+    kind: "ecgaming-signal-config",
+    protocol: "ecgsignalv1",
+    schemaVersion: 1,
+    sourceId,
+    sessionId,
+    sessionToken: randomUint32(),
+    metricOrder: [...SIGNAL_BEACON_METRICS],
+    rawEcgIncluded: false,
   };
 }
 function parseConfig(value: unknown): FlightConfigV1 | undefined {
@@ -143,6 +176,36 @@ function parseConfig(value: unknown): FlightConfigV1 | undefined {
     candidate.schemaVersion === 1 &&
     isFlightSource(candidate.sourceId)
     ? { ...candidate, mappings: sanitizeMappings(candidate.mappings) }
+    : undefined;
+}
+
+function parseBeaconConfig(value: unknown): SignalBeaconConfigV1 | undefined {
+  const candidate = (
+    typeof value === "string"
+      ? (() => {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return undefined;
+          }
+        })()
+      : value
+  ) as SignalBeaconConfigV1 | undefined;
+  return candidate?.kind === "ecgaming-signal-config" &&
+    candidate.protocol === "ecgsignalv1" &&
+    candidate.schemaVersion === 1 &&
+    isFlightSource(candidate.sourceId) &&
+    typeof candidate.sessionId === "string" &&
+    candidate.sessionId.length > 0 &&
+    Number.isInteger(candidate.sessionToken) &&
+    candidate.sessionToken > 0 &&
+    candidate.rawEcgIncluded === false &&
+    Array.isArray(candidate.metricOrder) &&
+    candidate.metricOrder.length === SIGNAL_BEACON_METRICS.length &&
+    candidate.metricOrder.every(
+      (metric, index) => metric === SIGNAL_BEACON_METRICS[index],
+    )
+    ? { ...candidate, metricOrder: [...SIGNAL_BEACON_METRICS] }
     : undefined;
 }
 
@@ -217,25 +280,36 @@ export interface BroadcasterSnapshot {
   sessionId: string;
   sourceLabel: string;
   listenerCount: number;
+  beaconListenerCount: number;
   route: "direct" | "relay" | "unknown";
   rttMs?: number;
   droppedBackpressure: number;
+  beaconDroppedBackpressure: number;
   sequence: number;
+  beaconSequence: number;
   forceTurnRequested: boolean;
   message?: string;
   error?: boolean;
 }
 
+export type SignalBeaconOffer = Omit<
+  SignalBeaconFrame,
+  "sequence" | "sessionToken"
+>;
+
 export class FlightBroadcaster extends RemoteBase {
   private phase: BroadcasterSnapshot["phase"] = "idle";
   private streamId = "";
   private config?: FlightConfigV1;
+  private beaconConfig?: SignalBeaconConfigV1;
   private channels = new Map<string, RTCDataChannel>();
+  private beaconChannels = new Map<string, RTCDataChannel>();
   private qualities = new Map<
     string,
     { route: "direct" | "relay" | "unknown"; rttMs?: number }
   >();
   private opening = new Set<string>();
+  private beaconOpening = new Set<string>();
   private latest?: Omit<FlightFrame, "sequence">;
   private lastSent?: Omit<FlightFrame, "sequence">;
   private sequence = 0;
@@ -244,6 +318,14 @@ export class FlightBroadcaster extends RemoteBase {
   private nextChangedAt = -Infinity;
   private heartbeatTimer?: ReturnType<typeof setTimeout>;
   private dropped = 0;
+  private latestBeacon?: SignalBeaconOffer;
+  private lastSentBeacon?: SignalBeaconOffer;
+  private beaconSequence = 0;
+  private lastBeaconSentAt = -Infinity;
+  private lastBeaconChangedAt = -Infinity;
+  private nextBeaconChangedAt = -Infinity;
+  private beaconHeartbeatTimer?: ReturnType<typeof setTimeout>;
+  private beaconDropped = 0;
   snapshot(extra: Partial<BroadcasterSnapshot> = {}): BroadcasterSnapshot {
     const values = [...this.qualities.values()],
       rtts = values.map((v) => v.rttMs).filter(Number.isFinite) as number[];
@@ -258,10 +340,13 @@ export class FlightBroadcaster extends RemoteBase {
       sessionId: this.config?.sessionId ?? "",
       sourceLabel: this.streamId ? formatSourceLabel(this.streamId) : "",
       listenerCount: this.channels.size,
+      beaconListenerCount: this.beaconChannels.size,
       route,
       rttMs: rtts.length ? Math.max(...rtts) : undefined,
       droppedBackpressure: this.dropped,
+      beaconDroppedBackpressure: this.beaconDropped,
       sequence: this.sequence,
+      beaconSequence: this.beaconSequence,
       forceTurnRequested: this.forceTurn,
       ...extra,
     };
@@ -274,7 +359,9 @@ export class FlightBroadcaster extends RemoteBase {
     await this.stop();
     this.phase = "connecting";
     this.streamId = generateFlightSourceId();
-    this.config = createConfig(this.streamId, mappings);
+    const sessionId = randomHex(8);
+    this.config = createConfig(this.streamId, mappings, sessionId);
+    this.beaconConfig = createBeaconConfig(this.streamId, sessionId);
     this.emit({ message: "Connecting to the public flight room…" });
     try {
       this.sdk = this.makeSdk();
@@ -282,12 +369,16 @@ export class FlightBroadcaster extends RemoteBase {
         const uuid = event.detail?.uuid;
         if (uuid) {
           this.deliverConfig(uuid);
+          this.deliverBeaconConfig(uuid);
           void this.openRealtime(uuid);
+          void this.openBeacon(uuid);
         }
       }) as EventListener);
       this.listen("dataReceived", ((event: CustomEvent) => {
         if (event.detail?.data?.kind === "ecgaming-config-request")
           this.deliverConfig(event.detail?.uuid);
+        if (event.detail?.data?.kind === "ecgaming-signal-config-request")
+          this.deliverBeaconConfig(event.detail?.uuid);
       }) as EventListener);
       this.listen("dataChannelClose", ((event: CustomEvent) =>
         this.removePeer(event.detail?.uuid)) as EventListener);
@@ -305,10 +396,15 @@ export class FlightBroadcaster extends RemoteBase {
       await this.sdk.announce({
         streamID: this.streamId,
         label: formatSourceLabel(this.streamId),
-        meta: { protocol: "ecgflightv1", schemaVersion: 1 },
+        meta: {
+          protocol: "ecgflightv1",
+          schemaVersion: 1,
+          signalProtocol: "ecgsignalv1",
+        },
       });
       this.phase = "broadcasting";
       this.scheduleHeartbeat();
+      this.scheduleBeaconHeartbeat();
       this.interval(() => void this.refreshQuality(), 2000);
       this.emit({ message: "Tower is broadcasting normalized game commands." });
       return this.snapshot();
@@ -323,6 +419,16 @@ export class FlightBroadcaster extends RemoteBase {
     if (!this.sdk || !this.config || !uuid) return false;
     return Boolean(
       this.sdk.sendData(this.config, {
+        uuid,
+        preference: "any",
+        allowFallback: false,
+      }),
+    );
+  }
+  private deliverBeaconConfig(uuid: string) {
+    if (!this.sdk || !this.beaconConfig || !uuid) return false;
+    return Boolean(
+      this.sdk.sendData(this.beaconConfig, {
         uuid,
         preference: "any",
         allowFallback: false,
@@ -358,6 +464,42 @@ export class FlightBroadcaster extends RemoteBase {
       });
     } finally {
       this.opening.delete(uuid);
+    }
+  }
+  private async openBeacon(uuid: string) {
+    if (
+      !this.sdk ||
+      !uuid ||
+      this.beaconChannels.has(uuid) ||
+      this.beaconOpening.has(uuid)
+    )
+      return;
+    this.beaconOpening.add(uuid);
+    try {
+      const channel = await this.sdk.openChannel(uuid, SIGNAL_BEACON_CHANNEL, {
+        ordered: false,
+        maxRetransmits: 0,
+      });
+      channel.binaryType = "arraybuffer";
+      channel.bufferedAmountLowThreshold = 0;
+      this.beaconChannels.set(uuid, channel);
+      channel.addEventListener("close", () => this.removePeer(uuid), {
+        once: true,
+      });
+      channel.addEventListener("bufferedamountlow", () =>
+        this.flushBeacon(true, this.now(), uuid),
+      );
+      this.deliverBeaconConfig(uuid);
+      this.flushBeacon(true);
+      this.emit({ message: "A receiver opened the derived-metric beacon." });
+      void this.refreshQuality();
+    } catch (error) {
+      this.emit({
+        message: `Signal beacon channel failed: ${errorMessage(error)}`,
+        error: true,
+      });
+    } finally {
+      this.beaconOpening.delete(uuid);
     }
   }
   offer(frame: Omit<FlightFrame, "sequence">, offeredAt = this.now()) {
@@ -437,18 +579,129 @@ export class FlightBroadcaster extends RemoteBase {
       this.scheduleHeartbeat();
     }, FLIGHT_HEARTBEAT_MS);
   }
+  offerBeacon(frame: SignalBeaconOffer, offeredAt = this.now()) {
+    this.latestBeacon = {
+      ...frame,
+      metrics: Object.fromEntries(
+        Object.entries(frame.metrics).filter(([, value]) =>
+          Number.isFinite(value),
+        ),
+      ) as SignalBeaconOffer["metrics"],
+    };
+    if (
+      this.beaconChanged(this.latestBeacon, this.lastSentBeacon) &&
+      this.readyForBeaconChange(offeredAt)
+    )
+      return this.flushBeacon(false, offeredAt);
+    return false;
+  }
+  private beaconChanged(
+    value: SignalBeaconOffer,
+    previous?: SignalBeaconOffer,
+  ) {
+    if (!previous) return true;
+    for (const key of [
+      "ecgBeatCounter",
+      "rrBeatCounter",
+      "ecgBeatAgeMs",
+      "rrBeatAgeMs",
+      "ecgBeatQuality",
+      "rrBeatQuality",
+      "flags",
+    ] as const)
+      if (value[key] !== previous[key]) return true;
+    return SIGNAL_BEACON_METRICS.some(
+      (metric) => value.metrics[metric] !== previous.metrics[metric],
+    );
+  }
+  private readyForBeaconChange(time: number) {
+    return (
+      time - this.lastBeaconChangedAt >= BEACON_MIN_SEPARATION &&
+      (!Number.isFinite(this.nextBeaconChangedAt) ||
+        time + EARLY_TOLERANCE >= this.nextBeaconChangedAt)
+    );
+  }
+  private recordBeaconChanged(time: number) {
+    this.lastBeaconChangedAt = time;
+    if (
+      !Number.isFinite(this.nextBeaconChangedAt) ||
+      time > this.nextBeaconChangedAt + BEACON_MIN_INTERVAL
+    )
+      this.nextBeaconChangedAt = time + BEACON_MIN_INTERVAL;
+    else this.nextBeaconChangedAt += BEACON_MIN_INTERVAL;
+  }
+  flushBeacon(force = false, time = this.now(), onlyUuid?: string) {
+    if (
+      this.phase !== "broadcasting" ||
+      !this.latestBeacon ||
+      !this.beaconConfig ||
+      this.beaconChannels.size === 0
+    )
+      return false;
+    const changed = this.beaconChanged(this.latestBeacon, this.lastSentBeacon);
+    if (!force && (!changed || !this.readyForBeaconChange(time))) return false;
+    const sequence = (this.beaconSequence + 1) >>> 0,
+      bytes = encodeSignalBeaconFrame({
+        ...this.latestBeacon,
+        sequence,
+        sessionToken: this.beaconConfig.sessionToken,
+      });
+    let sent = false;
+    const entries = onlyUuid
+      ? [[onlyUuid, this.beaconChannels.get(onlyUuid)] as const]
+      : [...this.beaconChannels.entries()];
+    for (const [_uuid, channel] of entries) {
+      if (!channel || channel.readyState !== "open") continue;
+      if (channel.bufferedAmount > 0) {
+        this.beaconDropped += 1;
+        continue;
+      }
+      try {
+        channel.send(bytes);
+        sent = true;
+      } catch {
+        /* close owns cleanup */
+      }
+    }
+    if (sent) {
+      this.beaconSequence = sequence;
+      this.lastSentBeacon = {
+        ...this.latestBeacon,
+        metrics: { ...this.latestBeacon.metrics },
+      };
+      this.lastBeaconSentAt = time;
+      if (changed) this.recordBeaconChanged(time);
+      this.scheduleBeaconHeartbeat();
+    }
+    return sent;
+  }
+  private scheduleBeaconHeartbeat() {
+    if (this.phase !== "broadcasting") return;
+    this.clearTimer(this.beaconHeartbeatTimer);
+    this.beaconHeartbeatTimer = this.timeout(() => {
+      this.beaconHeartbeatTimer = undefined;
+      if (this.now() - this.lastBeaconSentAt >= SIGNAL_BEACON_HEARTBEAT_MS)
+        this.flushBeacon(true);
+      this.scheduleBeaconHeartbeat();
+    }, SIGNAL_BEACON_HEARTBEAT_MS);
+  }
   private removePeer(uuid: string) {
     if (!uuid) return;
     this.channels.get(uuid)?.close();
+    if (this.beaconChannels.get(uuid) !== this.channels.get(uuid))
+      this.beaconChannels.get(uuid)?.close();
     this.channels.delete(uuid);
+    this.beaconChannels.delete(uuid);
     this.qualities.delete(uuid);
     this.opening.delete(uuid);
+    this.beaconOpening.delete(uuid);
     this.emit();
   }
   private async refreshQuality() {
     if (!this.sdk?.getPeerQuality) return;
     await Promise.all(
-      [...this.channels.keys()].map(async (uuid) => {
+      [...new Set([...this.channels.keys(), ...this.beaconChannels.keys()])].map(
+        async (uuid) => {
         try {
           const q = await this.sdk!.getPeerQuality!(uuid);
           this.qualities.set(uuid, {
@@ -463,7 +716,8 @@ export class FlightBroadcaster extends RemoteBase {
         } catch {
           this.qualities.delete(uuid);
         }
-      }),
+        },
+      ),
     );
     if (this.phase === "broadcasting") this.emit();
   }
@@ -474,18 +728,33 @@ export class FlightBroadcaster extends RemoteBase {
       try {
         channel.close();
       } catch {}
+    for (const channel of this.beaconChannels.values())
+      if (![...this.channels.values()].includes(channel))
+        try {
+          channel.close();
+        } catch {}
     this.channels.clear();
+    this.beaconChannels.clear();
     this.qualities.clear();
     this.opening.clear();
+    this.beaconOpening.clear();
     this.latest = undefined;
     this.lastSent = undefined;
     this.streamId = "";
     this.config = undefined;
+    this.beaconConfig = undefined;
     this.sequence = 0;
     this.lastSentAt = -Infinity;
     this.lastChangedAt = -Infinity;
     this.nextChangedAt = -Infinity;
     this.dropped = 0;
+    this.latestBeacon = undefined;
+    this.lastSentBeacon = undefined;
+    this.beaconSequence = 0;
+    this.lastBeaconSentAt = -Infinity;
+    this.lastBeaconChangedAt = -Infinity;
+    this.nextBeaconChangedAt = -Infinity;
+    this.beaconDropped = 0;
     await this.disconnectSdk();
     if (had) this.emit({ message: "Broadcast stopped." });
   }
@@ -497,13 +766,20 @@ export class FlightReceiver extends RemoteBase {
   private selectedStreamId = "";
   private selectedUuid = "";
   private channel?: RTCDataChannel;
+  private beaconChannel?: RTCDataChannel;
   private config?: FlightConfigV1;
+  private beaconConfig?: SignalBeaconConfigV1;
   private latest?: FlightFrame & { receivedAt: number };
+  private latestBeacon?: SignalBeaconFrame & { receivedAt: number };
   private lastSequence?: number;
+  private lastBeaconSequence?: number;
+  private beaconPhase: FlightReceiverSnapshot["beacon"]["phase"] =
+    "unavailable";
   private route: "direct" | "relay" | "unknown" = "unknown";
   private rttMs?: number;
   private discoveryTimer?: ReturnType<typeof setTimeout>;
   private staleTimer?: ReturnType<typeof setTimeout>;
+  private beaconStaleTimer?: ReturnType<typeof setTimeout>;
   private recoveryFrames = 0;
   private gaps: number[] = [];
   private receivedFrames = 0;
@@ -513,6 +789,13 @@ export class FlightReceiver extends RemoteBase {
     const age = this.latest
       ? Math.max(0, at - this.latest.receivedAt)
       : undefined;
+    const beaconAge = this.latestBeacon
+      ? Math.max(0, at - this.latestBeacon.receivedAt)
+      : undefined;
+    const beaconFresh =
+      this.beaconPhase === "live" &&
+      beaconAge !== undefined &&
+      beaconAge < SIGNAL_BEACON_STALE_MS;
     return {
       phase: this.phase,
       sources: [...this.sources.values()].sort((a, b) =>
@@ -528,6 +811,24 @@ export class FlightReceiver extends RemoteBase {
       route: this.route,
       rttMs: this.rttMs,
       recoveryFrames: this.recoveryFrames,
+      beacon: {
+        phase: beaconFresh
+          ? "live"
+          : this.beaconPhase === "live"
+            ? "stale"
+            : this.beaconPhase,
+        config: this.beaconConfig
+          ? structuredClone(this.beaconConfig)
+          : undefined,
+        latest: this.latestBeacon
+          ? {
+              ...this.latestBeacon,
+              metrics: { ...this.latestBeacon.metrics },
+            }
+          : undefined,
+        packetAgeMs: beaconAge,
+        fresh: beaconFresh,
+      },
       diagnostics: {
         receivedFrames: this.receivedFrames,
         p95GapMs: this.percentile(0.95),
@@ -565,6 +866,10 @@ export class FlightReceiver extends RemoteBase {
         this.sources.delete(id);
         if (id === this.selectedStreamId)
           this.markStale("The selected Ground Control source left the room.");
+        if (id === this.selectedStreamId)
+          this.markBeaconStale(
+            "The selected Ground Control beacon left the room.",
+          );
       }
     this.emit();
   }
@@ -603,8 +908,11 @@ export class FlightReceiver extends RemoteBase {
       }) as EventListener);
       this.listen("channelOpen", ((event: CustomEvent) =>
         this.acceptChannel(event.detail)) as EventListener);
-      this.listen("dataChannelClose", (() =>
-        this.armStale("The realtime connection closed.")) as EventListener);
+      this.listen("dataChannelClose", ((event: CustomEvent) => {
+        if (event.detail?.label === `x-${SIGNAL_BEACON_CHANNEL}`)
+          this.markBeaconStale("The derived-metric beacon channel closed.");
+        else this.armStale("The realtime connection closed.");
+      }) as EventListener);
       this.listen("error", ((event: CustomEvent) =>
         this.emit({
           message: errorMessage(event.detail?.error ?? event.detail),
@@ -633,9 +941,15 @@ export class FlightReceiver extends RemoteBase {
     this.selectedStreamId = streamId;
     this.selectedUuid = source?.uuid ?? "";
     this.channel = undefined;
+    this.beaconChannel = undefined;
     this.config = undefined;
+    this.beaconConfig = undefined;
     this.latest = undefined;
+    this.latestBeacon = undefined;
     this.lastSequence = undefined;
+    this.lastBeaconSequence = undefined;
+    this.beaconPhase = "unavailable";
+    this.clearTimer(this.beaconStaleTimer);
     this.phase = "connecting";
     this.emit({ message: `Connecting to ${formatSourceLabel(streamId)}…` });
     try {
@@ -660,30 +974,75 @@ export class FlightReceiver extends RemoteBase {
       return false;
     this.selectedUuid = detail?.uuid ?? this.selectedUuid;
     if (!this.selectedUuid) return false;
-    return Boolean(
+    const target = {
+      uuid: this.selectedUuid,
+      preference: "any",
+      allowFallback: false,
+    };
+    const flightRequested = Boolean(
       this.sdk.sendData(
         { kind: "ecgaming-config-request", protocol: "ecgflightv1" },
-        { uuid: this.selectedUuid, preference: "any", allowFallback: false },
+        target,
       ),
     );
+    const beaconRequested = Boolean(
+      this.sdk.sendData(
+        { kind: "ecgaming-signal-config-request", protocol: "ecgsignalv1" },
+        target,
+      ),
+    );
+    return flightRequested || beaconRequested;
   }
   private acceptConfig(detail: any) {
     if (!this.selectedStreamId || !detail) return false;
     if (this.selectedUuid && detail.uuid && detail.uuid !== this.selectedUuid)
       return false;
     const config = parseConfig(detail.data);
-    if (!config || config.sourceId !== this.selectedStreamId) return false;
-    this.config = config;
+    if (config) {
+      if (
+        config.sourceId !== this.selectedStreamId ||
+        (this.beaconConfig &&
+          this.beaconConfig.sessionId !== config.sessionId)
+      )
+        return false;
+      this.config = config;
+      this.selectedUuid = detail.uuid ?? this.selectedUuid;
+      if (this.phase === "connecting") this.phase = "ready";
+      this.dispatchEvent(detailEvent("config", this.snapshot()));
+      this.emit({ message: "Flight configuration received and validated." });
+      return true;
+    }
+    const beaconConfig = parseBeaconConfig(detail.data);
+    if (
+      !beaconConfig ||
+      beaconConfig.sourceId !== this.selectedStreamId ||
+      (this.config && this.config.sessionId !== beaconConfig.sessionId)
+    )
+      return false;
+    const beaconSessionChanged = Boolean(
+      this.beaconConfig &&
+        (this.beaconConfig.sessionId !== beaconConfig.sessionId ||
+          this.beaconConfig.sessionToken !== beaconConfig.sessionToken),
+    );
+    this.beaconConfig = beaconConfig;
+    if (beaconSessionChanged) {
+      this.latestBeacon = undefined;
+      this.lastBeaconSequence = undefined;
+      this.clearTimer(this.beaconStaleTimer);
+      this.beaconPhase = "ready";
+    }
     this.selectedUuid = detail.uuid ?? this.selectedUuid;
-    if (this.phase === "connecting") this.phase = "ready";
-    this.dispatchEvent(detailEvent("config", this.snapshot()));
-    this.emit({ message: "Flight configuration received and validated." });
+    if (this.beaconPhase === "unavailable") this.beaconPhase = "ready";
+    this.dispatchEvent(detailEvent("beaconconfig", this.snapshot()));
+    this.emit({ message: "Derived-metric beacon configuration validated." });
     return true;
   }
   private acceptChannel(detail: any) {
     if (
       !detail ||
-      detail.label !== `x-${FLIGHT_CHANNEL}` ||
+      ![`x-${FLIGHT_CHANNEL}`, `x-${SIGNAL_BEACON_CHANNEL}`].includes(
+        detail.label,
+      ) ||
       !this.selectedStreamId
     )
       return;
@@ -691,6 +1050,24 @@ export class FlightReceiver extends RemoteBase {
     if (this.selectedUuid && detail.uuid && detail.uuid !== this.selectedUuid)
       return;
     this.selectedUuid = detail.uuid ?? this.selectedUuid;
+    if (detail.label === `x-${SIGNAL_BEACON_CHANNEL}`) {
+      this.beaconChannel = detail.channel;
+      const beacon = this.beaconChannel!;
+      beacon.binaryType = "arraybuffer";
+      beacon.addEventListener("message", (event) =>
+        this.acceptBeaconFrame(event.data),
+      );
+      beacon.addEventListener(
+        "close",
+        () => this.markBeaconStale("The derived-metric beacon channel closed."),
+        { once: true },
+      );
+      void this.refreshQuality();
+      this.emit({
+        message: "Derived-metric beacon open; waiting for telemetry…",
+      });
+      return;
+    }
     this.channel = detail.channel;
     const accepted = this.channel!;
     accepted.binaryType = "arraybuffer";
@@ -752,6 +1129,32 @@ export class FlightReceiver extends RemoteBase {
       });
     return true;
   }
+  acceptBeaconFrame(value: unknown, receivedAt = this.now()) {
+    const frame = decodeSignalBeaconFrame(value);
+    if (
+      !frame ||
+      !this.beaconConfig ||
+      frame.sessionToken !== this.beaconConfig.sessionToken ||
+      !isNewerSequence(frame.sequence, this.lastBeaconSequence) ||
+      !Number.isFinite(receivedAt)
+    )
+      return false;
+    this.latestBeacon = {
+      ...frame,
+      metrics: { ...frame.metrics },
+      receivedAt,
+    };
+    this.lastBeaconSequence = frame.sequence;
+    this.beaconPhase = "live";
+    this.clearTimer(this.beaconStaleTimer);
+    this.beaconStaleTimer = this.timeout(
+      () => this.checkBeaconStale(),
+      SIGNAL_BEACON_STALE_MS,
+    );
+    this.dispatchEvent(detailEvent("beaconframe", this.snapshot(receivedAt)));
+    this.emit({ message: "Fresh derived-metric beacon telemetry received." });
+    return true;
+  }
   private checkStale() {
     if (
       this.phase === "live" &&
@@ -779,6 +1182,21 @@ export class FlightReceiver extends RemoteBase {
       this.recoveryFrames = 0;
       this.staleTransitions += 1;
       this.emit({ transition: "stale", message });
+    }
+  }
+  private checkBeaconStale() {
+    if (
+      this.beaconPhase === "live" &&
+      this.latestBeacon &&
+      this.now() - this.latestBeacon.receivedAt >= SIGNAL_BEACON_STALE_MS
+    )
+      this.markBeaconStale("No signal beacon frame arrived for two seconds.");
+  }
+  private markBeaconStale(message: string) {
+    if (!this.selectedStreamId || this.beaconPhase === "unavailable") return;
+    if (this.beaconPhase !== "stale") {
+      this.beaconPhase = "stale";
+      this.emit({ transition: "beacon-stale", message });
     }
   }
   private percentile(proportion: number) {
@@ -819,15 +1237,21 @@ export class FlightReceiver extends RemoteBase {
         await this.sdk.stopViewing?.(previous);
       } catch {}
     this.channel?.close();
+    if (this.beaconChannel !== this.channel) this.beaconChannel?.close();
     await this.disconnectSdk();
     this.phase = "idle";
     this.sources.clear();
     this.selectedStreamId = "";
     this.selectedUuid = "";
     this.channel = undefined;
+    this.beaconChannel = undefined;
     this.config = undefined;
+    this.beaconConfig = undefined;
     this.latest = undefined;
+    this.latestBeacon = undefined;
     this.lastSequence = undefined;
+    this.lastBeaconSequence = undefined;
+    this.beaconPhase = "unavailable";
     this.route = "unknown";
     this.rttMs = undefined;
     this.recoveryFrames = 0;

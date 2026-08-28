@@ -100,9 +100,12 @@ function renderSources(state: FlightReceiverSnapshot) {
 }
 function isReady(state: FlightReceiverSnapshot) {
   return Boolean(
+    state.phase === "live" &&
     state.config &&
     state.latest &&
     (state.latest.flags & FlightFlags.controlReady) !== 0 &&
+    (state.latest.flags & FlightFlags.physicalPolar) !== 0 &&
+    (state.latest.flags & FlightFlags.simulation) === 0 &&
     (state.packetAgeMs ?? Infinity) < 2000,
   );
 }
@@ -147,6 +150,13 @@ function acceptFrame(state: FlightReceiverSnapshot) {
   if (!frame) return;
   game.setControls(frame);
   const signal = (frame.altitude + 1) / 2;
+  const metric = state.config?.mappings.altitude.metric;
+  setText(
+    "hud-signal-label",
+    metric && metric !== "manual"
+      ? `LIFT · ${metric.replaceAll("_", " ").toUpperCase()}`
+      : "LIFT INPUT",
+  );
   setText("hud-excitement", signal.toFixed(2));
   document.querySelector<HTMLElement>("#hud-bar b")!.style.width =
     `${Math.round(signal * 100)}%`;

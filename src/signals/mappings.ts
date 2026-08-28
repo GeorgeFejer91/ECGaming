@@ -1,14 +1,75 @@
 import type {
   ContinuousCommand,
   FlightMappings,
+  MetricId,
+  NormalizationConfig,
   SignalBinding,
 } from "../protocol/types";
+import type { AdaptiveRangeTracker } from "./adaptive-range";
+
+export interface MetricRangeDefaults {
+  minimum: number;
+  maximum: number;
+  minimumSpan: number;
+}
+
+export const METRIC_RANGE_DEFAULTS: Readonly<
+  Record<MetricId, MetricRangeDefaults>
+> = Object.freeze({
+  manual: { minimum: 0, maximum: 1, minimumSpan: 0.05 },
+  excitement_score: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
+  excitometer: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
+  heart_rate: { minimum: 45, maximum: 160, minimumSpan: 8 },
+  rr_interval: { minimum: 400, maximum: 1_300, minimumSpan: 80 },
+  rmssd: { minimum: 0, maximum: 120, minimumSpan: 5 },
+  ln_rmssd: { minimum: 1.5, maximum: 5.5, minimumSpan: 0.2 },
+  sdnn: { minimum: 0, maximum: 120, minimumSpan: 5 },
+  ecg_local_power: {
+    minimum: 10_000,
+    maximum: 2_250_000,
+    minimumSpan: 10_000,
+  },
+  ecg_rms: { minimum: 100, maximum: 1_500, minimumSpan: 50 },
+  ecg_peak_to_peak: { minimum: 200, maximum: 4_000, minimumSpan: 100 },
+});
+
+export function defaultNormalizationConfig(
+  metric: MetricId,
+): NormalizationConfig {
+  return {
+    mode: "fixed",
+    minimumSamples: 10,
+    warmupMs: 10_000,
+    minimumSpan: METRIC_RANGE_DEFAULTS[metric].minimumSpan,
+  };
+}
+
+export function resetBindingMetric(
+  binding: SignalBinding,
+  metric: MetricId,
+): SignalBinding {
+  const range = METRIC_RANGE_DEFAULTS[metric];
+  const currentNormalization =
+    binding.normalization ?? defaultNormalizationConfig(binding.metric);
+  return {
+    ...binding,
+    metric,
+    minimum: range.minimum,
+    maximum: range.maximum,
+    normalization: {
+      ...currentNormalization,
+      mode: metric === "manual" ? "fixed" : currentNormalization.mode,
+      minimumSpan: range.minimumSpan,
+    },
+  };
+}
 
 export const DEFAULT_MAPPINGS: FlightMappings = {
   altitude: {
     metric: "excitement_score",
     minimum: 0,
     maximum: 1,
+    normalization: defaultNormalizationConfig("excitement_score"),
     reverse: false,
     attackMs: 280,
     releaseMs: 650,
@@ -18,6 +79,7 @@ export const DEFAULT_MAPPINGS: FlightMappings = {
     metric: "manual",
     minimum: 0,
     maximum: 1,
+    normalization: defaultNormalizationConfig("manual"),
     reverse: false,
     attackMs: 300,
     releaseMs: 500,
@@ -27,6 +89,7 @@ export const DEFAULT_MAPPINGS: FlightMappings = {
     metric: "manual",
     minimum: 0,
     maximum: 1,
+    normalization: defaultNormalizationConfig("manual"),
     reverse: false,
     attackMs: 300,
     releaseMs: 500,
@@ -42,8 +105,23 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 export function normalizeBindingValue(
   value: number | undefined,
   binding: SignalBinding,
+  adaptiveRange?: AdaptiveRangeTracker,
 ): number | undefined {
   if (binding.metric === "manual") return clamp(binding.manual, 0, 1);
+  const normalization =
+    binding.normalization ?? defaultNormalizationConfig(binding.metric);
+  if (normalization.mode === "adaptive") {
+    const normalized = adaptiveRange?.normalize(
+      binding.metric,
+      Number(value),
+      normalization,
+    );
+    return normalized === undefined
+      ? undefined
+      : binding.reverse
+        ? 1 - normalized
+        : normalized;
+  }
   if (
     !Number.isFinite(value) ||
     !Number.isFinite(binding.minimum) ||
@@ -63,11 +141,13 @@ export function commandValue(
   command: ContinuousCommand,
   metrics: Record<string, number>,
   mappings: FlightMappings,
+  adaptiveRange?: AdaptiveRangeTracker,
 ): number | undefined {
   const binding = mappings[command];
   const normalized = normalizeBindingValue(
     binding.metric === "manual" ? binding.manual : metrics[binding.metric],
     binding,
+    adaptiveRange,
   );
   if (normalized === undefined) return undefined;
   return command === "altitude" ? normalized * 2 - 1 : normalized;
@@ -107,28 +187,61 @@ export function sanitizeMappings(value: unknown): FlightMappings {
     const source = candidate[command];
     if (!source || typeof source !== "object") continue;
     const metric = String(source.metric ?? result[command].metric);
+    const acceptedMetric = ([
+      "manual",
+      "excitement_score",
+      "excitometer",
+      "heart_rate",
+      "rr_interval",
+      "rmssd",
+      "ln_rmssd",
+      "sdnn",
+      "ecg_local_power",
+      "ecg_rms",
+      "ecg_peak_to_peak",
+    ].includes(metric)
+      ? metric
+      : result[command].metric) as SignalBinding["metric"];
+    const range = METRIC_RANGE_DEFAULTS[acceptedMetric];
+    const normalizationSource: Partial<NormalizationConfig> =
+      source.normalization && typeof source.normalization === "object"
+        ? source.normalization
+        : {};
+    const normalizationDefaults = defaultNormalizationConfig(acceptedMetric);
     result[command] = {
-      metric: ([
-        "manual",
-        "excitement_score",
-        "excitometer",
-        "heart_rate",
-        "rr_interval",
-        "rmssd",
-        "ln_rmssd",
-        "sdnn",
-        "ecg_local_power",
-        "ecg_rms",
-        "ecg_peak_to_peak",
-      ].includes(metric)
-        ? metric
-        : result[command].metric) as SignalBinding["metric"],
+      metric: acceptedMetric,
       minimum: Number.isFinite(Number(source.minimum))
         ? Number(source.minimum)
-        : result[command].minimum,
+        : range.minimum,
       maximum: Number.isFinite(Number(source.maximum))
         ? Number(source.maximum)
-        : result[command].maximum,
+        : range.maximum,
+      normalization: {
+        mode:
+          acceptedMetric !== "manual" &&
+          normalizationSource.mode === "adaptive"
+            ? "adaptive"
+            : "fixed",
+        minimumSamples: clamp(
+          Number(normalizationSource.minimumSamples) ||
+            normalizationDefaults.minimumSamples,
+          2,
+          10_000,
+        ),
+        warmupMs: clamp(
+          Number.isFinite(Number(normalizationSource.warmupMs))
+            ? Number(normalizationSource.warmupMs)
+            : normalizationDefaults.warmupMs,
+          0,
+          600_000,
+        ),
+        minimumSpan: Math.max(
+          0,
+          Number.isFinite(Number(normalizationSource.minimumSpan))
+            ? Number(normalizationSource.minimumSpan)
+            : normalizationDefaults.minimumSpan,
+        ),
+      },
       reverse: source.reverse === true,
       attackMs: clamp(
         Number(source.attackMs) || result[command].attackMs,

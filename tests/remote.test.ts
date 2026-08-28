@@ -4,8 +4,15 @@ import {
   FlightReceiver,
   FLIGHT_CHANNEL,
   FLIGHT_SOURCE_PREFIX,
+  SIGNAL_BEACON_CHANNEL,
 } from "../src/protocol/remote";
-import { encodeFlightFrame, FlightFlags } from "../src/protocol/flight-frame";
+import {
+  decodeSignalBeaconFrame,
+  encodeFlightFrame,
+  encodeSignalBeaconFrame,
+  FlightFlags,
+  SignalBeaconFlags,
+} from "../src/protocol/flight-frame";
 import { DEFAULT_MAPPINGS } from "../src/signals/mappings";
 
 class FakeChannel extends EventTarget {
@@ -24,6 +31,7 @@ class FakeChannel extends EventTarget {
 }
 class FakeSdk extends EventTarget {
   channel = new FakeChannel();
+  beaconChannel = new FakeChannel();
   sentData: { data: any; options: any }[] = [];
   viewed = "";
   async connect() {}
@@ -35,8 +43,10 @@ class FakeSdk extends EventTarget {
   }
   async stopViewing() {}
   async openChannel(_uuid: string, label: string) {
-    expect(label).toBe(FLIGHT_CHANNEL);
-    return this.channel as unknown as RTCDataChannel;
+    expect([FLIGHT_CHANNEL, SIGNAL_BEACON_CHANNEL]).toContain(label);
+    return (label === FLIGHT_CHANNEL
+      ? this.channel
+      : this.beaconChannel) as unknown as RTCDataChannel;
   }
   sendData(data: any, options: any) {
     this.sentData.push({ data, options });
@@ -136,5 +146,125 @@ describe("VDO.Ninja flight bridge", () => {
     expect(sender.snapshot().droppedBackpressure).toBe(1);
     expect(sdk.channel.sent).toHaveLength(2);
     await sender.stop();
+  });
+  it("adds a separate derived-metric beacon with session fencing", async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    const sdk = new FakeSdk();
+    const sender = new FlightBroadcaster({
+      sdkFactory: () => sdk as any,
+      now: () => now,
+    });
+    await sender.start(DEFAULT_MAPPINGS);
+    sdk.emit("dataChannelOpen", { uuid: "peer-1" });
+    await Promise.resolve();
+    await Promise.resolve();
+    const config = sdk.sentData.find(
+      (item) => item.data.kind === "ecgaming-signal-config",
+    )?.data;
+    expect(config).toMatchObject({
+      protocol: "ecgsignalv1",
+      rawEcgIncluded: false,
+    });
+    expect(config.sessionToken).toBeGreaterThan(0);
+
+    expect(
+      sender.offerBeacon(
+        {
+          metrics: { heart_rate: 74, rr_interval: 811, excitement_score: 0.4 },
+          ecgBeatCounter: 4,
+          rrBeatCounter: 3,
+          ecgBeatAgeMs: 18,
+          rrBeatAgeMs: 42,
+          ecgBeatQuality: 0.91,
+          rrBeatQuality: 0.75,
+          flags:
+            SignalBeaconFlags.physicalPolar |
+            SignalBeaconFlags.ecgStreamReady,
+        },
+        now,
+      ),
+    ).toBe(true);
+    const decoded = decodeSignalBeaconFrame(
+      sdk.beaconChannel.sent.at(-1),
+    )!;
+    expect(decoded.sessionToken).toBe(config.sessionToken);
+    expect(decoded.metrics.heart_rate).toBeCloseTo(74);
+    expect(decoded.ecgBeatCounter).toBe(4);
+    expect(sdk.channel.sent).toHaveLength(0);
+    await sender.stop();
+  });
+  it("exposes fresh beacon telemetry and rejects another session token", async () => {
+    vi.useFakeTimers();
+    const sdk = new FakeSdk();
+    const receiver = new FlightReceiver({ sdkFactory: () => sdk as any });
+    await receiver.startDiscovery();
+    const sourceId = `${FLIGHT_SOURCE_PREFIX}beac0123`;
+    sdk.emit("listing", { list: [{ streamID: sourceId, UUID: "peer-1" }] });
+    await vi.advanceTimersByTimeAsync(300);
+    sdk.emit("dataReceived", {
+      uuid: "peer-1",
+      streamID: sourceId,
+      data: {
+        kind: "ecgaming-signal-config",
+        protocol: "ecgsignalv1",
+        schemaVersion: 1,
+        sourceId,
+        sessionId: "beacon-session",
+        sessionToken: 1234,
+        metricOrder: [
+          "excitement_score",
+          "excitometer",
+          "heart_rate",
+          "rr_interval",
+          "rmssd",
+          "ln_rmssd",
+          "sdnn",
+          "ecg_local_power",
+          "ecg_rms",
+          "ecg_peak_to_peak",
+        ],
+        rawEcgIncluded: false,
+      },
+    });
+    const beaconFrame = (sequence: number, sessionToken = 1234) =>
+      encodeSignalBeaconFrame({
+        sequence,
+        sessionToken,
+        metrics: { heart_rate: 68 },
+        ecgBeatCounter: 2,
+        rrBeatCounter: 2,
+        ecgBeatAgeMs: 25,
+        rrBeatAgeMs: 50,
+        ecgBeatQuality: 0.9,
+        rrBeatQuality: 0.8,
+        flags: SignalBeaconFlags.physicalPolar,
+      });
+    expect(receiver.acceptBeaconFrame(beaconFrame(1))).toBe(true);
+    expect(receiver.snapshot().beacon).toMatchObject({
+      phase: "live",
+      fresh: true,
+      latest: { metrics: { heart_rate: 68 } },
+    });
+    expect(receiver.acceptBeaconFrame(beaconFrame(2, 9999))).toBe(false);
+    sdk.emit("dataReceived", {
+      uuid: "peer-1",
+      streamID: sourceId,
+      data: {
+        ...receiver.snapshot().beacon.config,
+        sessionId: "next-beacon-session",
+        sessionToken: 5678,
+      },
+    });
+    expect(receiver.snapshot().beacon).toMatchObject({
+      phase: "ready",
+      fresh: false,
+    });
+    expect(receiver.snapshot().beacon.latest).toBeUndefined();
+    expect(receiver.acceptBeaconFrame(beaconFrame(2))).toBe(false);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(receiver.snapshot().beacon.phase).toBe("ready");
+    expect(receiver.snapshot().beacon.fresh).toBe(false);
+    await receiver.stop();
   });
 });

@@ -6,72 +6,536 @@
     <meta name="theme-color" content="#07131f" />
     <meta
       name="description"
-      content="Connect a Polar H10 and map heart signals to EC Gaming flight controls."
+      content="Connect a Polar H10 or a Ground Control beacon, configure heart-driven flight, and enter the EC Gaming cockpit."
     />
     <link rel="icon" href="../favicon.svg" />
-    <title>Ground Control · EC Gaming</title>
+    <title>Ground Control & Cockpit · EC Gaming</title>
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to controls</a>
-    <main id="main" class="app-shell control-shell">
-      <header class="app-header">
-        <a class="brand" href="../"
+    <a class="skip-link" href="#ground-view">Skip to Ground Control</a>
+    <main id="main" class="app-shell control-shell unified-flight-shell">
+      <header class="app-header unified-header">
+        <a class="brand" href="../" aria-label="EC Gaming home"
           ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
           ><span>EC GAMING</span></a
         >
-      <h1 class="page-title">
-          <span>GROUND CONTROL</span><strong>SIGNAL MAPPING & BROADCAST</strong>
-      </h1>
-        <div class="header-state">
-          <span id="polar-header-dot" class="state-dot"></span
-          ><span id="polar-header-state">POLAR OFFLINE</span>
+        <div class="view-mode-block">
+          <h1 class="page-title">
+            <span>ECG FLIGHT SYSTEM</span
+            ><strong>CONTROL SIGNAL & AIRCRAFT</strong>
+          </h1>
+          <div class="view-mode-switch" role="group" aria-label="View mode">
+            <button
+              id="ground-view-toggle"
+              class="view-mode-button"
+              type="button"
+              aria-controls="ground-view"
+              aria-pressed="true"
+            >
+              <span class="mini-radar-icon" aria-hidden="true"><i></i></span>
+              Ground Control
+            </button>
+            <button
+              id="cockpit-view-toggle"
+              class="view-mode-button"
+              type="button"
+              aria-controls="cockpit-view"
+              aria-pressed="false"
+            >
+              <span class="mini-plane-icon" aria-hidden="true">✦</span>
+              Cockpit
+            </button>
+          </div>
+        </div>
+        <div
+          class="header-state"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span id="polar-header-dot" class="state-dot" aria-hidden="true"></span
+          ><span id="polar-header-state">SIGNAL OFFLINE</span>
         </div>
       </header>
-      <section class="control-workspace">
-        <aside class="control-panel" aria-label="Ground Control settings">
-          <div class="public-warning">
-            <strong>PUBLIC DATA ROOM</strong
-            ><span
-              >Anyone in the fixed room can discover command broadcasts. Raw ECG
-              never leaves this browser.</span
-            >
-          </div>
-          <div id="accordion" class="accordion">
-            <section class="accordion-item is-open" data-section="polar">
-              <button
-                class="accordion-trigger"
-                type="button"
-                aria-expanded="true"
+
+      <section
+        id="ground-view"
+        class="app-view ground-view"
+        aria-labelledby="ground-view-toggle"
+        tabindex="-1"
+      >
+        <section class="control-workspace">
+          <aside class="control-panel" aria-label="Ground Control settings">
+            <div class="public-warning" role="note">
+              <strong>PUBLIC DATA ROOM</strong
+              ><span
+                >Ground Control beacons use a fixed, unauthenticated room. Pick
+                only a source you recognize. Raw ECG never leaves the browser
+                that is connected to the Polar.</span
               >
-                <span><b>01</b> Polar Link</span><i>−</i>
-              </button>
-              <div class="accordion-body">
-                <div class="status-card">
-                  <span class="status-orbit"><i></i></span>
-                  <div>
-                    <strong id="polar-state">Ready to connect</strong
-                    ><small id="polar-detail"
-                      >Use a worn Polar H10 in desktop Chrome or Edge.</small
+            </div>
+
+            <div id="accordion" class="accordion">
+              <section class="accordion-item is-open" data-section="polar">
+                <button
+                  id="signal-source-trigger"
+                  class="accordion-trigger"
+                  type="button"
+                  aria-controls="signal-source-panel"
+                  aria-expanded="true"
+                >
+                  <span><b>01</b> Polar Link & Beacon Source</span
+                  ><i aria-hidden="true">−</i>
+                </button>
+                <div id="signal-source-panel" class="accordion-body">
+                  <fieldset class="signal-source-selector">
+                    <legend>Control signal</legend>
+                    <label class="source-mode-card">
+                      <input
+                        id="signal-source-polar"
+                        name="signal-source"
+                        type="radio"
+                        value="polar"
+                        checked
+                      />
+                      <span class="source-mode-icon polar-source-icon" aria-hidden="true"
+                        >♥</span
+                      >
+                      <span
+                        ><strong>Direct Polar H10</strong
+                        ><small>Bluetooth signal from this browser</small></span
+                      >
+                    </label>
+                    <label class="source-mode-card">
+                      <input
+                        id="signal-source-beacon"
+                        name="signal-source"
+                        type="radio"
+                        value="beacon"
+                      />
+                      <span class="source-mode-icon beacon-source-icon" aria-hidden="true"
+                        ><i></i
+                      ></span>
+                      <span
+                        ><strong>Ground Control beacon</strong
+                        ><small>Incoming VDO.Ninja heart/control beacon</small></span
+                      >
+                    </label>
+                  </fieldset>
+
+                  <section
+                    id="polar-source-controls"
+                    class="source-control-surface is-active"
+                    aria-label="Direct Polar controls"
+                  >
+                    <div class="status-card">
+                      <span class="status-orbit" aria-hidden="true"><i></i></span>
+                      <div>
+                        <strong id="polar-state">Ready to connect</strong
+                        ><small id="polar-detail"
+                          >Use a worn Polar H10 in desktop Chrome or Edge, or a
+                          compatible Android Chromium browser.</small
+                        >
+                      </div>
+                    </div>
+                    <div class="button-row">
+                      <button
+                        id="connect-polar"
+                        class="button primary"
+                        type="button"
+                      >
+                        Connect Polar H10</button
+                      ><button
+                        id="disconnect-polar"
+                        class="button ghost"
+                        type="button"
+                        disabled
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </section>
+
+                  <section
+                    id="beacon-source-controls"
+                    class="source-control-surface beacon-control-surface"
+                    aria-labelledby="beacon-source-title"
+                    hidden
+                  >
+                    <div class="status-card beacon-status-card">
+                      <span class="status-orbit beacon-orbit" aria-hidden="true"
+                        ><i></i
+                      ></span>
+                      <div>
+                        <strong id="beacon-state">Beacon receiver idle</strong
+                        ><small id="beacon-detail"
+                          >Scan the public room for another Ground Control
+                          station.</small
+                        >
+                      </div>
+                    </div>
+                    <h2 id="beacon-source-title" class="visually-hidden">
+                      Ground Control beacon receiver
+                    </h2>
+                    <div class="button-row">
+                      <button
+                        id="scan-beacons"
+                        class="button primary"
+                        type="button"
+                      >
+                        Scan beacons</button
+                      ><button
+                        id="stop-beacon-scan"
+                        class="button ghost"
+                        type="button"
+                        disabled
+                      >
+                        Stop scan
+                      </button>
+                    </div>
+                    <div
+                      id="beacon-source-list"
+                      class="beacon-source-list"
+                      aria-label="Found Ground Control beacons"
+                      aria-live="polite"
                     >
+                      <p>No beacons found yet.</p>
+                    </div>
+                    <p class="fine-print">
+                      A beacon carries derived heart metrics, normalized
+                      commands, and beat timing—never raw ECG. Receiving one
+                      never requests Bluetooth, a camera, or a microphone on
+                      this device.
+                    </p>
+                  </section>
+                </div>
+              </section>
+
+              <section class="accordion-item" data-section="mapping">
+                <button
+                  id="flight-commands-trigger"
+                  class="accordion-trigger"
+                  type="button"
+                  aria-controls="flight-commands-panel"
+                  aria-expanded="false"
+                >
+                  <span><b>02</b> Flight Commands</span
+                  ><i aria-hidden="true">+</i>
+                </button>
+                <div
+                  id="flight-commands-panel"
+                  class="accordion-body"
+                  hidden
+                >
+                  <p class="section-intro">
+                    Choose which heart metric moves the airplane up and down.
+                    Throttle and ring traffic remain available as advanced
+                    command mappings.
+                  </p>
+                  <div id="mapping-controls"></div>
+
+                  <fieldset class="adaptive-range-card">
+                    <legend>Personal 0–1 range</legend>
+                    <label class="check-row adaptive-toggle">
+                      <input id="adaptive-normalization" type="checkbox" />
+                      <span
+                        ><strong>Adapt to my observed range</strong
+                        ><small id="adaptive-range-copy"
+                          >Learn a separate minimum and maximum for the selected
+                          altitude metric over time.</small
+                        ></span
+                      >
+                    </label>
+                    <div class="adaptive-range-readout">
+                      <div>
+                        <span>LEARNED LOW</span
+                        ><strong id="adaptive-range-min">—</strong>
+                      </div>
+                      <div>
+                        <span>LEARNED HIGH</span
+                        ><strong id="adaptive-range-max">—</strong>
+                      </div>
+                      <div>
+                        <span>NORMALIZED</span
+                        ><strong id="adaptive-range-value">0.50</strong>
+                      </div>
+                    </div>
+                    <div class="adaptive-range-footer">
+                      <span id="adaptive-range-state">FIXED RANGE ACTIVE</span
+                      ><button
+                        id="reset-adaptive-range"
+                        class="button text-button"
+                        type="button"
+                        disabled
+                      >
+                        Reset learned range
+                      </button>
+                    </div>
+                  </fieldset>
+
+                  <div class="button-row">
+                    <button
+                      id="export-settings"
+                      class="button ghost"
+                      type="button"
+                    >
+                      Export settings</button
+                    ><label class="button ghost file-button"
+                      >Import settings<input
+                        id="import-settings"
+                        type="file"
+                        accept="application/json"
+                    /></label>
                   </div>
                 </div>
-                <div class="button-row">
-                  <button
-                    id="connect-polar"
-                    class="button primary"
-                    type="button"
+              </section>
+
+              <section class="accordion-item" data-section="broadcast">
+                <button
+                  id="broadcast-trigger"
+                  class="accordion-trigger"
+                  type="button"
+                  aria-controls="broadcast-panel"
+                  aria-expanded="false"
+                >
+                  <span><b>03</b> Broadcast Tower</span
+                  ><i aria-hidden="true">+</i>
+                </button>
+                <div id="broadcast-panel" class="accordion-body" hidden>
+                  <p class="tower-id">
+                    <span>FIXED ROOM</span><strong>ecgaming_flight_v1</strong>
+                  </p>
+                  <div class="button-row">
+                    <button
+                      id="start-broadcast"
+                      class="button primary"
+                      type="button"
+                    >
+                      Start broadcast</button
+                    ><button
+                      id="stop-broadcast"
+                      class="button ghost"
+                      type="button"
+                      disabled
+                    >
+                      Stop
+                    </button>
+                  </div>
+                  <dl class="diagnostic-list">
+                    <div>
+                      <dt>Source</dt>
+                      <dd id="broadcast-source">Not announced</dd>
+                    </div>
+                    <div>
+                      <dt>Listeners</dt>
+                      <dd id="broadcast-listeners">0</dd>
+                    </div>
+                    <div>
+                      <dt>Route</dt>
+                      <dd id="broadcast-route">—</dd>
+                    </div>
+                    <div>
+                      <dt>Round trip</dt>
+                      <dd id="broadcast-rtt">—</dd>
+                    </div>
+                    <div>
+                      <dt>Dropped</dt>
+                      <dd id="broadcast-dropped">0</dd>
+                    </div>
+                  </dl>
+                  <label class="check-row"
+                    ><input id="ground-log-enabled" type="checkbox" /><span
+                      >Record derived session CSV (no raw ECG)</span
+                    ></label
                   >
-                    Connect Polar H10</button
-                  ><button
-                    id="disconnect-polar"
-                    class="button ghost"
-                    type="button"
-                    disabled
-                  >
-                    Disconnect
-                  </button>
+                  <div class="button-row">
+                    <button
+                      id="ground-log-export"
+                      class="button ghost"
+                      type="button"
+                      disabled
+                    >
+                      Export CSV</button
+                    ><button
+                      id="ground-log-reset"
+                      class="button text-button"
+                      type="button"
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
-                <dl class="metric-grid">
+              </section>
+
+              <section class="accordion-item" data-section="simulator">
+                <button
+                  id="simulator-trigger"
+                  class="accordion-trigger"
+                  type="button"
+                  aria-controls="simulator-panel"
+                  aria-expanded="false"
+                >
+                  <span><b>04</b> Test Simulator</span
+                  ><i aria-hidden="true">+</i>
+                </button>
+                <div id="simulator-panel" class="accordion-body" hidden>
+                  <div class="sim-warning">
+                    SIMULATED SIGNAL — TEST ONLY, NOT PHYSICAL POLAR READINESS
+                  </div>
+                  <label class="check-row"
+                    ><input id="sim-enabled" type="checkbox" /><span
+                      >Enable deterministic heart simulator</span
+                    ></label
+                  >
+                  <label class="field"
+                    ><span
+                      >Simulated heart rate
+                      <output id="sim-bpm-output">72 bpm</output></span
+                    ><input
+                      id="sim-bpm"
+                      type="range"
+                      min="45"
+                      max="160"
+                      value="72" /></label
+                  ><label class="field"
+                    ><span
+                      >Simulated excitement
+                      <output id="sim-excite-output">0.35</output></span
+                    ><input
+                      id="sim-excite"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="0.35"
+                  /></label>
+                </div>
+              </section>
+            </div>
+
+            <section
+              id="flight-gate"
+              class="flight-gate"
+              aria-labelledby="flight-gate-title"
+            >
+              <div class="flight-gate-head">
+                <div>
+                  <span>RUNWAY CLEARANCE</span>
+                  <h2 id="flight-gate-title" tabindex="-1">
+                    Start Cockpit Flight
+                  </h2>
+                </div>
+                <strong
+                  id="flight-gate-state"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  >SIGNAL HOLD</strong
+                >
+              </div>
+              <ul class="flight-gate-checks" aria-label="Flight readiness">
+                <li id="flight-gate-source">
+                  <i aria-hidden="true"></i><span>Selected source</span
+                  ><b>WAIT</b>
+                </li>
+                <li id="flight-gate-signal">
+                  <i aria-hidden="true"></i><span>Fresh heart signal</span
+                  ><b>WAIT</b>
+                </li>
+                <li id="flight-gate-mapping">
+                  <i aria-hidden="true"></i><span>Altitude mapping</span
+                  ><b>WAIT</b>
+                </li>
+              </ul>
+              <label class="aircraft-picker gate-aircraft" for="ground-aircraft">
+                <span>Aircraft</span>
+                <select
+                  id="ground-aircraft"
+                  aria-describedby="ground-aircraft-status"
+                >
+                  <option value="">Loading aircraft…</option>
+                </select>
+                <small id="ground-aircraft-status" role="status"
+                  >Preparing aircraft catalog</small
+                >
+              </label>
+              <p id="flight-gate-copy">
+                Connect a worn Polar H10 or select a live Ground Control beacon.
+                A connection without a fresh signal cannot start flight.
+              </p>
+              <button
+                id="start-flight-from-ground"
+                class="button primary flight-gate-start"
+                type="button"
+                aria-describedby="flight-gate-copy"
+                disabled
+              >
+                Start flight
+              </button>
+            </section>
+          </aside>
+
+          <section class="tower-display avionics-display" aria-label="Live avionics display">
+            <div class="tower-grid" aria-hidden="true"></div>
+            <div class="tower-topline">
+              <span>ECG CONTROL BUS · ECGFLIGHTV1 + ECGSIGNALV1</span
+              ><span id="clock">00:00:00</span>
+            </div>
+
+            <div class="avionics-board">
+              <section
+                class="beacon-instrument"
+                aria-labelledby="beacon-instrument-title"
+              >
+                <header class="instrument-header">
+                  <div>
+                    <span>GROUND CONTROL NETWORK</span>
+                    <h2 id="beacon-instrument-title">Beacon Radar</h2>
+                  </div>
+                  <strong id="beacon-radar-state">STANDBY</strong>
+                </header>
+                <div
+                  id="beacon-radar"
+                  class="radar-scope avionics-radar"
+                  aria-hidden="true"
+                >
+                  <i class="sweep"></i>
+                  <span class="beacon-pip pip-a"><i></i></span>
+                  <span class="beacon-pip pip-b"><i></i></span>
+                  <span class="beacon-pip pip-c"><i></i></span>
+                  <b class="radar-plane">✦</b
+                  ><span class="radar-beat"></span>
+                </div>
+                <p id="beacon-radar-summary" class="instrument-caption">
+                  No incoming beacon selected. Radar marks are discovery icons,
+                  not geographic positions.
+                </p>
+              </section>
+
+              <section
+                class="ecg-instrument"
+                aria-labelledby="ecg-instrument-title"
+              >
+                <header class="instrument-header">
+                  <div>
+                    <span id="ecg-display-mode">LOCAL SENSOR</span>
+                    <h2 id="ecg-instrument-title">Cardiac Signal Scope</h2>
+                  </div>
+                  <strong id="ecg-display-state">WAITING FOR POLAR</strong>
+                </header>
+                <div class="ecg-screen">
+                  <div class="ecg-screen-grid" aria-hidden="true"></div>
+                  <div class="ecg-scanline" aria-hidden="true"></div>
+                  <canvas
+                    id="ecg-preview"
+                    class="ecg-preview avionics-ecg-canvas"
+                    width="1100"
+                    height="260"
+                    aria-hidden="true"
+                  ></canvas>
+                  <span class="ecg-calibration" aria-hidden="true">1 mV</span>
+                </div>
+                <dl class="metric-grid avionics-metrics">
                   <div>
                     <dt>HEART RATE</dt>
                     <dd>
@@ -89,218 +553,233 @@
                     <dd><span id="metric-excitement_score">--</span></dd>
                   </div>
                   <div>
-                    <dt>ECG STREAM</dt>
+                    <dt>STREAM</dt>
                     <dd><span id="ecg-rate">--</span> <small>HZ</small></dd>
                   </div>
                 </dl>
-                <canvas
-                  id="ecg-preview"
-                  class="ecg-preview"
-                  width="560"
-                  height="100"
-                  aria-label="Recent ECG waveform preview"
-                ></canvas>
-                <p class="fine-print">
-                  Experimental, non-medical software. The live R-peak detector
-                  estimates beat timing; Polar RR remains the reference interval
-                  stream.
+                <p class="instrument-caption">
+                  Direct mode shows local ECG. Beacon mode shows derived heart
+                  metrics, command, and beat telemetry because raw ECG is never
+                  transmitted.
                 </p>
+              </section>
+            </div>
+
+            <section class="command-console" aria-label="Normalized flight commands">
+              <div class="command-console-title">
+                <span>FLIGHT CONTROL OUTPUT</span
+                ><strong id="beat-source-state">ECG R-PEAK · PULSE</strong>
               </div>
-            </section>
-            <section class="accordion-item" data-section="mapping">
-              <button
-                class="accordion-trigger"
-                type="button"
-                aria-expanded="false"
-              >
-                <span><b>02</b> Flight Commands</span><i>+</i>
-              </button>
-              <div class="accordion-body" hidden>
-                <div id="mapping-controls"></div>
-                <div class="button-row">
-                  <button
-                    id="export-settings"
-                    class="button ghost"
-                    type="button"
-                  >
-                    Export settings</button
-                  ><label class="button ghost file-button"
-                    >Import settings<input
-                      id="import-settings"
-                      type="file"
-                      accept="application/json"
-                  /></label>
-                </div>
-              </div>
-            </section>
-            <section class="accordion-item" data-section="broadcast">
-              <button
-                class="accordion-trigger"
-                type="button"
-                aria-expanded="false"
-              >
-                <span><b>03</b> Broadcast Tower</span><i>+</i>
-              </button>
-              <div class="accordion-body" hidden>
-                <p class="tower-id">
-                  <span>FIXED ROOM</span><strong>ecgaming_flight_v1</strong>
-                </p>
-                <div class="button-row">
-                  <button
-                    id="start-broadcast"
-                    class="button primary"
-                    type="button"
-                  >
-                    Start broadcast</button
-                  ><button
-                    id="stop-broadcast"
-                    class="button ghost"
-                    type="button"
-                    disabled
-                  >
-                    Stop
-                  </button>
-                </div>
-                <dl class="diagnostic-list">
-                  <div>
-                    <dt>Source</dt>
-                    <dd id="broadcast-source">Not announced</dd>
-                  </div>
-                  <div>
-                    <dt>Listeners</dt>
-                    <dd id="broadcast-listeners">0</dd>
-                  </div>
-                  <div>
-                    <dt>Route</dt>
-                    <dd id="broadcast-route">—</dd>
-                  </div>
-                  <div>
-                    <dt>Round trip</dt>
-                    <dd id="broadcast-rtt">—</dd>
-                  </div>
-                  <div>
-                    <dt>Dropped</dt>
-                    <dd id="broadcast-dropped">0</dd>
-                  </div>
-                </dl>
-                <label class="check-row"
-                  ><input id="ground-log-enabled" type="checkbox" /><span
-                    >Record derived session CSV (no raw ECG)</span
-                  ></label
-                >
-                <div class="button-row">
-                  <button
-                    id="ground-log-export"
-                    class="button ghost"
-                    type="button"
-                    disabled
-                  >
-                    Export CSV</button
-                  ><button
-                    id="ground-log-reset"
-                    class="button text-button"
-                    type="button"
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-            </section>
-            <section class="accordion-item" data-section="simulator">
-              <button
-                class="accordion-trigger"
-                type="button"
-                aria-expanded="false"
-              >
-                <span><b>04</b> Simulator</span><i>+</i>
-              </button>
-              <div class="accordion-body" hidden>
-                <div class="sim-warning">
-                  SIMULATED SIGNAL — never counts as Polar readiness
-                </div>
-                <label class="check-row"
-                  ><input id="sim-enabled" type="checkbox" /><span
-                    >Enable deterministic heart simulator</span
-                  ></label
-                >
-                <label class="field"
-                  ><span
-                    >Simulated heart rate
-                    <output id="sim-bpm-output">72 bpm</output></span
-                  ><input
-                    id="sim-bpm"
-                    type="range"
-                    min="45"
-                    max="160"
-                    value="72" /></label
-                ><label class="field"
-                  ><span
-                    >Simulated excitement
-                    <output id="sim-excite-output">0.35</output></span
-                  ><input
-                    id="sim-excite"
-                    type="range"
+              <div class="command-readouts">
+                <article>
+                  <span>ALTITUDE</span><strong id="command-altitude">+0.00</strong
+                  ><meter
+                    id="command-altitude-meter"
+                    aria-label="Altitude command"
+                    min="-1"
+                    max="1"
+                    value="0"
+                  ></meter>
+                </article>
+                <article>
+                  <span>THROTTLE</span><strong id="command-throttle">50%</strong
+                  ><meter
+                    id="command-throttle-meter"
+                    aria-label="Throttle command"
                     min="0"
                     max="1"
-                    step="0.01"
-                    value="0.35"
-                /></label>
+                    value="0.5"
+                  ></meter>
+                </article>
+                <article>
+                  <span>TRAFFIC</span><strong id="command-traffic">50%</strong
+                  ><meter
+                    id="command-traffic-meter"
+                    aria-label="Ring traffic command"
+                    min="0"
+                    max="1"
+                    value="0.5"
+                  ></meter>
+                </article>
+                <article class="beat-readout">
+                  <span>BEAT COUNTER</span
+                  ><strong id="command-beat">000000</strong
+                  ><small>HEART EVENT BUS</small>
+                </article>
               </div>
             </section>
-          </div>
-        </aside>
-        <section class="tower-display" aria-label="Live command preview">
-          <div class="tower-grid"></div>
-          <div class="tower-topline">
-            <span>COMMAND BUS · ECGFLIGHTV1</span
-            ><span id="clock">00:00:00</span>
-          </div>
-          <div class="radar-stage">
-            <div class="radar-scope">
-              <i class="sweep"></i><b class="radar-plane">✦</b
-              ><span class="radar-beat"></span>
+
+            <div class="tower-footer">
+              <span
+                id="command-readiness"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                >CONTROL HOLD · CONNECT POLAR OR FIND A BEACON</span
+              ><button
+                id="tower-open-cockpit"
+                class="tower-mode-link"
+                type="button"
+                aria-controls="cockpit-view"
+              >
+                VIEW COCKPIT →
+              </button>
             </div>
-            <div class="command-readouts">
-              <article>
-                <span>ALTITUDE</span><strong id="command-altitude">+0.00</strong
-                ><meter
-                  id="command-altitude-meter"
-                  min="-1"
-                  max="1"
-                  value="0"
-                ></meter>
-              </article>
-              <article>
-                <span>THROTTLE</span><strong id="command-throttle">50%</strong
-                ><meter
-                  id="command-throttle-meter"
-                  min="0"
-                  max="1"
-                  value="0.5"
-                ></meter>
-              </article>
-              <article>
-                <span>TRAFFIC</span><strong id="command-traffic">50%</strong
-                ><meter
-                  id="command-traffic-meter"
-                  min="0"
-                  max="1"
-                  value="0.5"
-                ></meter>
-              </article>
-              <article class="beat-readout">
-                <span>BEAT COUNTER</span
-                ><strong id="command-beat">000000</strong
-                ><small id="beat-source-state">ECG R-PEAK ARMED</small>
-              </article>
-            </div>
+          </section>
+        </section>
+      </section>
+
+      <section
+        id="cockpit-view"
+        class="app-view cockpit-view"
+        aria-labelledby="cockpit-heading"
+        hidden
+      >
+        <div
+          id="cockpit-game-canvas"
+          class="game-canvas cockpit-game-canvas"
+          role="img"
+          aria-label="EC Gaming airplane waiting in the cockpit view"
+        ></div>
+
+        <header class="cockpit-overlay-header">
+          <div
+            class="cockpit-link-state"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <span id="cockpit-link-dot" class="state-dot" aria-hidden="true"></span
+            ><span id="cockpit-link-state">SIGNAL HOLD</span>
           </div>
-          <div class="tower-footer">
-            <span id="command-readiness"
-              >CONTROL HOLD · CONNECT POLAR OR ENABLE SIMULATOR</span
-            ><a href="../flight/">OPEN FLIGHT DECK →</a>
+          <h2 id="cockpit-heading" tabindex="-1">Cockpit Flight</h2>
+          <div class="cockpit-actions">
+            <button
+              id="cockpit-return-ground"
+              class="hud-button"
+              type="button"
+            >
+              Ground Control
+            </button>
+            <button
+              id="cockpit-mute"
+              class="hud-button"
+              type="button"
+              aria-pressed="false"
+            >
+              Sound on
+            </button>
+            <button
+              id="cockpit-enter-xr"
+              class="hud-button emphasis"
+              type="button"
+              hidden
+            >
+              Enter immersive
+            </button>
+          </div>
+        </header>
+
+        <section class="flight-hud cockpit-hud" aria-label="Cockpit flight status">
+          <div class="hud-cluster score">
+            <span>REWARD POINTS</span><strong id="cockpit-score">000</strong>
+          </div>
+          <div class="hud-cluster signal">
+            <span id="cockpit-signal-label">LIFT INPUT</span
+            ><strong id="cockpit-signal-value">0.50</strong
+            ><i id="cockpit-signal-bar"><b></b></i>
+          </div>
+          <div class="hud-cluster route">
+            <span id="cockpit-source">NO SOURCE</span
+            ><strong id="cockpit-quality">—</strong>
           </div>
         </section>
+
+        <section
+          id="cockpit-runway-panel"
+          class="cockpit-runway-panel"
+          aria-labelledby="cockpit-runway-title"
+        >
+          <p class="eyebrow">COCKPIT · AIRCRAFT VIEW</p>
+          <h3 id="cockpit-runway-title">Waiting at the runway.</h3>
+          <p id="cockpit-runway-copy">
+            Return to Ground Control, choose a live Polar or beacon signal, and
+            request runway clearance to begin.
+          </p>
+          <button
+            id="cockpit-runway-ground"
+            class="button primary"
+            type="button"
+          >
+            Open Ground Control
+          </button>
+        </section>
+
+        <section
+          id="cockpit-pause-panel"
+          class="pause-panel cockpit-pause-panel"
+          hidden
+          aria-live="assertive"
+          aria-atomic="true"
+        >
+          <span>SIGNAL LOST</span><strong>Holding pattern</strong>
+          <p id="cockpit-pause-copy">Waiting for three fresh signal frames…</p>
+        </section>
+
+        <div
+          id="cockpit-steering"
+          class="mobile-steering cockpit-steering"
+          aria-label="Manual airplane steering"
+        >
+          <button
+            id="cockpit-steer-left"
+            class="mobile-steer-button left"
+            type="button"
+            aria-label="Hold to steer airplane left"
+            aria-pressed="false"
+          >
+            <b aria-hidden="true">‹</b><span>STEER LEFT</span>
+          </button>
+          <button
+            id="cockpit-steer-right"
+            class="mobile-steer-button right"
+            type="button"
+            aria-label="Hold to steer airplane right"
+            aria-pressed="false"
+          >
+            <b aria-hidden="true">›</b><span>STEER RIGHT</span>
+          </button>
+        </div>
+        <div class="mobile-steer-hint cockpit-steer-hint">
+          HOLD TO BANK &amp; STEER
+        </div>
+
+        <div
+          id="cockpit-reward"
+          class="cockpit-reward"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          hidden
+        >
+          <span>RING CLEARED!</span><strong>+1</strong>
+        </div>
+
+        <div class="cockpit-bottom">
+          <span>A / D · ← / → · DRAG · VR HEAD TILT</span
+          ><label class="check-row compact"
+            ><input id="cockpit-log-enabled" type="checkbox" /><span
+              >SESSION CSV</span
+            ></label
+          ><button
+            id="cockpit-log-export"
+            class="hud-button"
+            type="button"
+            disabled
+          >
+            Export log
+          </button>
+        </div>
       </section>
     </main>
     <script src="/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js"></script>
