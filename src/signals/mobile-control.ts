@@ -3,7 +3,11 @@ import { DEFAULT_MAPPINGS, sanitizeMappings } from "./mappings";
 
 export type MobileAltitudeMode = Extract<
   MetricId,
-  "excitement_score" | "heart_rate" | "rr_interval" | "manual"
+  | "breathing_volume"
+  | "excitement_score"
+  | "heart_rate"
+  | "rr_interval"
+  | "manual"
 >;
 
 export interface MobileControlSettings {
@@ -18,6 +22,7 @@ export interface MobileReadinessInput {
   simulated: boolean;
   connected: boolean;
   ecgReady: boolean;
+  breathingReady?: boolean;
   detectorReady: boolean;
   metrics: Record<string, number>;
   mappings: FlightMappings;
@@ -39,6 +44,7 @@ export function sanitizeMobileSettings(value: unknown): MobileControlSettings {
   ) as Partial<MobileControlSettings>;
   const altitudeMode = [
     "excitement_score",
+    "breathing_volume",
     "heart_rate",
     "rr_interval",
     "manual",
@@ -76,6 +82,7 @@ export function buildMobileMappings(
     { minimum: number; maximum: number; reverse: boolean }
   > = {
     excitement_score: { minimum: 0, maximum: 1, reverse: false },
+    breathing_volume: { minimum: 0, maximum: 1, reverse: false },
     heart_rate: { minimum: 50, maximum: 160, reverse: false },
     rr_interval: { minimum: 400, maximum: 1_300, reverse: true },
     manual: { minimum: 0, maximum: 1, reverse: false },
@@ -101,7 +108,10 @@ export function mobileReadiness(input: MobileReadinessInput) {
     rr: input.simulated || finite(input.metrics.rr_interval),
     ecg: input.simulated || input.ecgReady,
     mappedMetric:
-      mappedMetric === "manual" || finite(input.metrics[mappedMetric]),
+      mappedMetric === "manual" ||
+      (mappedMetric === "breathing_volume"
+        ? Boolean(input.breathingReady) && finite(input.metrics[mappedMetric])
+        : finite(input.metrics[mappedMetric])),
     beat:
       input.mappings.beatSource === "off" ||
       input.simulated ||

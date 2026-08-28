@@ -7,6 +7,7 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Worn, wet strap; no competing Polar app connection.
 - Heart Rate Service delivers real HR plus RR values.
 - PMD Control Point responses are received and ECG data is live.
+- PMD ACC starts at 200 Hz after ECG qualification; breathing remains unavailable until the source-timed PCA processor finishes its 12-second calibration and reports fresh readiness.
 - Observed ECG rate remains close to 130 Hz; first and live packets are required before physical readiness.
 - A chooser or GATT connection without a fresh valid ECG packet leaves Start Flight disabled.
 - Two quiet minutes after detector warmup: ECG beat count differs from Polar RR count by no more than one, and median matched interval error is at most 50 ms.
@@ -27,7 +28,7 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Direct path: record route, RTT, p95/max command-frame gap, stale transitions, source-stop pause, signal-beacon freshness, and command/signal backpressure counters.
 - Forced TURN path using `?remote-force-turn=1`: record the same fields.
 - Validate both reliable configurations against the selected source and session. Change the beacon session token and confirm delayed frames from the prior token are rejected and prior telemetry is cleared.
-- Confirm the `ecgsignalv1` wire payload is exactly 88 bytes, never contains a raw ECG sample array or device identifier, and independently carries all ten derived-metric slots plus ECG/RR beat counters, ages, quality, and flags.
+- Confirm the emitted `ecgsignalv1` schema-2 wire payload is exactly 92 bytes, never contains raw ECG/ACC sample arrays or a device identifier, and independently carries all eleven derived-metric slots plus ECG/RR beat counters, ages, quality, and flags. Confirm a legacy schema-1 88-byte heart-only frame still decodes.
 - Confirm changed signal telemetry never exceeds 20 Hz, the unchanged heartbeat is 250 ms, and a backpressured peer receives the newest state rather than an obsolete queue.
 - Stop the source: both standalone Flight Deck commands and receiving Ground Control telemetry become stale within two seconds. Neither path silently selects another public source.
 - Restart the standalone Flight Deck workflow: three fresh command frames and the three-second countdown are visible before movement resumes. Restart a signal-beacon session: the receiving Ground Control requires the new validated config/token and fresh derived frame before runway clearance.
@@ -44,8 +45,8 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 ## Smartphone direct mode
 
 - Android Chrome or another explicitly qualified Chromium-based Android browser exposes the Web Bluetooth chooser from the Connect tap on the HTTPS GitHub Pages origin.
-- The worn H10 delivers HR, RR, and continuous PMD ECG while the airplane renders and touch steering remains responsive.
-- Switch altitude among excitement, heart rate, RR interval, and manual control; each selection remains fail-closed until its required signal is ready.
+- The worn H10 delivers HR, RR, continuous PMD ECG, and 200 Hz PMD ACC while the airplane renders and touch steering remains responsive.
+- Switch altitude among breathing, excitement, heart rate, RR interval, and manual control; each selection remains fail-closed until its required signal is ready. Breathing must remain held before calibration and after ACC becomes stale.
 - Background the tab or interrupt Bluetooth: flight enters the visible holding pattern instead of silently substituting manual data.
 - Restore the tab/signal: the three-second recovery countdown completes before movement resumes.
 - Enable the simulator and confirm it remains visibly test-only and cannot satisfy the physical production-launch gate.

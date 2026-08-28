@@ -460,6 +460,24 @@ test("lift metric defaults and adaptive calibration are visible in Ground Contro
   await page.getByRole("button", { name: /Flight Commands/ }).click();
 
   const altitude = page.locator('[data-command="altitude"]');
+  const breathControl = altitude.getByRole("button", {
+    name: /BREATH CONTROL/,
+  });
+  const heartControl = altitude.getByRole("button", { name: /HEART CONTROL/ });
+  await breathControl.click();
+  await expect(breathControl).toHaveAttribute("aria-pressed", "true");
+  await expect(heartControl).toHaveAttribute("aria-pressed", "false");
+  await expect(altitude.locator('[data-field="metric"]')).toHaveValue(
+    "breathing_volume",
+  );
+  await expect(altitude.locator('[data-field="minimum"]')).toHaveValue("0");
+  await expect(altitude.locator('[data-field="maximum"]')).toHaveValue("1");
+
+  await heartControl.click();
+  await expect(heartControl).toHaveAttribute("aria-pressed", "true");
+  await expect(altitude.locator('[data-field="metric"]')).toHaveValue(
+    "excitement_score",
+  );
   await altitude.locator('[data-field="metric"]').selectOption("heart_rate");
   await expect(altitude.locator('[data-field="minimum"]')).toHaveValue("45");
   await expect(altitude.locator('[data-field="maximum"]')).toHaveValue("160");

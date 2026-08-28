@@ -11,6 +11,8 @@ import {
   disposeAircraftVisual,
   loadAircraftVisual,
   normalizeAircraftVisual,
+  prepareSourcePropeller,
+  spinAircraftPropeller,
 } from "../src/game/aircraft";
 import {
   AIRCRAFT_PREVIEW_RADIUS,
@@ -129,5 +131,28 @@ describe("aircraft catalog", () => {
     expect(visual.propellers[0].name).toBe("propeller");
     expect(visual.propellers[0].userData.ecgamingAnimatedPropeller).toBe(true);
     disposeAircraftVisual(visual.root);
+  });
+
+  it("removes the SA Node duplicate and animates its source propeller on X", () => {
+    const scene = new THREE.Group();
+    const airframe = new THREE.Group();
+    const source = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 3));
+    const duplicate = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 3));
+    airframe.name = "Cube.014";
+    source.name = "Cube015";
+    duplicate.name = "Cube009";
+    source.position.set(-2, 0.25, 0);
+    airframe.add(source);
+    scene.add(airframe, duplicate);
+
+    const pivot = prepareSourcePropeller(scene, "Cube015", ["Cube009"]);
+    expect(scene.getObjectByName("Cube009")).toBeUndefined();
+    expect(pivot.children).toEqual([source]);
+    expect(pivot.position.toArray()).toEqual([-2, 0.25, 0]);
+    spinAircraftPropeller(pivot, 0.5);
+    expect(pivot.rotation.x).toBeCloseTo(0.5);
+    expect(pivot.rotation.z).toBeCloseTo(0);
+    source.geometry.dispose();
+    duplicate.geometry.dispose();
   });
 });

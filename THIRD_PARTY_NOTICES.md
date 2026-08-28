@@ -8,6 +8,12 @@ BSD 3-Clause License. Copyright © 2024 Antonin Fourcade; © 2026 George Fejer. 
 
 The added `heart-rate` event in `polar-stream.js` exposes the already-decoded RR batch alongside the original derived metrics event. It does not export raw ECG.
 
+## Polar Stream ACC breathing processor
+
+`src/vendor/polar-stream/breathing.js` adapts the browser Polar H10 accelerometer decoder and source-timed PCA breathing waveform from [GeorgeFejer91/Polar-Stream](https://github.com/GeorgeFejer91/Polar-Stream) at commit `5300e2c2c9593f405f3b74b21b3330000e90b6f2`.
+
+MIT License. Copyright © 2025 Till Harbaum. ECGaming retains the 200 Hz PMD timing, X+Z PCA calibration, filtering, readiness, and quality logic needed for its single `breathing_volume` game input. It does not claim lung-volume, airflow, clinical, or physiological validation.
+
 ## VDO.Ninja SDK 1.5.5
 
 The exact vendored SDK under `public/vendor/vdoninja/1.5.5/` is licensed under Mozilla Public License 2.0. Its source-specific notice and complete license are retained beside the file:
@@ -40,7 +46,7 @@ The following redistributable aircraft are included under `public/assets/aircraf
 - **Small Airplane** by **Vojtěch Balák** — [source](https://poly.pizza/m/7cvx6ex-xfL), [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Low Poly Airplane** by **Magic Games** — [source](https://magic-games.itch.io/low-poly-airplane), [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-Modifications: source files were downloaded and, where necessary, converted to self-contained runtime GLB files. ECGaming centers, uniformly scales, and orients each model at runtime as needed so it fits the safe opening of every gameplay ring. ECGaming adds its own animated propeller to each imported aircraft. That propeller and its animation are project work; no source-authored propeller animation is claimed. The conversion helper is `scripts/convert_aircraft.py`.
+Modifications: source files were downloaded and, where necessary, converted to self-contained runtime GLB files. ECGaming centers, uniformly scales, and orients each model at runtime as needed so it fits the safe opening of every gameplay ring. ECGaming adds its own animated propeller where a runtime rotor is needed. For Tiny Plane Sty II / SA Node Stinger, it removes the asset's duplicate `Cube.009` rotor and animates its correctly placed source `Cube.015` rotor instead (GLTFLoader exposes the sanitized runtime names without periods). The conversion helper is `scripts/convert_aircraft.py`.
 
 Copies of the applicable Creative Commons legal code and the Magic Games source notice are retained in `public/assets/aircraft/licenses/`.
 

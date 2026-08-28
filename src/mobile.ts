@@ -57,6 +57,7 @@ let settings = sanitizeMobileSettings(
   mappings = buildMobileMappings(settings),
   physicalConnected = false,
   ecgReady = false,
+  breathingReady = false,
   simulated = false,
   started = false,
   signalHeld = false,
@@ -69,6 +70,7 @@ let settings = sanitizeMobileSettings(
   sequence = 0,
   detectorConfidence = 0,
   ecgRate = 0,
+  lastBreathingAt = -Infinity,
   excitementPairs = 0,
   stateOverride: string | undefined,
   wakeLock: { release?: () => Promise<void> } | undefined,
@@ -254,6 +256,12 @@ function showMetrics() {
       : "--",
   );
   setText(
+    "mobile-breathing",
+    Number.isFinite(metrics.breathing_volume)
+      ? metrics.breathing_volume.toFixed(2)
+      : "--",
+  );
+  setText(
     "mobile-ecg-rate",
     simulated ? "SIM" : ecgRate ? ecgRate.toFixed(0) : "--",
   );
@@ -269,6 +277,8 @@ function handlePolarEvent(event: any) {
     stateOverride = physicalConnected ? undefined : "POLAR OFFLINE";
     if (!physicalConnected) {
       ecgReady = false;
+      breathingReady = false;
+      lastBreathingAt = -Infinity;
       ecgRate = 0;
     }
     element<HTMLButtonElement>("mobile-connect").disabled = physicalConnected;
@@ -278,6 +288,8 @@ function handlePolarEvent(event: any) {
   }
   if (event.kind === "metrics") {
     Object.assign(metrics, event.snapshot?.values ?? {});
+    if (event.snapshot?.breathing)
+      breathingReady = event.snapshot.breathing.ready === true;
     excitementPairs = Number(event.snapshot?.readiness?.excitementPairs ?? 0);
     showMetrics();
   }
@@ -300,6 +312,12 @@ function handlePolarEvent(event: any) {
     }
     showMetrics();
   }
+  if (event.kind === "accelerometer") {
+    lastBreathingAt = performance.now();
+    breathingReady = event.breathing?.ready === true;
+  }
+  if (event.kind === "warning")
+    setText("mobile-support-copy", event.message ?? "Breathing input unavailable");
   if (event.kind === "error") {
     stateOverride = "SIGNAL ERROR";
     setText("mobile-support-copy", event.message ?? "Unknown Polar error");
@@ -322,6 +340,8 @@ async function connectPolar() {
   beatCounter = 0;
   lastBeatAt = -Infinity;
   ecgSamples.length = 0;
+  breathingReady = false;
+  lastBreathingAt = -Infinity;
   drawEcg();
   stateOverride = "POLAR CONNECTING";
   try {
@@ -340,6 +360,8 @@ async function disconnectPolar() {
   await session.disconnect();
   physicalConnected = false;
   ecgReady = false;
+  breathingReady = false;
+  lastBreathingAt = -Infinity;
   ecgRate = 0;
   detector.reset();
   stateOverride = undefined;
@@ -349,11 +371,13 @@ async function disconnectPolar() {
 function simulatedSignals(now: number) {
   if (!simulated) return;
   const bpm = Number(element<HTMLInputElement>("mobile-sim-bpm").value),
-    excitement = Number(element<HTMLInputElement>("mobile-sim-excite").value);
+    excitement = Number(element<HTMLInputElement>("mobile-sim-excite").value),
+    breath = Number(element<HTMLInputElement>("mobile-sim-breath").value);
   metrics.heart_rate = bpm;
   metrics.rr_interval = 60_000 / bpm;
   metrics.excitement_score = excitement;
   metrics.excitometer = clamp(excitement * 0.85 + 0.08);
+  metrics.breathing_volume = breath;
   ecgRate = 130;
   if (now >= simNextBeat) {
     simNextBeat = now + 60_000 / bpm;
@@ -387,6 +411,9 @@ function renderReadiness() {
     simulated,
     connected: physicalConnected,
     ecgReady,
+    breathingReady:
+      simulated ||
+      (breathingReady && performance.now() - lastBreathingAt <= 2_000),
     detectorReady: detector.ready,
     metrics,
     mappings,
@@ -423,6 +450,8 @@ function renderReadiness() {
           physicalConnected &&
           excitementPairs < 10
         ? `Excitement is warming up (${excitementPairs}/10 calibration pairs).`
+        : mapped === "breathing_volume" && physicalConnected
+          ? "Breathing control calibrates from about 12 seconds of normal chest motion."
         : "Connect a worn H10 or enable the simulator.",
   );
   return readiness.ready;
@@ -435,7 +464,7 @@ function pauseForSignal() {
   resumeTimer = undefined;
   game.setPaused(true);
   element("mobile-pause").hidden = false;
-  setText("mobile-pause-copy", "Waiting for the selected heart signal…");
+  setText("mobile-pause-copy", "Waiting for the selected body signal…");
 }
 
 function recoverSignal() {
@@ -446,7 +475,7 @@ function recoverSignal() {
     if (!currentReady) {
       clearInterval(resumeTimer);
       resumeTimer = undefined;
-      setText("mobile-pause-copy", "Waiting for the selected heart signal…");
+      setText("mobile-pause-copy", "Waiting for the selected body signal…");
       return;
     }
     remaining -= 1;
@@ -514,6 +543,7 @@ function updateLoop(now: number) {
       heart_rate: metrics.heart_rate ?? "",
       rr_interval: metrics.rr_interval ?? "",
       excitement_score: metrics.excitement_score ?? "",
+      breathing_volume: metrics.breathing_volume ?? "",
       altitude: frame.altitude,
       throttle: frame.throttle,
       traffic: frame.traffic,
@@ -670,7 +700,11 @@ function bindActions() {
       } else renderCompatibility();
     },
   );
-  for (const id of ["mobile-sim-bpm", "mobile-sim-excite"])
+  for (const id of [
+    "mobile-sim-bpm",
+    "mobile-sim-excite",
+    "mobile-sim-breath",
+  ])
     element(id).addEventListener("input", () => {
       setText(
         "mobile-sim-bpm-output",
@@ -679,6 +713,10 @@ function bindActions() {
       setText(
         "mobile-sim-excite-output",
         Number(element<HTMLInputElement>("mobile-sim-excite").value).toFixed(2),
+      );
+      setText(
+        "mobile-sim-breath-output",
+        Number(element<HTMLInputElement>("mobile-sim-breath").value).toFixed(2),
       );
     });
   element("mobile-log-export").addEventListener("click", () =>

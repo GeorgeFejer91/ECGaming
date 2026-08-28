@@ -12,6 +12,10 @@ export interface AircraftDefinition {
   license: "Project" | "CC0-1.0" | "CC-BY-3.0" | "CC-BY-4.0";
   /** Applied before centering and fit normalization. */
   rotation: readonly [number, number, number];
+  /** Optional source rotor to animate instead of adding an ECGaming rotor. */
+  sourcePropellerNode?: string;
+  /** Source nodes known to be accidental duplicate geometry. */
+  removeNodeNames?: readonly string[];
 }
 
 export const AIRCRAFT_CATALOG = [
@@ -134,6 +138,9 @@ export const AIRCRAFT_CATALOG = [
     sourceUrl: "https://styloo.itch.io/plane",
     license: "CC0-1.0",
     rotation: [0, -Math.PI / 2, 0],
+    // GLTFLoader removes periods because they are reserved animation-path syntax.
+    sourcePropellerNode: "Cube015",
+    removeNodeNames: ["Cube009"],
   },
   {
     id: "styloo-planesty-002",
@@ -289,6 +296,40 @@ export interface AircraftVisual {
   id: AircraftId;
   root: THREE.Group;
   propellers: THREE.Group[];
+}
+
+export function prepareSourcePropeller(
+  scene: THREE.Object3D,
+  nodeName: string,
+  removeNodeNames: readonly string[] = [],
+): THREE.Group {
+  for (const name of removeNodeNames) {
+    const duplicate = scene.getObjectByName(name);
+    duplicate?.parent?.remove(duplicate);
+  }
+  const source = scene.getObjectByName(nodeName);
+  if (!source?.parent)
+    throw new Error(`Source propeller node ${nodeName} was not found.`);
+  const parent = source.parent;
+  const pivot = new THREE.Group();
+  pivot.name = `${nodeName}-animated-pivot`;
+  pivot.position.copy(source.position);
+  pivot.quaternion.copy(source.quaternion);
+  pivot.scale.copy(source.scale);
+  pivot.userData.ecgamingAnimatedPropeller = true;
+  pivot.userData.ecgamingRotationAxis = "x";
+  parent.remove(source);
+  source.position.set(0, 0, 0);
+  source.quaternion.identity();
+  source.scale.set(1, 1, 1);
+  pivot.add(source);
+  parent.add(pivot);
+  return pivot;
+}
+
+export function spinAircraftPropeller(propeller: THREE.Group, radians: number) {
+  const axis = propeller.userData.ecgamingRotationAxis === "x" ? "x" : "z";
+  propeller.rotation[axis] += radians;
 }
 
 export const isAircraftId = (value: string): value is AircraftId =>
@@ -587,7 +628,7 @@ export async function loadAircraftVisual(
     return createProceduralAircraftVisual();
   }
 
-  const definition = getAircraftDefinition(id);
+  const definition: AircraftDefinition = getAircraftDefinition(id);
   const url = aircraftAssetUrl(id);
   if (!url) throw new Error(`Aircraft ${id} has no model asset.`);
   const gltf = await loadGltf(url);
@@ -598,6 +639,13 @@ export async function loadAircraftVisual(
     definition.rotation[1],
     definition.rotation[2],
   );
+  const sourcePropeller = definition.sourcePropellerNode
+    ? prepareSourcePropeller(
+        gltf.scene,
+        definition.sourcePropellerNode,
+        definition.removeNodeNames,
+      )
+    : undefined;
   root.add(gltf.scene);
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -619,10 +667,13 @@ export async function loadAircraftVisual(
   noseWorld.z = bounds.min.z;
   const noseLocal = root.worldToLocal(noseWorld);
   const rootScale = root.getWorldScale(new THREE.Vector3());
-  const propeller = createOwnedPropeller(noseLocal.z, size.y / rootScale.y);
-  propeller.position.x = noseLocal.x;
-  propeller.position.y = noseLocal.y;
-  root.add(propeller);
+  const propeller =
+    sourcePropeller ?? createOwnedPropeller(noseLocal.z, size.y / rootScale.y);
+  if (!sourcePropeller) {
+    propeller.position.x = noseLocal.x;
+    propeller.position.y = noseLocal.y;
+    root.add(propeller);
+  }
   normalizeAircraftVisual(root);
   return { id, root, propellers: [propeller] };
 }

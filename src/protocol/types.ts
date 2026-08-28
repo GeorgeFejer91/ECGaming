@@ -1,5 +1,6 @@
 export type MetricId =
   | "manual"
+  | "breathing_volume"
   | "excitement_score"
   | "excitometer"
   | "heart_rate"

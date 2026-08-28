@@ -135,6 +135,10 @@
                 <dt>ECG</dt>
                 <dd><span id="mobile-ecg-rate">--</span> Hz</dd>
               </div>
+              <div>
+                <dt>Breathing</dt>
+                <dd id="mobile-breathing">--</dd>
+              </div>
             </dl>
             <canvas
               id="mobile-ecg"
@@ -153,6 +157,7 @@
             <label
               >Altitude signal
               <select id="mobile-altitude-mode">
+                <option value="breathing_volume">Breathing · Polar ACC</option>
                 <option value="excitement_score">Excitement score</option>
                 <option value="heart_rate">Heart rate</option>
                 <option value="rr_interval">RR interval</option>
@@ -202,7 +207,8 @@
             </label>
             <p class="fine-print">
               RR notifications may be batched. ECG R-peak timing is causal,
-              experimental, and non-medical.
+              experimental, and non-medical. ACC breathing is an experimental
+              respiratory-motion/effort waveform, not lung volume or airflow.
             </p>
           </div>
         </details>
@@ -238,6 +244,18 @@
                 max="1"
                 step="0.01"
                 value="0.35"
+              />
+            </label>
+            <label
+              >Simulated breathing
+              <output id="mobile-sim-breath-output">0.50</output>
+              <input
+                id="mobile-sim-breath"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.50"
               />
             </label>
             <label class="check-row"

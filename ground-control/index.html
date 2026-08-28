@@ -217,7 +217,7 @@
                       <p>No beacons found yet.</p>
                     </div>
                     <p class="fine-print">
-                      A beacon carries derived heart metrics, normalized
+                      A beacon carries derived heart and breathing metrics, normalized
                       commands, and beat timing—never raw ECG. Receiving one
                       never requests Bluetooth, a camera, or a microphone on
                       this device.
@@ -243,7 +243,8 @@
                   hidden
                 >
                   <p class="section-intro">
-                    Choose which heart metric moves the airplane up and down.
+                    Choose heart or breathing control, then pick the exact
+                    metric that moves the airplane up and down.
                     Throttle and ring traffic remain available as advanced
                     command mappings.
                   </p>
@@ -431,6 +432,18 @@
                       step="0.01"
                       value="0.35"
                   /></label>
+                  <label class="field"
+                    ><span
+                      >Simulated breathing
+                      <output id="sim-breath-output">0.50</output></span
+                    ><input
+                      id="sim-breath"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="0.50"
+                  /></label>
                 </div>
               </section>
             </div>
@@ -527,7 +540,7 @@
                   ><b>WAIT</b>
                 </li>
                 <li id="flight-gate-signal">
-                  <i aria-hidden="true"></i><span data-fit-text data-fit-min="8" data-fit-max="11">Fresh heart signal</span
+                  <i aria-hidden="true"></i><span data-fit-text data-fit-min="8" data-fit-max="11">Fresh body signal</span
                   ><b>WAIT</b>
                 </li>
                 <li id="flight-gate-mapping">
@@ -602,7 +615,7 @@
                 <header class="instrument-header">
                   <div>
                     <span id="ecg-display-mode">LOCAL SENSOR</span>
-                    <h2 id="ecg-instrument-title">Cardiac Signal Scope</h2>
+                    <h2 id="ecg-instrument-title">Heart &amp; Breath Signal Scope</h2>
                   </div>
                   <strong id="ecg-display-state">WAITING FOR POLAR</strong>
                 </header>
@@ -636,14 +649,18 @@
                     <dd><span id="metric-excitement_score">--</span></dd>
                   </div>
                   <div>
+                    <dt>ACC BREATH</dt>
+                    <dd><span id="metric-breathing_volume">--</span></dd>
+                  </div>
+                  <div>
                     <dt>STREAM</dt>
                     <dd><span id="ecg-rate">--</span> <small>HZ</small></dd>
                   </div>
                 </dl>
                 <p class="instrument-caption">
-                  Direct mode shows local ECG. Beacon mode shows derived heart
-                  metrics, command, and beat telemetry because raw ECG is never
-                  transmitted.
+                  Direct mode shows local ECG and can derive experimental ACC
+                  respiratory-motion control. Beacon mode shows only derived
+                  metrics, command, and beat telemetry; raw ECG is never sent.
                 </p>
               </section>
             </div>

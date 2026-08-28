@@ -5,6 +5,7 @@ import {
   DEFAULT_AIRCRAFT_ID,
   disposeAircraftVisual,
   loadAircraftVisual,
+  spinAircraftPropeller,
   type AircraftId,
 } from "./aircraft";
 import type { EcgGameModule, GameSnapshot } from "./ecg-game-module";
@@ -343,7 +344,10 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       (attitude.yaw - this.plane.rotation.y) * Math.min(1, delta * 4.5);
     this.plane.rotation.x = Math.sin(time * 0.002) * 0.025;
     for (const propeller of this.propellers)
-      propeller.rotation.z += delta * (30 + this.frame.throttle * 45);
+      spinAircraftPropeller(
+        propeller,
+        delta * (30 + this.frame.throttle * 45),
+      );
     this.pulse = Math.max(0, this.pulse - delta * 3.5);
     this.aircraftPulseRoot.scale.setScalar(1 + this.pulse * 0.06);
     for (const actor of this.worldActors) {
@@ -403,7 +407,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       (2.4 + Math.sin(time * 0.0014) * 0.18 - this.plane.position.y) *
       Math.min(1, delta * 2);
     for (const propeller of this.propellers)
-      propeller.rotation.z += delta * 18;
+      spinAircraftPropeller(propeller, delta * 18);
   }
   start() {
     this.running = true;

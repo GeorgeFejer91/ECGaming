@@ -1083,6 +1083,76 @@ a {
   gap: 0.7rem;
   padding: 0 0.75rem 0.75rem;
 }
+.biosignal-family-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  padding: 0 0.75rem 0.75rem;
+}
+.biosignal-family-button {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  min-height: 72px;
+  padding: 0.6rem;
+  color: #9cb2b8;
+  text-align: left;
+  border: 1px solid rgba(105, 212, 222, 0.2);
+  background: #071721;
+  cursor: pointer;
+}
+.biosignal-family-button[aria-pressed="true"] {
+  color: #eef9fa;
+  border-color: var(--amber);
+  background: rgba(244, 179, 58, 0.09);
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.biosignal-family-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.biosignal-family-button strong,
+.biosignal-family-button small {
+  display: block;
+}
+.biosignal-family-button strong {
+  color: inherit;
+  font: 700 0.69rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.08em;
+}
+.biosignal-family-button small {
+  margin-top: 0.3rem;
+  color: #789098;
+  font-size: 0.56rem;
+  line-height: 1.25;
+}
+.biosignal-family-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--orange);
+  border: 1px solid rgba(105, 212, 222, 0.35);
+  border-radius: 50%;
+  font-size: 1.05rem;
+}
+.biosignal-family-icon.breath {
+  position: relative;
+  overflow: hidden;
+  color: var(--cyan);
+}
+.biosignal-family-icon.breath i {
+  position: absolute;
+  width: 20px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+}
+.biosignal-family-icon.breath i:nth-child(1) { transform: translateY(-7px); }
+.biosignal-family-icon.breath i:nth-child(2) { width: 25px; }
+.biosignal-family-icon.breath i:nth-child(3) { transform: translateY(7px); }
 .mapping-grid label {
   display: grid;
   gap: 0.35rem;
@@ -3408,7 +3478,7 @@ body.cockpit-mode {
   letter-spacing: 0.1em;
 }
 .avionics-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 0.75rem 0 0;
 }
 .avionics-metrics div {

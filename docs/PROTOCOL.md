@@ -1,9 +1,9 @@
-# ECG Flight and signal beacon protocols v1
+# ECG Flight v1 and signal beacon v2
 
 EC Gaming uses two additive, data-only, latest-state WebRTC protocols carried by the vendored VDO.Ninja SDK:
 
 - `ecgflightv1` carries normalized game commands for the standalone Flight Deck and legacy command receivers.
-- `ecgsignalv1` carries derived cardiac metrics and independent ECG/RR beat timing so a receiving Ground Control can own its mappings locally.
+- `ecgsignalv1` carries derived cardiac/ACC-breathing metrics and independent ECG/RR beat timing so a receiving Ground Control can own its mappings locally.
 
 Neither protocol opens audio or video tracks. `ecgsignalv1` is not an ECG waveform transport.
 
@@ -125,6 +125,7 @@ The signal beacon is additive to the normalized command stream. Its reliable con
   "sessionId": "…",
   "sessionToken": 305419896,
   "metricOrder": [
+    "breathing_volume",
     "excitement_score",
     "excitometer",
     "heart_rate",
@@ -142,16 +143,16 @@ The signal beacon is additive to the normalized command stream. Its reliable con
 
 `sourceId` and `sessionId` must match the selected source and companion flight configuration. `sessionToken` is a nonzero random packet-fencing value. A changed session ID or token clears previously received telemetry and sequence state. The token prevents accidental acceptance of delayed packets from another source session; it is not a credential.
 
-Every signal frame is exactly 88 bytes, little-endian:
+Current signal frames are 92 bytes, little-endian. Receivers also accept the legacy schema-1 88-byte heart-only frame; senders emit schema 2.
 
 | Offset | Type               | Field                         | Range/meaning                                      |
 | -----: | ------------------ | ----------------------------- | -------------------------------------------------- |
 |      0 | `uint32`           | magic                         | ASCII `ECG1` in little-endian form                  |
-|      4 | `uint16`           | schema version                | exactly `1`                                        |
-|      6 | `uint16`           | byte length                   | exactly `88`                                       |
+|      4 | `uint16`           | schema version                | `2` current; `1` legacy                            |
+|      6 | `uint16`           | byte length                   | `92` current; `88` legacy                          |
 |      8 | `uint32`           | sequence                      | wraps modulo 2³²                                   |
 |     12 | `uint32`           | session token                 | must match the validated nonzero config token      |
-|     16 | `uint32`           | metric validity mask          | bits 0–9 correspond to `metricOrder`                |
+|     16 | `uint32`           | metric validity mask          | bits 0–10 current; bits 0–9 legacy                 |
 |     20 | `uint32`           | flags                         | provenance/readiness bit field below               |
 |     24 | `uint32`           | ECG R-peak counter            | independent monotonic event counter                |
 |     28 | `uint32`           | Polar RR counter              | independent monotonic notification counter         |
@@ -159,7 +160,7 @@ Every signal frame is exactly 88 bytes, little-endian:
 |     36 | `float32`          | RR beat age                   | nonnegative milliseconds                           |
 |     40 | `float32`          | ECG detector quality          | `0…1`                                              |
 |     44 | `float32`          | RR quality                    | `0…1`                                              |
-|  48–87 | ten × `float32`    | finite derived metric values  | fixed order; validity mask distinguishes absence   |
+|  48–91 | eleven × `float32` | finite derived metric values  | fixed order; validity mask distinguishes absence   |
 
 Signal flags:
 
@@ -170,8 +171,9 @@ Signal flags:
 |   2 | `ecgStreamReady`       | source has a live local ECG stream                              |
 |   3 | `ecgBeatDetectorReady` | source's experimental ECG beat detector completed warmup       |
 |   4 | `rrStreamReady`        | source has usable Polar RR interval notifications               |
+|   5 | `accBreathingReady`    | source has fresh, calibrated Polar ACC breathing input          |
 
-Only finite metric values are marked present. The frame has no waveform/sample-array slot and no device-identity slot. Changed telemetry is sent at no more than 20 Hz, with a 250 ms unchanged-state heartbeat. Backpressured peers are skipped and only the newest offered state is retained. Frames must pass exact magic/version/length, source-session token, finite-value, validity-mask, sequence, range, and age checks.
+Only finite metric values are marked present. `breathing_volume` is the Polar Stream-compatible `0…1` experimental respiratory-motion/effort surrogate derived locally from 200 Hz H10 ACC; it is not raw acceleration, lung volume, airflow, or a clinical measurement. The frame has no waveform/sample-array slot and no device-identity slot. Changed telemetry is sent at no more than 20 Hz, with a 250 ms unchanged-state heartbeat. Backpressured peers are skipped and only the newest offered state is retained. Frames must pass exact magic/version/length, source-session token, finite-value, validity-mask, sequence, range, and age checks.
 
 The receiving Ground Control treats a validated, fresh signal beacon as one possible signal authority. It applies its own selected metric, fixed or adaptive normalization, reversal, smoothing, and beat action. It must not combine that telemetry with local Polar state. A sender-originated `ecgflightv1` frame remains available for the standalone Flight Deck and as a legacy compatibility path when no `ecgsignalv1` configuration exists.
 
@@ -182,7 +184,7 @@ Switching between Ground Control and Cockpit views does not cross a protocol bou
 The production launch predicate requires all of the following:
 
 - the explicitly selected direct-Polar or remote-beacon source is `live`;
-- the latest cardiac signal is present, monotonic, and no more than two seconds old;
+- the latest selected body signal is present, monotonic, and no more than two seconds old;
 - physical-Polar provenance is asserted and `simulation` is false;
 - a remote beacon has a validated matching configuration;
 - the selected metric is present and the mapping produces a finite command;

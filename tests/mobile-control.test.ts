@@ -77,4 +77,26 @@ describe("smartphone direct controls", () => {
     });
     expect(result.ready).toBe(true);
   });
+
+  it("requires a calibrated ACC breathing signal when breath drives altitude", () => {
+    const mappings = buildMobileMappings(
+      sanitizeMobileSettings({ altitudeMode: "breathing_volume" }),
+    );
+    const base = {
+      simulated: false,
+      connected: true,
+      ecgReady: true,
+      detectorReady: true,
+      metrics: {
+        heart_rate: 72,
+        rr_interval: 833,
+        breathing_volume: 0.58,
+      },
+      mappings,
+    };
+    expect(mobileReadiness({ ...base, breathingReady: false }).ready).toBe(
+      false,
+    );
+    expect(mobileReadiness({ ...base, breathingReady: true }).ready).toBe(true);
+  });
 });

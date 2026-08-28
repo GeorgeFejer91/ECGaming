@@ -17,6 +17,7 @@ export const METRIC_RANGE_DEFAULTS: Readonly<
   Record<MetricId, MetricRangeDefaults>
 > = Object.freeze({
   manual: { minimum: 0, maximum: 1, minimumSpan: 0.05 },
+  breathing_volume: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
   excitement_score: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
   excitometer: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
   heart_rate: { minimum: 45, maximum: 160, minimumSpan: 8 },
@@ -189,6 +190,7 @@ export function sanitizeMappings(value: unknown): FlightMappings {
     const metric = String(source.metric ?? result[command].metric);
     const acceptedMetric = ([
       "manual",
+      "breathing_volume",
       "excitement_score",
       "excitometer",
       "heart_rate",

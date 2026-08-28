@@ -3,6 +3,7 @@ import {
   DEFAULT_AIRCRAFT_ID,
   disposeAircraftVisual,
   loadAircraftVisual,
+  spinAircraftPropeller,
   type AircraftId,
   type AircraftVisual,
 } from "./aircraft";
@@ -232,7 +233,7 @@ export class AircraftPreview {
     if (!this.reduceMotion) {
       this.turntable.rotation.y += delta * 0.00042;
       for (const propeller of this.visual?.propellers ?? [])
-        propeller.rotation.z -= delta * 0.024;
+        spinAircraftPropeller(propeller, -delta * 0.024);
     }
     this.renderer.render(this.scene, this.camera);
     this.frameId = requestAnimationFrame(this.render);

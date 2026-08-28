@@ -1,4 +1,8 @@
 import { clamp } from "./math.js";
+import {
+  decodePolarAccelerometer,
+  PolarBreathingProcessor,
+} from "../polar-stream/breathing.js";
 
 export const POLAR_UUIDS = Object.freeze({
   heartRateService: "0000180d-0000-1000-8000-00805f9b34fb",
@@ -12,10 +16,24 @@ export const POLAR_UUIDS = Object.freeze({
 
 export const POLAR_COMMANDS = Object.freeze({
   startEcg: Object.freeze([0x02, 0x00, 0x00, 0x01, 130, 0, 0x01, 0x01, 14, 0]),
+  startAccelerometer: Object.freeze([
+    0x02, 0x02, 0x02, 0x01, 8, 0, 0x00, 0x01, 200, 0, 0x01, 0x01, 16, 0,
+  ]),
   stopEcg: Object.freeze([0x03, 0x00]),
+  stopAccelerometer: Object.freeze([0x03, 0x02]),
 });
 
 export const POLAR_METRICS = Object.freeze([
+  Object.freeze({
+    id: "breathing_volume",
+    label: "ACC breathing waveform",
+    shortLabel: "Breathing",
+    unit: "0–1",
+    minimum: 0,
+    maximum: 1,
+    group: "Breathing · ACC",
+    detail: "Experimental chest-motion / respiratory-effort surrogate",
+  }),
   Object.freeze({
     id: "excitement_score",
     label: "Excite-O-Meter score",
@@ -598,6 +616,7 @@ export class PolarH10BrowserSession {
     );
     this.allowQuestExperiment = allowQuestExperiment;
     this.processor = new PolarMetricProcessor();
+    this.breathingProcessor = new PolarBreathingProcessor();
     this.ecgWatchdogTimer = undefined;
     this.liveRecoveryPromise = null;
     this.liveRecoveryAttempts = 0;
@@ -620,6 +639,10 @@ export class PolarH10BrowserSession {
       this.firstEcgFrame,
       new PolarStreamError("PMD_SESSION_ENDED", "The Polar PMD session ended."),
     );
+    this.rejectWaiter(
+      this.firstAccelerometerFrame,
+      new PolarStreamError("PMD_SESSION_ENDED", "The Polar PMD session ended."),
+    );
     this.device = null;
     this.server = null;
     this.control = null;
@@ -630,10 +653,12 @@ export class PolarH10BrowserSession {
     this.recoveringLiveEcg = false;
     this.pendingControlResponse = null;
     this.firstEcgFrame = null;
+    this.firstAccelerometerFrame = null;
     this.currentStage = "idle";
     this.streamStartedAtMs = undefined;
     this.streamInitialSampleCount = 0;
     this.lastEcgFrameAtMs = undefined;
+    this.lastAccelerometerFrameAtMs = undefined;
     this.ecgFrameCount = 0;
     this.maximumEcgGapMs = 0;
   }
@@ -702,6 +727,7 @@ export class PolarH10BrowserSession {
     this.stopRequested = false;
     this.liveRecoveryAttempts = 0;
     this.processor.reset();
+    this.breathingProcessor.reset();
     this.diagnosticState = this.createDiagnosticState();
     this.updateDiagnostics({ stage: "chooser", chooser: "opening" });
     try {
@@ -786,6 +812,7 @@ export class PolarH10BrowserSession {
         const selectedDevice = this.device;
         await this.disconnect({ emit: false });
         this.processor.reset();
+        this.breathingProcessor.reset();
         this.device = selectedDevice;
         this.device.addEventListener(
           "gattserverdisconnected",
@@ -866,6 +893,12 @@ export class PolarH10BrowserSession {
     await this.runStage("ECG_START", "Polar ECG startup", () =>
       this.startEcgAndWaitForData(),
     );
+    this.emit({
+      kind: "status",
+      message:
+        "ECG is live; starting 200 Hz chest accelerometer for breathing control…",
+    });
+    await this.startAccelerometerBestEffort();
     let batteryPercent;
     try {
       const batteryService = await this.server.getPrimaryService(
@@ -1019,6 +1052,7 @@ export class PolarH10BrowserSession {
     await this.disconnect({ emit: false });
     if (this.stopRequested || !selectedDevice) return;
     this.processor.reset();
+    this.breathingProcessor.reset();
     this.device = selectedDevice;
     this.device.addEventListener(
       "gattserverdisconnected",
@@ -1220,6 +1254,64 @@ export class PolarH10BrowserSession {
     }
   }
 
+  async startAccelerometerBestEffort() {
+    const response = this.createWaiter(
+      this.controlResponseTimeoutMs,
+      new PolarStreamError(
+        "PMD_ACC_CONTROL_TIMEOUT",
+        "The H10 did not acknowledge accelerometer startup.",
+        true,
+      ),
+    );
+    response.command = POLAR_COMMANDS.startAccelerometer[0];
+    response.measurement = POLAR_COMMANDS.startAccelerometer[1];
+    const firstFrame = this.createWaiter(
+      this.firstEcgTimeoutMs,
+      new PolarStreamError(
+        "PMD_FIRST_ACC_TIMEOUT",
+        "The H10 did not deliver a live accelerometer packet.",
+        true,
+      ),
+    );
+    this.pendingControlResponse = response;
+    this.firstAccelerometerFrame = firstFrame;
+    try {
+      await this.writeControl(POLAR_COMMANDS.startAccelerometer);
+      const first = await Promise.race([
+        firstFrame.promise.then((value) => ({ kind: "frame", value })),
+        response.promise.then(
+          () => ({ kind: "ack" }),
+          (error) => ({ kind: "error", error }),
+        ),
+      ]);
+      if (first.kind === "error") throw first.error;
+      if (first.kind === "ack") await firstFrame.promise;
+      response.resolve(first.value);
+      this.emit({
+        kind: "status",
+        message:
+          "Polar ECG + accelerometer are live; breathing calibrates from 12 seconds of chest motion.",
+      });
+      return true;
+    } catch (error) {
+      this.rejectWaiter(response, error);
+      this.rejectWaiter(firstFrame, error);
+      await Promise.allSettled([response.promise, firstFrame.promise]);
+      this.emit({
+        kind: "warning",
+        code: error?.code ?? "PMD_ACC_UNAVAILABLE",
+        message:
+          "ECG remains available, but accelerometer breathing control could not start. Disconnect other Polar apps or tabs and reconnect to retry.",
+      });
+      return false;
+    } finally {
+      if (this.pendingControlResponse === response)
+        this.pendingControlResponse = null;
+      if (this.firstAccelerometerFrame === firstFrame)
+        this.firstAccelerometerFrame = null;
+    }
+  }
+
   async writeControl(command) {
     const value = Uint8Array.from(command);
     if (typeof this.control.writeValueWithResponse === "function")
@@ -1230,7 +1322,43 @@ export class PolarH10BrowserSession {
   handlePmd(event) {
     try {
       const frame = decodePolarEcg(event.target.value);
-      if (!frame) return;
+      if (!frame) {
+        const accelerometer = decodePolarAccelerometer(event.target.value);
+        if (!accelerometer) return;
+        const breathing = this.breathingProcessor.pushTimed(
+          accelerometer.samples,
+          accelerometer.sensorTimestampNs,
+        );
+        const receivedAtMs = this.now();
+        this.lastAccelerometerFrameAtMs = receivedAtMs;
+        this.firstAccelerometerFrame?.resolve({
+          sampleCount: accelerometer.samples.length,
+          receivedAtMs,
+        });
+        this.emit({
+          kind: "accelerometer",
+          ...accelerometer,
+          breathing,
+          receivedAtMs,
+        });
+        if (breathing) {
+          const heartSnapshot = this.processor.snapshot();
+          const breathingValues = Object.fromEntries(
+            Object.entries(breathing.values).filter(([, value]) =>
+              Number.isFinite(value),
+            ),
+          );
+          this.emit({
+            kind: "metrics",
+            snapshot: {
+              ...heartSnapshot,
+              values: { ...heartSnapshot.values, ...breathingValues },
+              breathing,
+            },
+          });
+        }
+        return;
+      }
       const snapshot = this.processor.pushEcg(frame.microvolts);
       const receivedAtMs = this.now();
       if (!Number.isFinite(this.streamStartedAtMs)) {
@@ -1283,9 +1411,13 @@ export class PolarH10BrowserSession {
       this.updateDiagnostics({ pmdResponse: "acknowledged" });
       pending.resolve(bytes);
     } else {
+      const signalLabel =
+        pending.measurement === POLAR_COMMANDS.startAccelerometer[1]
+          ? "accelerometer"
+          : "ECG";
       const error = new PolarStreamError(
         "PMD_COMMAND_REJECTED",
-        `The H10 rejected ECG startup (PMD status ${bytes[3]}). Disconnect ECG streaming in another Polar app or tab, then retry.`,
+        `The H10 rejected ${signalLabel} startup (PMD status ${bytes[3]}). Disconnect Polar streaming in another app or tab, then retry.`,
         true,
       );
       this.updateDiagnostics({
@@ -1327,6 +1459,11 @@ export class PolarH10BrowserSession {
       if (this.server?.connected && this.control) {
         try {
           await this.writeControl(POLAR_COMMANDS.stopEcg);
+        } catch {
+          /* best effort */
+        }
+        try {
+          await this.writeControl(POLAR_COMMANDS.stopAccelerometer);
         } catch {
           /* best effort */
         }

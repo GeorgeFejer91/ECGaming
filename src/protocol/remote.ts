@@ -11,6 +11,7 @@ import {
   SIGNAL_BEACON_CHANNEL,
   SIGNAL_BEACON_HEARTBEAT_MS,
   SIGNAL_BEACON_MAX_HZ,
+  SIGNAL_BEACON_LEGACY_METRICS,
   SIGNAL_BEACON_METRICS,
   SIGNAL_BEACON_STALE_MS,
 } from "./flight-frame";
@@ -191,6 +192,17 @@ function parseBeaconConfig(value: unknown): SignalBeaconConfigV1 | undefined {
         })()
       : value
   ) as SignalBeaconConfigV1 | undefined;
+  const metricOrder = Array.isArray(candidate?.metricOrder)
+    ? candidate.metricOrder
+    : [];
+  const acceptedMetricOrder = [
+    SIGNAL_BEACON_METRICS,
+    SIGNAL_BEACON_LEGACY_METRICS,
+  ].find(
+    (expected) =>
+      metricOrder.length === expected.length &&
+      metricOrder.every((metric, index) => metric === expected[index]),
+  );
   return candidate?.kind === "ecgaming-signal-config" &&
     candidate.protocol === "ecgsignalv1" &&
     candidate.schemaVersion === 1 &&
@@ -200,12 +212,8 @@ function parseBeaconConfig(value: unknown): SignalBeaconConfigV1 | undefined {
     Number.isInteger(candidate.sessionToken) &&
     candidate.sessionToken > 0 &&
     candidate.rawEcgIncluded === false &&
-    Array.isArray(candidate.metricOrder) &&
-    candidate.metricOrder.length === SIGNAL_BEACON_METRICS.length &&
-    candidate.metricOrder.every(
-      (metric, index) => metric === SIGNAL_BEACON_METRICS[index],
-    )
-    ? { ...candidate, metricOrder: [...SIGNAL_BEACON_METRICS] }
+    acceptedMetricOrder
+    ? { ...candidate, metricOrder: [...acceptedMetricOrder] }
     : undefined;
 }
 

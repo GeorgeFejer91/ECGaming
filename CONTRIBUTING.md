@@ -23,7 +23,7 @@ Adaptive normalization is source-session scoped and per metric. Changes must pre
 
 Signal displays must describe what the browser actually has. Local PMD samples may be shown as a live ECG waveform. A remote beacon has derived telemetry and beat events only, so its trace must be labelled remote derived telemetry and must not be styled or described as reconstructed ECG.
 
-Aircraft contributions must include the creator, source URL, exact license and version, and any required attribution in `THIRD_PARTY_NOTICES.md`. Use `scripts/convert_aircraft.py` for supported source formats when conversion is needed. Keep the shared aircraft contract intact: each model must be centered, correctly oriented, uniformly normalized to the ring-safe bounds, and given the project-owned animated propeller at runtime. Do not describe that animation as source-authored unless the upstream asset and license evidence explicitly establish it.
+Aircraft contributions must include the creator, source URL, exact license and version, and any required attribution in `THIRD_PARTY_NOTICES.md`. Use `scripts/convert_aircraft.py` for supported source formats when conversion is needed. Keep the shared aircraft contract intact: each model must be centered, correctly oriented, uniformly normalized to the ring-safe bounds, and expose one correctly placed animated propeller. A project rotor is the default; a separable source rotor may be used with explicit node metadata and duplicate-geometry tests.
 
 Heartbeat Flight is reward-only. A ring pass awards a point; a miss does not remove lives or end the run. Preserve this behavior when changing scoring, HUD, or telemetry.
 

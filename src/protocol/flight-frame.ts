@@ -12,14 +12,16 @@ export const FLIGHT_RECOVERY_FRAMES = 3;
 export const FLIGHT_BEAT_FRESH_MS = 250;
 
 export const SIGNAL_BEACON_CHANNEL = "ecgsignalv1";
-export const SIGNAL_BEACON_WIRE_BYTES = 88;
+export const SIGNAL_BEACON_WIRE_BYTES = 92;
+export const SIGNAL_BEACON_LEGACY_WIRE_BYTES = 88;
 export const SIGNAL_BEACON_MAX_HZ = 20;
 export const SIGNAL_BEACON_HEARTBEAT_MS = 250;
 export const SIGNAL_BEACON_STALE_MS = 2_000;
 const SIGNAL_BEACON_MAGIC = 0x31474345; // ASCII "ECG1" when little-endian.
-const SIGNAL_BEACON_SCHEMA_VERSION = 1;
+const SIGNAL_BEACON_SCHEMA_VERSION = 2;
 
 export const SIGNAL_BEACON_METRICS = Object.freeze([
+  "breathing_volume",
   "excitement_score",
   "excitometer",
   "heart_rate",
@@ -32,12 +34,17 @@ export const SIGNAL_BEACON_METRICS = Object.freeze([
   "ecg_peak_to_peak",
 ] as const satisfies readonly DerivedMetricId[]);
 
+export const SIGNAL_BEACON_LEGACY_METRICS = Object.freeze(
+  SIGNAL_BEACON_METRICS.filter((metric) => metric !== "breathing_volume"),
+);
+
 export const SignalBeaconFlags = Object.freeze({
   physicalPolar: 1 << 0,
   simulation: 1 << 1,
   ecgStreamReady: 1 << 2,
   ecgBeatDetectorReady: 1 << 3,
   rrStreamReady: 1 << 4,
+  accBreathingReady: 1 << 5,
 });
 
 export const FlightFlags = Object.freeze({
@@ -127,7 +134,7 @@ export function decodeFlightFrame(value: unknown): FlightFrame | undefined {
  * 36  f32 RR beat age ms
  * 40  f32 ECG beat quality 0..1
  * 44  f32 RR beat quality 0..1
- * 48  ten f32 derived metrics in SIGNAL_BEACON_METRICS order
+ * 48  eleven f32 derived metrics in SIGNAL_BEACON_METRICS order
  */
 export function encodeSignalBeaconFrame(
   frame: SignalBeaconFrame,
@@ -162,20 +169,34 @@ export function decodeSignalBeaconFrame(
   value: unknown,
 ): SignalBeaconFrame | undefined {
   const bytes = arrayBuffer(value);
-  if (!bytes || bytes.byteLength !== SIGNAL_BEACON_WIRE_BYTES) return undefined;
+  if (
+    !bytes ||
+    ![SIGNAL_BEACON_LEGACY_WIRE_BYTES, SIGNAL_BEACON_WIRE_BYTES].includes(
+      bytes.byteLength,
+    )
+  )
+    return undefined;
   const view = new DataView(bytes);
+  const schemaVersion = view.getUint16(4, true);
+  const metricOrder =
+    schemaVersion === 1 && bytes.byteLength === SIGNAL_BEACON_LEGACY_WIRE_BYTES
+      ? SIGNAL_BEACON_LEGACY_METRICS
+      : schemaVersion === SIGNAL_BEACON_SCHEMA_VERSION &&
+          bytes.byteLength === SIGNAL_BEACON_WIRE_BYTES
+        ? SIGNAL_BEACON_METRICS
+        : undefined;
   if (
     view.getUint32(0, true) !== SIGNAL_BEACON_MAGIC ||
-    view.getUint16(4, true) !== SIGNAL_BEACON_SCHEMA_VERSION ||
-    view.getUint16(6, true) !== SIGNAL_BEACON_WIRE_BYTES
+    !metricOrder ||
+    view.getUint16(6, true) !== bytes.byteLength
   )
     return undefined;
   const metricMask = view.getUint32(16, true);
-  if (metricMask >>> SIGNAL_BEACON_METRICS.length) return undefined;
+  if (metricMask >>> metricOrder.length) return undefined;
   const metrics: SignalBeaconFrame["metrics"] = {};
-  for (let index = 0; index < SIGNAL_BEACON_METRICS.length; index += 1) {
+  for (let index = 0; index < metricOrder.length; index += 1) {
     if ((metricMask & (1 << index)) === 0) continue;
-    const metric = SIGNAL_BEACON_METRICS[index]!,
+    const metric = metricOrder[index]!,
       metricValue = view.getFloat32(48 + index * 4, true);
     if (!Number.isFinite(metricValue)) return undefined;
     metrics[metric] = metricValue;

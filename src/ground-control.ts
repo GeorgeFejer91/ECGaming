@@ -117,6 +117,7 @@ interface ActiveSignal {
   rrBeatQuality: number;
   ecgBeatReady: boolean;
   rrBeatReady: boolean;
+  breathingReady: boolean;
   route: "local" | "direct" | "relay" | "unknown";
   latencyMs?: number;
   legacyFrame?: FlightFrame & { receivedAt: number };
@@ -150,6 +151,8 @@ let simulated = false;
 let polarSessionId = "";
 let simulationSessionId = "";
 let lastPolarSignalAt = -Infinity;
+let lastBreathingSignalAt = -Infinity;
+let breathingReady = false;
 let lastFrameAt = performance.now();
 let lastLoggedAt = -Infinity;
 let simNextBeat = performance.now();
@@ -211,21 +214,43 @@ function setupAccordion() {
 }
 
 function metricOptions(selected: string) {
-  return METRIC_DEFINITIONS.map(
-    (metric) =>
-      '<option value="' +
-      metric.id +
-      '"' +
-      (metric.id === selected ? " selected" : "") +
-      ">" +
-      metric.label +
-      "</option>",
-  ).join("");
+  const option = (metric: (typeof METRIC_DEFINITIONS)[number]) =>
+    '<option value="' +
+    metric.id +
+    '"' +
+    (metric.id === selected ? " selected" : "") +
+    ">" +
+    metric.label +
+    "</option>";
+  const breathing = METRIC_DEFINITIONS.filter(
+    (metric) => metric.id === "breathing_volume",
+  );
+  const heart = METRIC_DEFINITIONS.filter(
+    (metric) => !["manual", "breathing_volume"].includes(metric.id),
+  );
+  const manual = METRIC_DEFINITIONS.filter((metric) => metric.id === "manual");
+  return (
+    '<optgroup label="Breathing · Polar ACC">' +
+    breathing.map(option).join("") +
+    '</optgroup><optgroup label="Heart · ECG / HR / RR">' +
+    heart.map(option).join("") +
+    '</optgroup><optgroup label="Other">' +
+    manual.map(option).join("") +
+    "</optgroup>"
+  );
 }
 
 function mappingMarkup(command: ContinuousCommand) {
   const value = mappings[command];
   const output = command === "altitude" ? "+0.00" : "50%";
+  const familySelector =
+    command === "altitude"
+      ? '<div class="biosignal-family-selector" role="group" aria-label="Altitude control signal family"><button type="button" class="biosignal-family-button" data-signal-family="heart" aria-pressed="' +
+        String(value.metric !== "breathing_volume") +
+        '"><span class="biosignal-family-icon heart" aria-hidden="true">♥</span><span><strong>HEART CONTROL</strong><small>ECG, heart rate, RR or excitement</small></span></button><button type="button" class="biosignal-family-button" data-signal-family="breath" aria-pressed="' +
+        String(value.metric === "breathing_volume") +
+        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>BREATH CONTROL</strong><small>Polar ACC chest-motion waveform</small></span></button></div>'
+      : "";
   return (
     '<fieldset class="mapping-card" data-command="' +
     command +
@@ -235,7 +260,9 @@ function mappingMarkup(command: ContinuousCommand) {
     COMMAND_LABELS[command] +
     '</strong><output data-output>' +
     output +
-    '</output></div><div class="mapping-grid"><label class="wide">Signal<select data-field="metric">' +
+    "</output></div>" +
+    familySelector +
+    '<div class="mapping-grid"><label class="wide">Signal<select data-field="metric">' +
     metricOptions(value.metric) +
     '</select></label><label>Fixed minimum<input data-field="minimum" type="number" step="any" value="' +
     value.minimum +
@@ -277,6 +304,23 @@ function renderMappings() {
   );
   element("beat-action").addEventListener("change", () =>
     updateMappingsFromUi(),
+  );
+  host.querySelectorAll<HTMLButtonElement>("[data-signal-family]").forEach(
+    (button) =>
+      button.addEventListener("click", () => {
+        const nextMetric: MetricId =
+          button.dataset.signalFamily === "breath"
+            ? "breathing_volume"
+            : mappings.altitude.metric === "breathing_volume" ||
+                mappings.altitude.metric === "manual"
+              ? "excitement_score"
+              : mappings.altitude.metric;
+        const select = host.querySelector<HTMLSelectElement>(
+          '[data-command="altitude"] [data-field="metric"]',
+        )!;
+        select.value = nextMetric;
+        updateMappingsFromUi(true);
+      }),
   );
   element<HTMLInputElement>("adaptive-normalization").checked =
     mappings.altitude.normalization?.mode === "adaptive";
@@ -371,6 +415,18 @@ function syncMappingAvailability() {
       .forEach(
         (input) => (input.disabled = broadcastLocked || sourceMapped),
       );
+    card
+      .querySelectorAll<HTMLButtonElement>("[data-signal-family]")
+      .forEach((button) => {
+        button.disabled = broadcastLocked || sourceMapped;
+        const isBreath = binding.metric === "breathing_volume";
+        button.setAttribute(
+          "aria-pressed",
+          String(
+            button.dataset.signalFamily === "breath" ? isBreath : !isBreath,
+          ),
+        );
+      });
     if (command === "altitude")
       card.toggleAttribute("data-beat-lift", mappings.beatAction === "lift");
   });
@@ -481,6 +537,7 @@ function updateSignalScope(active: ActiveSignal) {
   showMetric(active.metrics, "heart_rate");
   showMetric(active.metrics, "rr_interval");
   showMetric(active.metrics, "excitement_score", 2);
+  showMetric(active.metrics, "breathing_volume", 2);
   if (remote) {
     setText("ecg-rate", "NET");
     drawTrace(remoteTrace, true);
@@ -553,7 +610,9 @@ function handlePolarEvent(event: any) {
     }
     if (!physicalConnected) {
       ecgReady = false;
+      breathingReady = false;
       lastPolarSignalAt = -Infinity;
+      lastBreathingSignalAt = -Infinity;
     }
     setText(
       "polar-state",
@@ -566,6 +625,13 @@ function handlePolarEvent(event: any) {
   }
   if (event.kind === "metrics") {
     Object.assign(polarMetrics, event.snapshot?.values ?? {});
+    if (event.snapshot?.breathing) {
+      breathingReady = event.snapshot.breathing.ready === true;
+      polarMetrics.breathing_signal_ready = breathingReady ? 1 : 0;
+      polarMetrics.breathing_signal_confidence = Number(
+        event.snapshot.breathing.diagnostics?.confidence01 ?? 0,
+      );
+    }
     if (sourceMode === "polar" && !simulated)
       observeMetrics(polarMetrics, now, polarSessionId);
   }
@@ -593,6 +659,13 @@ function handlePolarEvent(event: any) {
     }
     if (sourceMode === "polar") drawTrace(ecgSamples, false);
   }
+  if (event.kind === "accelerometer") {
+    lastBreathingSignalAt = now;
+    breathingReady = event.breathing?.ready === true;
+  }
+  if (event.kind === "warning") {
+    setText("polar-detail", event.message ?? "Optional Polar signal unavailable");
+  }
   if (event.kind === "error") {
     setText("polar-state", "Signal error");
     setText("polar-detail", event.message ?? "Unknown Polar error");
@@ -610,6 +683,8 @@ async function connectPolar() {
   element<HTMLInputElement>("sim-enabled").checked = false;
   for (const key of Object.keys(polarMetrics)) delete polarMetrics[key];
   ecgSamples.length = 0;
+  breathingReady = false;
+  lastBreathingSignalAt = -Infinity;
   detector.reset();
   ecgBeatCounter = 0;
   rrBeatCounter = 0;
@@ -630,7 +705,9 @@ async function disconnectPolar() {
   await polar.disconnect();
   physicalConnected = false;
   ecgReady = false;
+  breathingReady = false;
   lastPolarSignalAt = -Infinity;
+  lastBreathingSignalAt = -Infinity;
   detector.reset();
   if (sourceMode === "polar") adaptiveRange.startSession("");
 }
@@ -643,6 +720,10 @@ function simulatedSignals(now: number) {
   polarMetrics.rr_interval = 60_000 / bpm;
   polarMetrics.excitement_score = excitement;
   polarMetrics.excitometer = clamp(excitement * 0.85 + 0.08);
+  polarMetrics.breathing_volume = Number(
+    element<HTMLInputElement>("sim-breath").value,
+  );
+  polarMetrics.breathing_signal_ready = 1;
   if (!simulationSessionId) simulationSessionId = sessionId("simulation");
   observeMetrics(polarMetrics, now, simulationSessionId);
   if (now >= simNextBeat) {
@@ -673,6 +754,7 @@ function activeSignal(now: number): ActiveSignal {
         rrBeatQuality: 1,
         ecgBeatReady: true,
         rrBeatReady: true,
+        breathingReady: true,
         route: "local",
       };
     return {
@@ -695,6 +777,8 @@ function activeSignal(now: number): ActiveSignal {
       rrBeatQuality,
       ecgBeatReady: detector.ready,
       rrBeatReady: Number.isFinite(polarMetrics.rr_interval),
+      breathingReady:
+        breathingReady && ageSince(lastBreathingSignalAt, now) <= 2_000,
       route: "local",
     };
   }
@@ -723,6 +807,7 @@ function activeSignal(now: number): ActiveSignal {
         flags & SignalBeaconFlags.ecgBeatDetectorReady,
       ),
       rrBeatReady: Boolean(flags & SignalBeaconFlags.rrStreamReady),
+      breathingReady: Boolean(flags & SignalBeaconFlags.accBreathingReady),
       route: state.route,
       latencyMs: state.rttMs,
     };
@@ -750,6 +835,7 @@ function activeSignal(now: number): ActiveSignal {
       (frame?.flags ?? 0) & FlightFlags.beatDetectorReady,
     ),
     rrBeatReady: Boolean(frame),
+    breathingReady: false,
     route: state.route,
     latencyMs: state.rttMs,
     legacyFrame: frame,
@@ -830,6 +916,11 @@ function computeRuntime(now: number, delta: number): RuntimeState {
           ? 1 - beat.ageMs / 420
           : -0.18
         : undefined;
+    else if (
+      mappings[command].metric === "breathing_volume" &&
+      !active.breathingReady
+    )
+      target = undefined;
     else
       target = commandValue(command, active.metrics, mappings, adaptiveRange);
     if (target === undefined) {
@@ -900,6 +991,10 @@ function localBeaconOffer(now: number): SignalBeaconOffer {
   const metrics: SignalBeaconOffer["metrics"] = {};
   const physicalSignalFresh =
     physicalConnected && ageSince(lastPolarSignalAt, now) <= 2_000;
+  const breathingSignalFresh =
+    physicalConnected &&
+    breathingReady &&
+    ageSince(lastBreathingSignalAt, now) <= 2_000;
   if (physicalSignalFresh || simulated)
     for (const metric of SIGNAL_BEACON_METRICS) {
       const value = polarMetrics[metric];
@@ -916,7 +1011,8 @@ function localBeaconOffer(now: number): SignalBeaconOffer {
       : 0) |
     (physicalSignalFresh && Number.isFinite(polarMetrics.rr_interval)
       ? SignalBeaconFlags.rrStreamReady
-      : 0);
+      : 0) |
+    (breathingSignalFresh ? SignalBeaconFlags.accBreathingReady : 0);
   return {
     metrics,
     ecgBeatCounter,
@@ -956,14 +1052,16 @@ function gateReason(readiness: FlightLaunchReadiness) {
         : "Connect a worn Polar H10 and wait for live ECG.",
     "remote-config-missing":
       "The selected beacon has not supplied a valid signal configuration.",
-    "signal-missing": "No fresh cardiac sample has arrived yet.",
-    "signal-stale": "The cardiac signal is stale. Flight remains on hold.",
+    "signal-missing": "No fresh selected body signal has arrived yet.",
+    "signal-stale": "The selected body signal is stale. Flight remains on hold.",
     "physical-polar-missing":
       "Flight requires a physical Polar signal, not connection metadata alone.",
     "simulation-rejected":
       "Simulation can preview controls but cannot unlock the real flight.",
     "metric-not-ready":
-      "The selected heart metric is not available from this signal.",
+      mappings.altitude.metric === "breathing_volume"
+        ? "Breathing control is calibrating. Keep the H10 snug and breathe normally for about 12 seconds."
+        : "The selected heart metric is not available from this signal.",
     "normalization-not-ready":
       "Adaptive range is still learning a usable personal minimum and maximum.",
     "beat-not-ready":
@@ -972,7 +1070,7 @@ function gateReason(readiness: FlightLaunchReadiness) {
   };
   return reason
     ? messages[reason] ?? "Complete Ground Control readiness before flight."
-    : "Fresh physical cardiac control is ready. Runway clearance granted.";
+    : "Fresh physical body-signal control is ready. Runway clearance granted.";
 }
 
 function setGateRow(id: string, ready: boolean, value: string) {
@@ -1198,6 +1296,7 @@ function updateCommandLoop(now: number) {
       heart_rate: runtime.active.metrics.heart_rate ?? "",
       rr_interval: runtime.active.metrics.rr_interval ?? "",
       excitement_score: runtime.active.metrics.excitement_score ?? "",
+      breathing_volume: runtime.active.metrics.breathing_volume ?? "",
       altitude: runtime.frame.altitude,
       throttle: runtime.frame.throttle,
       traffic: runtime.frame.traffic,
@@ -1575,7 +1674,7 @@ function setupActions() {
       }
     },
   );
-  for (const id of ["sim-bpm", "sim-excite"])
+  for (const id of ["sim-bpm", "sim-excite", "sim-breath"])
     element<HTMLInputElement>(id).addEventListener("input", () => {
       setText(
         "sim-bpm-output",
@@ -1584,6 +1683,10 @@ function setupActions() {
       setText(
         "sim-excite-output",
         Number(element<HTMLInputElement>("sim-excite").value).toFixed(2),
+      );
+      setText(
+        "sim-breath-output",
+        Number(element<HTMLInputElement>("sim-breath").value).toFixed(2),
       );
     });
   element("export-settings").addEventListener("click", () =>
