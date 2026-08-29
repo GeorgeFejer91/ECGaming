@@ -7,9 +7,10 @@ while it runs. The internal and URL names stay descriptive so the engine can be
 reused even if the player-facing name changes later.
 
 The current prototype is deliberately procedural: it stores no recorded breath
-samples and creates no network traffic. It is intended as an audible game cue,
-not a reconstruction of a particular person's airway acoustics and not a
-medical device.
+samples. Its only sensor traffic is a user-triggered, browser-local Bluetooth
+connection to a Polar H10. It is intended as an audible game cue, not a
+reconstruction of a particular person's airway acoustics and not a medical
+device.
 
 For the expanded comparison of procedural, granular, DDSP, neural, and
 text-to-audio approaches, see [GENERATIVE-AUDIO-RESEARCH.md](./GENERATIVE-AUDIO-RESEARCH.md).
@@ -23,8 +24,13 @@ text-to-audio approaches, see [GENERATIVE-AUDIO-RESEARCH.md](./GENERATIVE-AUDIO-
 - Pink-noise turbulence, inhale/exhale-specific source filtering, nonlinear
   flow envelopes, small stochastic variation, smooth start/stop, and output
   limiting.
-- A physiology input contract with automatic stale-signal fallback:
+- A physiology input contract with freshness and readiness gating:
   `volume01`, optional `flow01`, phase, confidence, and timestamp.
+- A direct **Lock to Polar H10** mode. It consumes the existing 200 Hz ACC
+  processor and fades silent during calibration, stale data, or rejected
+  motion instead of falling back to the autonomous cycle.
+- One compound anatomical SVG lung silhouette whose actual outer path morphs
+  continuously with the normalized breathing waveform.
 - A manual normalized-volume lab input for exercising that contract before a
   sensor is connected.
 
@@ -81,19 +87,30 @@ breath.setTiming({
 breath.setTimbre({ intensity01: 0.75, brightness01: 0.6 });
 ```
 
-## Connecting the existing Polar breathing processor
+## Polar phase lock
 
-`PolarBreathingProcessor` already exposes normalized chest displacement,
-direction, derivative, readiness, and confidence. A bridge can remain outside
-both modules:
+The page now uses `PolarH10BrowserSession`, which starts the H10's 200 Hz PMD
+accelerometer and feeds the vendored `PolarBreathingProcessor`. That processor
+is aligned to Polar Stream commit `5300e2c`: `timed-pca-v1` waveform estimation
+and `hysteresis-v1` phase classification.
+
+The classifier reconstructs every sample in PMD source time, calibrates an X+Z
+PCA chest-motion axis for 12 seconds, low-passes its fixed-coordinate velocity,
+and uses separate enter/hold thresholds plus 0.40-second confirmation and dwell
+times. It resets/fails closed across stale source-time gaps. See Polar Stream's
+[ACC breathing handoff](https://github.com/GeorgeFejer91/Polar-Stream/blob/main/docs/acc-breathing-handoff.md)
+for the complete equations, parameter bounds, and validation limits.
+
+The audio boundary is explicit:
 
 ```ts
 const snapshot = polarBreathing.pushTimed(samples, sensorTimestampNs);
 
 if (snapshot) {
+  breath.setPhysiologyLock(true);
   breath.pushPhysiology({
     volume01: snapshot.volume01,
-    flow01: Math.min(1, Math.abs(snapshot.derivativePerSecond) / 0.7),
+    flow01: Math.min(1, Math.abs(snapshot.derivativePerSecond) / 0.15),
     phase:
       snapshot.phase > 0
         ? "inhale"
@@ -101,16 +118,18 @@ if (snapshot) {
           ? "exhale"
           : "hold",
     confidence01: snapshot.diagnostics.confidence01,
+    ready: snapshot.ready,
     timestampMs: performance.now(),
   });
 }
 ```
 
-The sign-to-phase mapping must be confirmed during calibration because strap
-orientation and `invertDirection` can reverse it. The H10 accelerometer result
-is a chest-motion/effort surrogate—not lung volume or airflow—so the bridge
-should use derivative magnitude as the starting estimate of flow, fade the
-sound when confidence drops, and never present the output as a clinical signal.
+While locked, `ready` is authoritative: ready input drives phase, volume, and
+flow; not-ready or stale input fades the generator silent. The sign-to-phase
+mapping must still be confirmed during calibration because strap orientation
+and `invertDirection` can reverse it. The H10 accelerometer result is a
+chest-motion/effort surrogate—not lung volume or airflow—and must never be
+presented as a clinical signal.
 
 ## Recommended next validation loop
 
@@ -133,4 +152,6 @@ sound when confidence drops, and never present the output as a clinical signal.
 - `breath-engine.ts`: game-facing lifecycle and physiological input API.
 - `breath-processor.js`: allocation-light real-time source-filter DSP.
 - `breath-model.ts`: testable timing and phase math.
+- `polar-breath-lock.ts`: fail-closed Polar readiness and freshness boundary.
+- `lung-visual.ts`: the single compound SVG silhouette morph.
 - `main.ts`, `index.html`, `styles.css`: interactive lab.

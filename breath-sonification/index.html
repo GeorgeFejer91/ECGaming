@@ -53,11 +53,17 @@
 
         <div class="breath-visual" aria-hidden="true">
           <div class="breath-glints"><span></span><span></span></div>
-          <div class="orbit orbit-outer"></div>
-          <div class="orbit orbit-inner"></div>
-          <div class="lung lung-left"></div>
-          <div class="lung lung-right"></div>
-          <div class="flow-halo"></div>
+          <svg class="lung-form" viewBox="0 0 320 270" role="presentation">
+            <path id="lung-silhouette" class="lung-silhouette"></path>
+            <path
+              class="lung-airway"
+              d="M160 20 L160 69 C160 82 146 91 131 104 M160 69 C160 82 174 91 190 104 M143 94 C129 108 119 124 113 144 M177 94 C192 108 202 124 208 144"
+            ></path>
+            <path
+              class="lung-fissures"
+              d="M92 166 C111 158 128 161 143 174 M228 162 C208 157 190 163 176 176 M220 190 C203 185 189 190 178 202"
+            ></path>
+          </svg>
           <div class="visual-label">
             <strong id="phase-text">inhale</strong>
             <span id="source-text" data-source="cycle">timed cycle</span>
@@ -148,18 +154,41 @@
         <article class="panel sensor-panel">
           <div class="panel-heading">
             <div>
-              <p class="panel-index">03 · Input lab</p>
-              <h2>Physiology handoff</h2>
+              <p class="panel-index">03 · Polar lock</p>
+              <h2>Body signal</h2>
             </div>
             <label class="switch">
               <input id="sensor-enabled" type="checkbox" />
               <span aria-hidden="true"></span>
-              Track input
+              Manual lab
             </label>
           </div>
+          <div class="polar-lock-card" id="polar-lock-card" data-state="idle">
+            <button
+              class="polar-lock-button"
+              id="polar-lock-toggle"
+              type="button"
+              aria-pressed="false"
+            >
+              Lock to Polar H10
+            </button>
+            <div class="polar-lock-heading">
+              <strong id="polar-lock-state">POLAR OFFLINE</strong>
+              <span id="polar-phase">hold</span>
+            </div>
+            <p id="polar-lock-copy" role="status">
+              Pair a worn H10 and let its 200 Hz chest accelerometer classify
+              inhale, hold, and exhale in source time.
+            </p>
+            <div class="polar-telemetry" aria-label="Polar breathing status">
+              <span>Calibration <strong id="polar-calibration">0%</strong></span>
+              <span>Confidence <strong id="polar-confidence">0%</strong></span>
+            </div>
+          </div>
+          <div class="manual-divider"><span>Manual signal lab</span></div>
           <p class="sensor-intro">
-            Enable this lab input and move chest volume up and down. It uses the
-            same normalized stream contract intended for the Polar breathing processor.
+            Or enable the lab input and move chest volume by hand. Manual input
+            is never presented as a physical Polar connection.
           </p>
           <label class="range-field sensor-volume-field">
             <span>Chest volume</span>

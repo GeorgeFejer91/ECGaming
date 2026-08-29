@@ -16,6 +16,7 @@ export interface BreathObservation {
   flow01?: number;
   phase?: "inhale" | "exhale" | "hold" | -1 | 0 | 1;
   confidence01?: number;
+  ready?: boolean;
   timestampMs?: number;
 }
 
@@ -65,6 +66,7 @@ export class BreathSonifier {
   private timbre: BreathTimbre = { ...DEFAULT_TIMBRE };
   private master01 = 0.72;
   private active = false;
+  private physiologyLocked = false;
   private listeners = new Set<FrameListener>();
   private lastObservation?: { volume01: number; timestampMs: number };
   private flowPeak = 0.08;
@@ -103,6 +105,7 @@ export class BreathSonifier {
     this.post({ type: "timing", value: this.timing });
     this.post({ type: "timbre", value: this.timbre });
     this.post({ type: "active", value: this.active });
+    this.post({ type: "physiology-lock", value: this.physiologyLocked });
   }
 
   async start(): Promise<void> {
@@ -137,6 +140,11 @@ export class BreathSonifier {
     this.output.gain.setTargetAtTime(this.master01, now, 0.025);
   }
 
+  setPhysiologyLock(locked: boolean): void {
+    this.physiologyLocked = locked;
+    this.post({ type: "physiology-lock", value: locked });
+  }
+
   pushPhysiology(observation: BreathObservation): void {
     const timestampMs = observation.timestampMs ?? performance.now();
     const volume01 = clamp01(observation.volume01);
@@ -152,6 +160,7 @@ export class BreathSonifier {
       this.flowPeak * Math.exp(-elapsedSeconds / 6),
     );
     const derivedFlow = clamp01(Math.abs(derivative) / this.flowPeak);
+    const confidence01 = clamp01(observation.confidence01 ?? 1);
     this.lastObservation = { volume01, timestampMs };
     this.post({
       type: "physiology",
@@ -159,7 +168,8 @@ export class BreathSonifier {
         volume01,
         flow01: clamp01(observation.flow01 ?? derivedFlow),
         phase: phaseName(observation.phase, derivative),
-        confidence01: clamp01(observation.confidence01 ?? 1),
+        confidence01,
+        ready: observation.ready ?? confidence01 > 0.45,
       },
     });
   }

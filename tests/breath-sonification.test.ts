@@ -6,6 +6,8 @@ import {
   sampleBreathCycle,
   type BreathTiming,
 } from "../breath-sonification/breath-model";
+import { lungSilhouettePath } from "../breath-sonification/lung-visual";
+import { PolarBreathLock } from "../breath-sonification/polar-breath-lock";
 
 const timing: BreathTiming = {
   inhaleSeconds: 2,
@@ -71,6 +73,79 @@ describe("breath sonification timing model", () => {
       inhaleHoldSeconds: 0.75,
       exhaleSeconds: 4.5,
       exhaleHoldSeconds: 0.75,
+    });
+  });
+});
+
+describe("Breath Mirror physiology lock", () => {
+  it("morphs one compound anatomical silhouette as lung volume rises", () => {
+    const empty = lungSilhouettePath(0);
+    const full = lungSilhouettePath(1);
+
+    expect(empty).not.toBe(full);
+    expect(empty.match(/\bM\b/g)).toHaveLength(2);
+    expect(full.match(/\bZ\b/g)).toHaveLength(2);
+    expect(full).toContain("64.00");
+    expect(empty).toContain("91.00");
+  });
+
+  it("accepts only a ready Polar phase and fails closed when ACC is stale", () => {
+    const lock = new PolarBreathLock(650);
+    const frame = lock.accept(
+      {
+        calibrated: true,
+        ready: true,
+        phase: 1,
+        volume01: 0.76,
+        derivativePerSecond: 0.09,
+        values: {
+          breathing_calibration: 1,
+          breathing_signal_ready: 1,
+          breathing_signal_confidence: 0.84,
+        },
+        diagnostics: { confidence01: 0.84 },
+      },
+      1_000,
+    );
+
+    expect(frame).toMatchObject({
+      ready: true,
+      stale: false,
+      phase: "inhale",
+      phaseValue: 1,
+      volume01: 0.76,
+      confidence01: 0.84,
+    });
+    expect(lock.read(1_650)?.ready).toBe(true);
+    expect(lock.read(1_651)).toMatchObject({
+      ready: false,
+      stale: true,
+      phase: "hold",
+      phaseValue: 0,
+      confidence01: 0,
+      flow01: 0,
+    });
+  });
+
+  it("reports calibration without treating not-ready motion as a live phase", () => {
+    const lock = new PolarBreathLock();
+    const frame = lock.accept(
+      {
+        calibrated: false,
+        ready: false,
+        phase: -1,
+        volume01: 0.42,
+        values: { breathing_calibration: 0.58 },
+      },
+      250,
+    );
+
+    expect(frame).toMatchObject({
+      calibration01: 0.58,
+      ready: false,
+      phase: "hold",
+      phaseValue: 0,
+      confidence01: 0,
     });
   });
 });
