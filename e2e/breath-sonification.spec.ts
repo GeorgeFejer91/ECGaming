@@ -15,8 +15,24 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
   await expect(page.locator("#lung-silhouette")).toHaveCount(1);
   await expect(page.locator(".lung, .orbit")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Lock to Polar H10" }),
+    page.getByRole("button", { name: "Connect Polar H10" }),
   ).toBeVisible();
+  await expect(page.locator(".sensor-panel .panel-index")).toHaveText(
+    "03 · Polar connector",
+  );
+  await expect(page.locator("#polar-link-step")).toHaveAttribute(
+    "data-state",
+    /idle|unsupported/,
+  );
+  await expect(page.locator("#polar-ecg-channel")).toHaveText(
+    /awaiting samples|offline/,
+  );
+  await expect(page.locator("#polar-acc-channel")).toHaveText(
+    /awaiting samples|offline/,
+  );
+  await expect(page.locator(".polar-route-note")).toContainText(
+    "Breath phase is derived separately from 200 Hz ACC chest motion",
+  );
   await expect(page.locator("#sonic-aperture")).toBeVisible();
 
   await page.getByRole("button", { name: /fast.*30 bpm/i }).click();

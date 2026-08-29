@@ -80,6 +80,14 @@ const polarLockCopy = byId("polar-lock-copy");
 const polarPhase = byId("polar-phase");
 const polarCalibration = byId("polar-calibration");
 const polarConfidence = byId("polar-confidence");
+const polarHeartRate = byId("polar-heart-rate");
+const polarEcgRate = byId("polar-ecg-rate");
+const polarLinkStep = byId("polar-link-step");
+const polarEcgStep = byId("polar-ecg-step");
+const polarAccStep = byId("polar-acc-step");
+const polarLinkChannel = byId("polar-link-channel");
+const polarEcgChannel = byId("polar-ecg-channel");
+const polarAccChannel = byId("polar-acc-channel");
 const sonicAperture = byId("sonic-aperture");
 const sonicApertureValue = byId("sonic-aperture-value");
 const sonicApertureQualities = byId("sonic-aperture-qualities");
@@ -91,6 +99,7 @@ let polarWatchTimer = 0;
 let polarConnecting = false;
 let polarConnected = false;
 let polarLockRequested = false;
+let polarBreathReady = false;
 let polarFrameWasStale = false;
 let lungAnimationFrame = 0;
 let visualVolume = 0;
@@ -167,7 +176,9 @@ function renderFrame(frame: SonifierFrame): void {
     frame.source === "cycle"
       ? "timed cycle"
       : polarLockRequested
-        ? "polar acc · locked"
+        ? polarBreathReady
+          ? "polar acc · locked"
+          : "polar acc · armed"
         : "manual input";
   sourceText.dataset.source = polarLockRequested ? "polar" : frame.source;
   setVisualTarget(frame.volume01, frame.flow01);
@@ -291,49 +302,89 @@ function setPolarPanel(
   polarLockCopy.textContent = copy;
   polarLockButton.setAttribute("aria-pressed", String(polarLockRequested));
   polarLockButton.textContent = polarConnecting
-    ? "Opening Polar chooser…"
+    ? "Connecting Polar H10…"
     : polarLockRequested
-      ? "Release Polar lock"
-      : "Lock to Polar H10";
+      ? "Disconnect Polar H10"
+      : "Connect Polar H10";
   polarLockButton.disabled = polarConnecting;
 }
 
+function setPolarChannel(
+  step: Element,
+  output: Element,
+  state:
+    | "idle"
+    | "starting"
+    | "waiting"
+    | "live"
+    | "lost"
+    | "error"
+    | "unsupported",
+  label: string,
+): void {
+  step.setAttribute("data-state", state);
+  output.textContent = label;
+}
+
+function resetPolarChannels(): void {
+  setPolarChannel(polarLinkStep, polarLinkChannel, "idle", "standby");
+  setPolarChannel(polarEcgStep, polarEcgChannel, "idle", "awaiting samples");
+  setPolarChannel(polarAccStep, polarAccChannel, "idle", "awaiting samples");
+  polarHeartRate.textContent = "-- bpm";
+  polarEcgRate.textContent = "-- Hz";
+}
+
 function applyPolarFrame(frame: PolarLockFrame): void {
+  const connectorReady = frame.ready && polarConnected;
+  polarBreathReady = connectorReady;
   polarCalibration.textContent = `${Math.round(frame.calibration01 * 100)}%`;
   polarConfidence.textContent = `${Math.round(frame.confidence01 * 100)}%`;
   polarPhase.textContent = frame.phase;
   phaseText.textContent = frame.phase;
-  sourceText.textContent = "polar acc · locked";
+  sourceText.textContent = connectorReady
+    ? "polar acc · locked"
+    : "polar acc · armed";
   sourceText.dataset.source = "polar";
   setVisualTarget(frame.volume01, frame.flow01);
   sonifier.pushPhysiology({
     volume01: frame.volume01,
     flow01: frame.flow01,
     phase: frame.phaseValue,
-    confidence01: frame.ready ? frame.confidence01 : 0,
-    ready: frame.ready,
+    confidence01: connectorReady ? frame.confidence01 : 0,
+    ready: connectorReady,
     timestampMs: frame.receivedAtMs,
   });
 
   if (frame.stale) {
+    setPolarChannel(polarAccStep, polarAccChannel, "lost", "signal stale");
     setPolarPanel(
       "lost",
       "ACC SIGNAL LOST",
-      "Polar lock is holding silent. Keep this tab visible and reconnect if the stream does not recover.",
+      "The connector is holding the breath sound silent. Keep this tab visible while it attempts a bounded stream restart.",
     );
-  } else if (frame.ready) {
+  } else if (frame.ready && !polarConnected) {
+    setPolarChannel(polarAccStep, polarAccChannel, "live", "200 Hz · phase ready");
+    setPolarPanel(
+      "waiting",
+      "VERIFYING POLAR CHANNELS",
+      "Breath motion is ready, but audio stays silent until live HR, ECG, and ACC channels are all confirmed.",
+    );
+  } else if (connectorReady) {
+    setPolarChannel(polarAccStep, polarAccChannel, "live", "200 Hz · phase live");
     setPolarPanel(
       "locked",
-      "POLAR PHASE LOCKED",
-      "The generated mouth breath now follows the source-timed ACC phase classifier.",
+      "BREATH MIRROR LINKED",
+      "The mouth-breath sound now mirrors ACC-derived inhale, hold, and exhale. ECG remains live as a separate cardiac channel.",
     );
   } else if (!frame.calibrated) {
+    setPolarChannel(polarAccStep, polarAccChannel, "live", "200 Hz · calibrating");
     setPolarPanel(
       "calibrating",
       "CALIBRATING CHEST AXIS",
       "Stay still and breathe normally while Polar collects the 12-second PCA calibration window.",
     );
   } else {
+    setPolarChannel(polarAccStep, polarAccChannel, "live", "200 Hz · low confidence");
     setPolarPanel(
       "waiting",
       "SIGNAL NOT READY",
@@ -341,13 +392,14 @@ function applyPolarFrame(frame: PolarLockFrame): void {
     );
   }
   if (playing)
-    statusText.textContent = frame.ready
+    statusText.textContent = connectorReady
       ? `Audio locked to Polar · ${frame.phase}`
       : "Audio armed · waiting for Polar readiness";
 }
 
 function handlePolarEvent(event: any): void {
   if (event.kind === "status") {
+    setPolarChannel(polarLinkStep, polarLinkChannel, "starting", "setting up");
     setPolarPanel(
       "connecting",
       "POLAR CONNECTING",
@@ -356,7 +408,35 @@ function handlePolarEvent(event: any): void {
   }
   if (event.kind === "connection") {
     polarConnected = event.connected === true;
-    if (!polarConnected && polarLockRequested) {
+    if (polarConnected) {
+      setPolarChannel(polarLinkStep, polarLinkChannel, "live", "connected");
+      const currentFrame = polarBreathLock.read(performance.now());
+      if (currentFrame) applyPolarFrame(currentFrame);
+      else
+        setPolarPanel(
+          "calibrating",
+          event.recovered
+            ? "POLAR STREAMS RECOVERED"
+            : "POLAR CHANNELS VERIFIED",
+          "Live HR, ECG, and ACC packets are confirmed. Breathe normally and stay still while the breath axis calibrates.",
+        );
+    } else if (event.recovering && polarLockRequested) {
+      polarBreathReady = false;
+      setPolarChannel(polarLinkStep, polarLinkChannel, "starting", "restarting");
+      setPolarChannel(polarEcgStep, polarEcgChannel, "waiting", "restarting");
+      setPolarChannel(polarAccStep, polarAccChannel, "waiting", "restarting");
+      sonifier.releasePhysiology();
+      setPolarPanel(
+        "connecting",
+        "RESTARTING POLAR STREAMS",
+        event.message ??
+          "The connector is restarting the selected H10 without reopening the chooser.",
+      );
+    } else if (!polarConnected && polarLockRequested) {
+      polarBreathReady = false;
+      setPolarChannel(polarLinkStep, polarLinkChannel, "lost", "disconnected");
+      setPolarChannel(polarEcgStep, polarEcgChannel, "lost", "offline");
+      setPolarChannel(polarAccStep, polarAccChannel, "lost", "offline");
       sonifier.releasePhysiology();
       setPolarPanel(
         "lost",
@@ -365,7 +445,19 @@ function handlePolarEvent(event: any): void {
       );
     }
   }
+  if (event.kind === "ecg" && polarLockRequested) {
+    const observedRate = Number(event.streamHealth?.observedSampleRateHz);
+    const rate = Number.isFinite(observedRate) ? Math.round(observedRate) : 130;
+    setPolarChannel(polarEcgStep, polarEcgChannel, "live", `${rate} Hz · live`);
+    polarEcgRate.textContent = `${rate} Hz`;
+  }
+  if (event.kind === "heart-rate" && polarLockRequested) {
+    const beatsPerMinute = Number(event.beatsPerMinute);
+    if (Number.isFinite(beatsPerMinute) && beatsPerMinute > 0)
+      polarHeartRate.textContent = `${Math.round(beatsPerMinute)} bpm`;
+  }
   if (event.kind === "accelerometer" && polarLockRequested) {
+    setPolarChannel(polarAccStep, polarAccChannel, "live", "200 Hz · live");
     const frame = polarBreathLock.accept(
       event.breathing ?? {},
       performance.now(),
@@ -374,6 +466,8 @@ function handlePolarEvent(event: any): void {
     applyPolarFrame(frame);
   }
   if (event.kind === "warning" || event.kind === "error") {
+    if (event.kind === "error" && /ECG frame/i.test(event.message ?? ""))
+      setPolarChannel(polarEcgStep, polarEcgChannel, "error", "packet rejected");
     setPolarPanel(
       "error",
       event.kind === "error" ? "POLAR SIGNAL ERROR" : "POLAR WARNING",
@@ -385,16 +479,20 @@ function handlePolarEvent(event: any): void {
 function renderPolarAvailability(): void {
   const support = polarWebBluetoothSupport();
   if (!support.supported) {
+    setPolarChannel(polarLinkStep, polarLinkChannel, "unsupported", "unavailable");
+    setPolarChannel(polarEcgStep, polarEcgChannel, "unsupported", "offline");
+    setPolarChannel(polarAccStep, polarAccChannel, "unsupported", "offline");
     polarLockCard.dataset.state = "unsupported";
     polarLockState.textContent = "DIRECT POLAR UNAVAILABLE";
     polarLockCopy.textContent = support.reason;
     polarLockButton.disabled = true;
     return;
   }
+  resetPolarChannels();
   setPolarPanel(
     "idle",
-    "POLAR READY TO PAIR",
-    "Choose a worn Polar H10. Calibration takes about 12 seconds of normal, still breathing.",
+    "POLAR CONNECTOR READY",
+    "Choose a worn Polar H10. Live ECG and ACC must both be verified before the 12-second breathing calibration begins.",
   );
 }
 
@@ -407,6 +505,7 @@ async function connectPolarLock(): Promise<void> {
   polarConnecting = true;
   polarLockRequested = true;
   polarConnected = false;
+  polarBreathReady = false;
   polarFrameWasStale = false;
   polarBreathLock.reset();
   sensorEnabled.checked = false;
@@ -419,6 +518,9 @@ async function connectPolarLock(): Promise<void> {
     "OPENING POLAR",
     "Choose your H10 in the browser Bluetooth prompt.",
   );
+  setPolarChannel(polarLinkStep, polarLinkChannel, "starting", "chooser");
+  setPolarChannel(polarEcgStep, polarEcgChannel, "waiting", "awaiting samples");
+  setPolarChannel(polarAccStep, polarAccChannel, "waiting", "awaiting samples");
   try {
     // connect() invokes requestDevice before its first await so the chooser
     // retains this click's browser user activation.
@@ -427,22 +529,26 @@ async function connectPolarLock(): Promise<void> {
   } catch (error) {
     polarLockRequested = false;
     polarConnected = false;
+    polarBreathReady = false;
     sensorEnabled.disabled = false;
     sonifier.setPhysiologyLock(false);
     sonifier.releasePhysiology();
     sourceText.textContent = "timed cycle";
     sourceText.dataset.source = "cycle";
+    setPolarChannel(polarLinkStep, polarLinkChannel, "error", "connection failed");
+    setPolarChannel(polarEcgStep, polarEcgChannel, "idle", "offline");
+    setPolarChannel(polarAccStep, polarAccChannel, "idle", "offline");
     setPolarPanel(
       "error",
-      "POLAR LOCK FAILED",
+      "POLAR CONNECTOR FAILED",
       error instanceof Error ? error.message : String(error),
     );
   } finally {
     polarConnecting = false;
     polarLockButton.disabled = false;
     polarLockButton.textContent = polarLockRequested
-      ? "Release Polar lock"
-      : "Lock to Polar H10";
+      ? "Disconnect Polar H10"
+      : "Connect Polar H10";
   }
 }
 
@@ -455,6 +561,7 @@ async function releasePolarLock(): Promise<void> {
     polarConnecting = false;
     polarConnected = false;
     polarLockRequested = false;
+    polarBreathReady = false;
     polarFrameWasStale = false;
     polarBreathLock.reset();
     sonifier.setPhysiologyLock(false);

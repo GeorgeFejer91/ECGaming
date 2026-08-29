@@ -32,9 +32,10 @@ exhale/closed gesture, see [OPENNESS-MAPPING-RESEARCH.md](./OPENNESS-MAPPING-RES
   Loudness remains flow-derived rather than chest-volume-derived.
 - A physiology input contract with freshness and readiness gating:
   `volume01`, optional `flow01`, phase, confidence, and timestamp.
-- A direct **Lock to Polar H10** mode. It consumes the existing 200 Hz ACC
-  processor and fades silent during calibration, stale data, or rejected
-  motion instead of falling back to the autonomous cycle.
+- A direct **Polar Breath Connector**. It verifies live HR, 130 Hz ECG, and
+  200 Hz ACC packets, then uses the ACC breathing processor while disabling
+  manual physiology input. Calibration, stale data, or rejected motion fade
+  silent instead of falling back to the autonomous cycle.
 - One compound anatomical SVG lung silhouette whose actual outer path morphs
   continuously with the normalized breathing waveform.
 - A manual normalized-volume lab input for exercising that contract before a
@@ -93,12 +94,16 @@ breath.setTiming({
 breath.setTimbre({ intensity01: 0.75, brightness01: 0.6 });
 ```
 
-## Polar phase lock
+## Polar Breath Connector and phase lock
 
-The page now uses `PolarH10BrowserSession`, which starts the H10's 200 Hz PMD
-accelerometer and feeds the vendored `PolarBreathingProcessor`. That processor
-is aligned to Polar Stream commit `5300e2c`: `timed-pca-v1` waveform estimation
-and `hysteresis-v1` phase classification.
+The in-game connector uses `PolarH10BrowserSession` to open the H10's live HR,
+130 Hz PMD ECG, and 200 Hz PMD accelerometer channels. Its UI only marks a
+channel live after a decoded packet actually arrives. The ECG and heart-rate
+channels verify that the worn strap is streaming, but they do **not** drive the
+breathing phase. Breath control comes separately from the accelerometer feeding
+the vendored `PolarBreathingProcessor`. That processor is aligned to Polar
+Stream commit `5300e2c`: `timed-pca-v1` waveform estimation and `hysteresis-v1`
+phase classification.
 
 The classifier reconstructs every sample in PMD source time, calibrates an X+Z
 PCA chest-motion axis for 12 seconds, low-passes its fixed-coordinate velocity,

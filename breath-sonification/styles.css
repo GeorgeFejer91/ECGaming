@@ -778,7 +778,103 @@ input[type="range"]:disabled {
   line-height: 1.45;
 }
 
+.polar-stream-map {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  margin-top: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.polar-stream-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 45px;
+  padding: 8px 10px;
+  background: #0d0d0d;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.polar-stream-step > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3f3f3c;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: 220ms ease;
+}
+
+.polar-stream-step > span {
+  display: grid;
+  gap: 3px;
+}
+
+.polar-stream-step span strong,
+.polar-stream-step span small,
+.polar-stream-step > b {
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.polar-stream-step span strong {
+  color: #858580;
+  font-weight: 600;
+}
+
+.polar-stream-step span small {
+  color: #41413e;
+  font-weight: 400;
+}
+
+.polar-stream-step > b {
+  color: #555551;
+  font-weight: 400;
+  text-align: right;
+}
+
+.polar-stream-step[data-state="starting"] > i,
+.polar-stream-step[data-state="waiting"] > i {
+  background: #777771;
+  animation: polar-signal-wait 1.35s ease-in-out infinite;
+}
+
+.polar-stream-step[data-state="live"] > i {
+  background: #e1e1dc;
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.35);
+}
+
+.polar-stream-step[data-state="live"] > b { color: #b6b6b0; }
+
+.polar-stream-step[data-state="lost"] > i,
+.polar-stream-step[data-state="error"] > i {
+  background: #9e817e;
+  box-shadow: 0 0 8px rgba(169, 139, 136, 0.26);
+}
+
+.polar-stream-step[data-state="lost"] > b,
+.polar-stream-step[data-state="error"] > b { color: #997d7a; }
+
+@keyframes polar-signal-wait {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); }
+}
+
+.polar-route-note {
+  margin: 11px 0 0;
+  color: #4f4f4b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .polar-telemetry {
+  flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 11px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
@@ -793,6 +889,10 @@ input[type="range"]:disabled {
   margin-left: 4px;
   color: #858580;
   font-size: inherit;
+}
+
+.polar-telemetry span {
+  flex: 1 1 calc(50% - 8px);
 }
 
 .manual-divider {

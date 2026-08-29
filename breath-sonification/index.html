@@ -174,8 +174,8 @@
         <article class="panel sensor-panel">
           <div class="panel-heading">
             <div>
-              <p class="panel-index">03 · Polar lock</p>
-              <h2>Body signal</h2>
+              <p class="panel-index">03 · Polar connector</p>
+              <h2>Polar breath link</h2>
             </div>
             <label class="switch">
               <input id="sensor-enabled" type="checkbox" />
@@ -190,17 +190,41 @@
               type="button"
               aria-pressed="false"
             >
-              Lock to Polar H10
+              Connect Polar H10
             </button>
             <div class="polar-lock-heading">
-              <strong id="polar-lock-state">POLAR OFFLINE</strong>
+              <strong id="polar-lock-state">POLAR CONNECTOR OFFLINE</strong>
               <span id="polar-phase">hold</span>
             </div>
             <p id="polar-lock-copy" role="status">
-              Pair a worn H10 and let its 200 Hz chest accelerometer classify
-              inhale, hold, and exhale in source time.
+              Connect a worn H10. The connector verifies live ECG and chest
+              motion before it can drive the breath mirror.
+            </p>
+            <div class="polar-stream-map" aria-label="Polar H10 signal path">
+              <div class="polar-stream-step" id="polar-link-step" data-state="idle">
+                <i aria-hidden="true"></i>
+                <span><strong>H10 link</strong><small>Web Bluetooth</small></span>
+                <b id="polar-link-channel">standby</b>
+              </div>
+              <div class="polar-stream-step" id="polar-ecg-step" data-state="idle">
+                <i aria-hidden="true"></i>
+                <span><strong>ECG</strong><small>cardiac channel</small></span>
+                <b id="polar-ecg-channel">awaiting samples</b>
+              </div>
+              <div class="polar-stream-step" id="polar-acc-step" data-state="idle">
+                <i aria-hidden="true"></i>
+                <span><strong>Breath ACC</strong><small>phase control</small></span>
+                <b id="polar-acc-channel">awaiting samples</b>
+              </div>
+            </div>
+            <p class="polar-route-note">
+              ECG confirms a live chest-strap stream. Breath phase is derived
+              separately from 200 Hz ACC chest motion—not from ECG. Signals
+              stay in this browser tab.
             </p>
             <div class="polar-telemetry" aria-label="Polar breathing status">
+              <span>Heart <strong id="polar-heart-rate">-- bpm</strong></span>
+              <span>ECG <strong id="polar-ecg-rate">-- Hz</strong></span>
               <span>Calibration <strong id="polar-calibration">0%</strong></span>
               <span>Confidence <strong id="polar-confidence">0%</strong></span>
             </div>
