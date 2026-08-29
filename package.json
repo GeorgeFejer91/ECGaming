@@ -20,6 +20,7 @@
   "dependencies": {
     "@chenglou/pretext": "^0.0.8",
     "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "three": "^0.185.1"
   },

@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050505" />
     <meta
       name="description"
       content="A lightweight, procedural, physiology-ready breathing sound generator for ECGaming."
@@ -10,6 +11,12 @@
     <title>Breath Mirror · ECGaming</title>
   </head>
   <body data-phase="inhale">
+    <div class="moth-atmosphere" aria-hidden="true">
+      <i class="fog fog-one"></i>
+      <i class="fog fog-two"></i>
+      <i class="fog fog-three"></i>
+      <i class="film-grain"></i>
+    </div>
     <header class="site-header">
       <a class="brand" href="../">EC<span>Gaming</span></a>
       <span class="lab-label">Breath Mirror · Game element</span>
@@ -23,8 +30,9 @@
     <main>
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow">Breath Mirror · procedural mouth-breath audio</p>
-          <h1 id="page-title">Your breathing.<br /><em>Mirrored in sound.</em></h1>
+          <p class="eyebrow">Breath Mirror · linked to the body</p>
+          <h1 id="page-title"><span>BREATH</span><em>MIRROR</em></h1>
+          <p class="hero-subtitle">drawn to your rhythm</p>
           <p class="intro">
             A game-ready mouth-breath voice that can move from fast to paced to
             slow. Timing changes glide into place without restarting the breath,
@@ -44,6 +52,7 @@
         </div>
 
         <div class="breath-visual" aria-hidden="true">
+          <div class="breath-glints"><span></span><span></span></div>
           <div class="orbit orbit-outer"></div>
           <div class="orbit orbit-inner"></div>
           <div class="lung lung-left"></div>

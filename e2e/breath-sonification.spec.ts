@@ -8,7 +8,7 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
 
   await page.goto("./breath-sonification/");
   await expect(
-    page.getByRole("heading", { name: /your breathing.*mirrored in sound/i }),
+    page.getByRole("heading", { name: /breath.*mirror/i }),
   ).toBeVisible();
   await expect(page.locator("#bpm-value")).toHaveText("12.0");
 
