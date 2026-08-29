@@ -80,13 +80,14 @@ test("landing exposes phone, ground, and receiver workflows", async ({
     page.getByRole("heading", { name: /pick a game.*know its source/i }),
   ).toBeVisible();
   const cards = page.locator(".game-menu-card");
-  await expect(cards).toHaveCount(4);
+  await expect(cards).toHaveCount(5);
 
   const expectedCards = [
     [".flight-game-card", "./ground-control/", "ECGaming repository"],
     [".pixel-hop-card", "./games/pixel-hop/", "stm1978/retro-platformer"],
     [".supertux-card", "./games/supertux/", "SuperTux v0.6.3"],
     [".moth-card", "./games/moth/?v=a56fa97e", "ahmedallam222/moth-game"],
+    [".breath-mirror-card", "./breath-sonification/", "ECGaming repository"],
   ] as const;
 
   for (const [selector, href, sourceName] of expectedCards) {

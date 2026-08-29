@@ -17,6 +17,10 @@ export default defineConfig({
         pixelHop: resolve(import.meta.dirname, "games/pixel-hop/index.html"),
         superTux: resolve(import.meta.dirname, "games/supertux/index.html"),
         moth: resolve(import.meta.dirname, "games/moth/index.html"),
+        breathSonification: resolve(
+          import.meta.dirname,
+          "breath-sonification/index.html",
+        ),
       },
     },
   },

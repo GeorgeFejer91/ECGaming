@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A lightweight, procedural, physiology-ready breathing sound generator for ECGaming."
+    />
+    <title>Breath Mirror · ECGaming</title>
+  </head>
+  <body data-phase="inhale">
+    <header class="site-header">
+      <a class="brand" href="../">EC<span>Gaming</span></a>
+      <span class="lab-label">Breath Mirror · Game element</span>
+      <a class="readme-link" href="./README.md">Technical notes</a>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Breath Mirror · procedural mouth-breath audio</p>
+          <h1 id="page-title">Your breathing.<br /><em>Mirrored in sound.</em></h1>
+          <p class="intro">
+            A game-ready mouth-breath voice that can move from fast to paced to
+            slow. Timing changes glide into place without restarting the breath,
+            ready to mirror the player's physiological signal.
+          </p>
+          <div class="transport">
+            <button
+              class="primary-button"
+              id="play-toggle"
+              type="button"
+              aria-pressed="false"
+            >
+              Start breathing
+            </button>
+            <span id="audio-status" role="status">Audio waits for a gesture</span>
+          </div>
+        </div>
+
+        <div class="breath-visual" aria-hidden="true">
+          <div class="orbit orbit-outer"></div>
+          <div class="orbit orbit-inner"></div>
+          <div class="lung lung-left"></div>
+          <div class="lung lung-right"></div>
+          <div class="flow-halo"></div>
+          <div class="visual-label">
+            <strong id="phase-text">inhale</strong>
+            <span id="source-text" data-source="cycle">timed cycle</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workbench" aria-label="Breath generator controls">
+        <article class="panel timing-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-index">01 · Cycle</p>
+              <h2>Breath timing</h2>
+            </div>
+            <div class="pace-readout">
+              <strong id="bpm-value">12.0</strong>
+              <span>breaths / min</span>
+              <small id="cycle-value">5.00 s</small>
+            </div>
+          </div>
+
+          <div class="presets" aria-label="Timing presets">
+            <button type="button" data-preset="fast">Fast <span>30 bpm</span></button>
+            <button type="button" data-preset="paced">Paced <span>10 bpm</span></button>
+            <button type="button" data-preset="slow">Slow <span>5.5 bpm</span></button>
+          </div>
+
+          <div class="timing-grid">
+            <label class="range-field inhale-field">
+              <span>Inhale</span>
+              <output for="inhale-seconds">1.80 s</output>
+              <input id="inhale-seconds" type="range" min="0.3" max="8" step="0.05" value="1.8" />
+            </label>
+            <label class="range-field hold-field">
+              <span>Full hold</span>
+              <output for="inhale-hold-seconds">0.15 s</output>
+              <input id="inhale-hold-seconds" type="range" min="0" max="4" step="0.05" value="0.15" />
+            </label>
+            <label class="range-field exhale-field">
+              <span>Exhale</span>
+              <output for="exhale-seconds">2.60 s</output>
+              <input id="exhale-seconds" type="range" min="0.3" max="10" step="0.05" value="2.6" />
+            </label>
+            <label class="range-field hold-field">
+              <span>Empty hold</span>
+              <output for="exhale-hold-seconds">0.45 s</output>
+              <input id="exhale-hold-seconds" type="range" min="0" max="4" step="0.05" value="0.45" />
+            </label>
+          </div>
+
+          <button class="ramp-button" id="pace-ramp" type="button" aria-pressed="false">
+            Run fast → slow · 30 s
+          </button>
+        </article>
+
+        <article class="panel voice-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-index">02 · Voice</p>
+              <h2>Breath character</h2>
+            </div>
+            <p class="panel-note">Headphones recommended</p>
+          </div>
+          <div class="voice-controls">
+            <label class="range-field">
+              <span>Effort</span><output for="intensity">68%</output>
+              <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.68" />
+            </label>
+            <label class="range-field">
+              <span>Brightness</span><output for="brightness">56%</output>
+              <input id="brightness" type="range" min="0" max="1" step="0.01" value="0.56" />
+            </label>
+            <label class="range-field">
+              <span>Variation</span><output for="naturalness">72%</output>
+              <input id="naturalness" type="range" min="0" max="1" step="0.01" value="0.72" />
+            </label>
+            <label class="range-field master-field">
+              <span>Output</span><output for="master">72%</output>
+              <input id="master" type="range" min="0" max="1" step="0.01" value="0.72" />
+            </label>
+          </div>
+          <p class="microcopy">
+            The voice is generated—not looped—from shaped pink noise, a moving
+            source filter, and a flow-derived amplitude envelope.
+          </p>
+        </article>
+
+        <article class="panel sensor-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-index">03 · Input lab</p>
+              <h2>Physiology handoff</h2>
+            </div>
+            <label class="switch">
+              <input id="sensor-enabled" type="checkbox" />
+              <span aria-hidden="true"></span>
+              Track input
+            </label>
+          </div>
+          <p class="sensor-intro">
+            Enable this lab input and move chest volume up and down. It uses the
+            same normalized stream contract intended for the Polar breathing processor.
+          </p>
+          <label class="range-field sensor-volume-field">
+            <span>Chest volume</span>
+            <input id="sensor-volume" type="range" min="0" max="1" step="0.005" value="0" disabled />
+          </label>
+          <label class="range-field compact-field">
+            <span>Signal confidence</span>
+            <input id="sensor-confidence" type="range" min="0" max="1" step="0.01" value="0.92" disabled />
+          </label>
+          <div class="contract">
+            <code>volume01</code><i>+</i><code>phase</code><i>+</i><code>confidence01</code>
+          </div>
+        </article>
+      </section>
+
+      <aside class="disclaimer">
+        Experimental sonification, not a medical device or a measurement of airflow.
+        Keep listening levels comfortable and stop if paced breathing feels uncomfortable.
+      </aside>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

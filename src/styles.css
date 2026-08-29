@@ -606,6 +606,25 @@ a {
 .game-menu-card:hover .game-card-cover img {
   transform: scale(1.025);
 }
+.breath-mirror-card {
+  min-height: 500px;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+}
+.breath-mirror-card .game-card-cover {
+  height: auto;
+  min-height: 100%;
+  border-right: 1px solid rgba(105, 212, 222, 0.22);
+  border-bottom: 0;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(74, 189, 164, 0.14), transparent 55%),
+    #07131f;
+}
+.breath-mirror-card .game-card-cover img {
+  object-fit: contain;
+  padding: clamp(2rem, 6vw, 5rem);
+}
 .game-availability {
   position: absolute;
   z-index: 1;
@@ -2711,6 +2730,17 @@ a {
   .game-library-heading { grid-template-columns: 1fr; gap: 1rem; }
   .game-menu-grid { grid-template-columns: 1fr; }
   .game-menu-card { min-height: 650px; }
+  .breath-mirror-card {
+    min-height: 650px;
+    grid-column: auto;
+    display: flex;
+  }
+  .breath-mirror-card .game-card-cover {
+    height: 275px;
+    min-height: 275px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(105, 212, 222, 0.22);
+  }
   .flow-strip > i {
     transform: rotate(90deg);
     justify-self: center;
