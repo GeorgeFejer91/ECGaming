@@ -32,6 +32,7 @@ import {
   type FlightLaunchSource,
 } from "./signals/readiness";
 import { CausalRPeakDetector } from "./signals/rpeak";
+import { RealtimeEcgTrace } from "./signals/realtime-ecg-trace";
 import { GroundCockpit, type CockpitTelemetry } from "./game/ground-cockpit";
 import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 import { GameDivePublisher } from "./game/dive-intent-channel";
@@ -224,7 +225,10 @@ const cockpit = new GroundCockpit();
 const gameHeartbeatPublisher = new GameHeartbeatPublisher("ground-control");
 const gameDivePublisher = new GameDivePublisher("ground-control");
 const log = new SessionCsvLog();
-const ecgSamples: number[] = [];
+const ecgTrace = new RealtimeEcgTrace({
+  sampleRateHz: 130,
+  windowSeconds: 5,
+});
 const scopeHistory = new Map<ScopeMetricId, number[]>();
 const polarMetrics: Record<string, number> = {};
 let mappings = storedMappings();
@@ -251,6 +255,9 @@ let rrBeatQuality = 0;
 let localSequence = 0;
 let lastGroundBeatCounter: number | undefined;
 let lastScopeSampleAt = -Infinity;
+let lastScopeUiAt = -Infinity;
+let lastScopeUiSignature = "";
+let traceCanvasResizePending = true;
 let latestRuntime: RuntimeState | undefined;
 let sourceSignature = "";
 let wakeLock: any;
@@ -613,33 +620,44 @@ function pulseRadar() {
   requestAnimationFrame(() => pulse.classList.add("pulse"));
 }
 
-function drawTrace(values: number[], remote: boolean) {
+function traceSurface() {
   const canvas = element<HTMLCanvasElement>("ecg-preview");
+  if (traceCanvasResizePending) {
+    const bounds = canvas.getBoundingClientRect();
+    const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const pixelWidth = Math.max(1, Math.round(bounds.width * pixelRatio));
+    const pixelHeight = Math.max(1, Math.round(bounds.height * pixelRatio));
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+    traceCanvasResizePending = false;
+  }
   const context = canvas.getContext("2d");
-  if (!context) return;
-  const width = canvas.width;
-  const height = canvas.height;
+  return context
+    ? {
+        context,
+        width: canvas.width,
+        height: canvas.height,
+        pixelRatio: Math.min(2, Math.max(1, window.devicePixelRatio || 1)),
+      }
+    : undefined;
+}
+
+function drawMetricTrace(values: number[]) {
+  const surface = traceSurface();
+  if (!surface) return;
+  const { context, width, height, pixelRatio } = surface;
   context.clearRect(0, 0, width, height);
   if (values.length < 2) return;
-  let center = 0.5;
-  let halfRange = 0.5;
-  if (!remote) {
-    const sorted = [...values].sort((a, b) => a - b);
-    const low = sorted[Math.floor((sorted.length - 1) * 0.02)] ?? 0;
-    const high = sorted[Math.floor((sorted.length - 1) * 0.98)] ?? 0;
-    center = (low + high) / 2;
-    halfRange = Math.max(50, (high - low) / 2);
-  }
-  context.strokeStyle = remote ? "#f4b33a" : "#69d4de";
-  context.lineWidth = remote ? 2.5 : 2;
+  context.strokeStyle = "#f4b33a";
+  context.lineWidth = 2.5 * pixelRatio;
   context.shadowColor = context.strokeStyle;
-  context.shadowBlur = 8;
+  context.shadowBlur = 8 * pixelRatio;
   context.beginPath();
   values.forEach((value, index) => {
     const x = (index / (values.length - 1)) * width;
-    const normalized = remote
-      ? clamp(value)
-      : clamp((value - center) / (halfRange * 2) + 0.5, 0.04, 0.96);
+    const normalized = clamp(value);
     const y = height - normalized * height;
     if (index) context.lineTo(x, y);
     else context.moveTo(x, y);
@@ -647,18 +665,77 @@ function drawTrace(values: number[], remote: boolean) {
   context.stroke();
   context.shadowBlur = 0;
   const latest = values[values.length - 1]!;
-  const latestNormalized = remote
-    ? clamp(latest)
-    : clamp((latest - center) / (halfRange * 2) + 0.5, 0.04, 0.96);
-  context.fillStyle = remote ? "#ffd15a" : "#dffcff";
+  const latestNormalized = clamp(latest);
+  context.fillStyle = "#ffd15a";
   context.beginPath();
-  context.arc(width - 3, height - latestNormalized * height, 3, 0, Math.PI * 2);
+  context.arc(
+    width - 3 * pixelRatio,
+    height - latestNormalized * height,
+    3 * pixelRatio,
+    0,
+    Math.PI * 2,
+  );
+  context.fill();
+}
+
+function drawRealtimeEcg(now: number) {
+  const surface = traceSurface();
+  if (!surface) return;
+  const { context, width, height, pixelRatio } = surface;
+  context.clearRect(0, 0, width, height);
+  const trace = ecgTrace.snapshot(now);
+  if (trace.values.length < 2 || trace.rightEdge01 <= 0) return;
+
+  context.strokeStyle = "#69d4de";
+  context.lineWidth = 2 * pixelRatio;
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.shadowColor = context.strokeStyle;
+  context.shadowBlur = 8 * pixelRatio;
+  context.beginPath();
+  let drawing = false;
+  let latestVisible:
+    | { x: number; y: number }
+    | undefined;
+  for (let index = 0; index < trace.values.length; index += 1) {
+    const x01 =
+      trace.rightEdge01 -
+      (trace.values.length - 1 - index) * trace.sampleStep01;
+    if (x01 < 0) continue;
+    if (x01 > 1) break;
+    const normalized = clamp(
+      (trace.values[index]! - trace.center) / (trace.halfRange * 2) + 0.5,
+      0.04,
+      0.96,
+    );
+    const point = { x: x01 * width, y: height - normalized * height };
+    if (drawing) context.lineTo(point.x, point.y);
+    else {
+      context.moveTo(point.x, point.y);
+      drawing = true;
+    }
+    latestVisible = point;
+  }
+  if (!drawing || !latestVisible) return;
+  context.stroke();
+  context.shadowBlur = 0;
+  context.fillStyle = "#dffcff";
+  context.beginPath();
+  context.arc(
+    latestVisible.x,
+    latestVisible.y,
+    3 * pixelRatio,
+    0,
+    Math.PI * 2,
+  );
   context.fill();
 }
 
 function resetScopeHistory() {
   scopeHistory.clear();
   lastScopeSampleAt = -Infinity;
+  lastScopeUiAt = -Infinity;
+  lastScopeUiSignature = "";
 }
 
 function appendBreathingPresentationPoints(points: unknown) {
@@ -754,39 +831,58 @@ function showMetric(values: Record<string, number>, id: string, digits = 0) {
   );
 }
 
-function updateSignalScope(active: ActiveSignal) {
+function updateSignalScope(active: ActiveSignal, now: number) {
   const remote = sourceMode === "beacon";
   const rawLocalEcg =
-    !remote && !active.simulation && scopeMetric === "heart_rate" && ecgSamples.length > 1;
-  setText(
-    "ecg-display-mode",
-    remote ? "REMOTE BEACON" : rawLocalEcg ? "LOCAL SENSOR" : "LOCAL DERIVED",
-  );
-  setText(
-    "ecg-display-state",
-    remote
-      ? active.phase === "live"
-        ? "DERIVED TELEMETRY LIVE"
-        : "WAITING FOR BEACON"
-      : rawLocalEcg && ecgReady
-        ? "ECG WAVEFORM LIVE"
-        : Number.isFinite(active.metrics[scopeMetric])
-          ? "METRIC TELEMETRY LIVE"
-          : "WAITING FOR METRIC",
-  );
-  showMetric(active.metrics, "heart_rate");
-  showMetric(active.metrics, "rr_interval");
-  showMetric(active.metrics, "excitement_score", 2);
-  showMetric(active.metrics, "breathing_volume", 2);
-  syncScopeMetricUi(active.metrics);
+    !remote &&
+    !active.simulation &&
+    scopeMetric === "heart_rate" &&
+    ecgTrace.sampleCount > 1;
+  const uiSignature = [
+    sourceMode,
+    active.phase,
+    active.simulation,
+    scopeMetric,
+    ecgReady,
+    rawLocalEcg,
+  ].join("|");
+  if (uiSignature !== lastScopeUiSignature || now - lastScopeUiAt >= 100) {
+    lastScopeUiAt = now;
+    lastScopeUiSignature = uiSignature;
+    setText(
+      "ecg-display-mode",
+      remote
+        ? "REMOTE BEACON"
+        : rawLocalEcg
+          ? "LOCAL SENSOR"
+          : "LOCAL DERIVED",
+    );
+    setText(
+      "ecg-display-state",
+      remote
+        ? active.phase === "live"
+          ? "DERIVED TELEMETRY LIVE"
+          : "WAITING FOR BEACON"
+        : rawLocalEcg && ecgReady
+          ? "ECG WAVEFORM LIVE"
+          : Number.isFinite(active.metrics[scopeMetric])
+            ? "METRIC TELEMETRY LIVE"
+            : "WAITING FOR METRIC",
+    );
+    showMetric(active.metrics, "heart_rate");
+    showMetric(active.metrics, "rr_interval");
+    showMetric(active.metrics, "excitement_score", 2);
+    showMetric(active.metrics, "breathing_volume", 2);
+    syncScopeMetricUi(active.metrics);
+    if (remote) setText("ecg-rate", "NET");
+  }
   if (rawLocalEcg) {
     setText("scope-metric-unit", "RAW ECG");
-    drawTrace(ecgSamples, false);
+    drawRealtimeEcg(now);
   } else {
     setText("scope-metric-unit", SCOPE_METRICS[scopeMetric].unit);
-    drawTrace(scopeHistory.get(scopeMetric) ?? [], true);
+    drawMetricTrace(scopeHistory.get(scopeMetric) ?? []);
   }
-  if (remote) setText("ecg-rate", "NET");
 }
 
 function observeMetrics(
@@ -856,6 +952,7 @@ function handlePolarEvent(event: any) {
       breathingReady = false;
       lastPolarSignalAt = -Infinity;
       lastBreathingSignalAt = -Infinity;
+      ecgTrace.reset();
     }
     setText(
       "polar-state",
@@ -889,9 +986,7 @@ function handlePolarEvent(event: any) {
     ecgReady = true;
     lastPolarSignalAt = now;
     const samples = event.microvolts ?? [];
-    ecgSamples.push(...samples);
-    if (ecgSamples.length > 650)
-      ecgSamples.splice(0, ecgSamples.length - 650);
+    ecgTrace.pushFrame(samples, event.sensorTimestampNs, now);
     setText(
       "ecg-rate",
       Number(event.streamHealth?.observedSampleRateHz ?? 130).toFixed(0),
@@ -901,8 +996,6 @@ function handlePolarEvent(event: any) {
       if (detector.ready)
         registerBeat("ecg-rpeak", beat.confidence, performance.now());
     }
-    if (sourceMode === "polar" && scopeMetric === "heart_rate")
-      drawTrace(ecgSamples, false);
   }
   if (event.kind === "accelerometer") {
     lastBreathingSignalAt = now;
@@ -928,7 +1021,7 @@ async function connectPolar() {
   simulated = false;
   element<HTMLInputElement>("sim-enabled").checked = false;
   for (const key of Object.keys(polarMetrics)) delete polarMetrics[key];
-  ecgSamples.length = 0;
+  ecgTrace.reset();
   resetScopeHistory();
   breathingReady = false;
   lastBreathingSignalAt = -Infinity;
@@ -956,6 +1049,7 @@ async function disconnectPolar() {
   breathingReady = false;
   lastPolarSignalAt = -Infinity;
   lastBreathingSignalAt = -Infinity;
+  ecgTrace.reset();
   resetScopeHistory();
   detector.reset();
   if (sourceMode === "polar") adaptiveRange.startSession("");
@@ -1391,7 +1485,7 @@ function updateAdaptiveUi(runtime: RuntimeState) {
   reset.disabled = snapshot.sampleCount === 0;
 }
 
-function updateCommandPreview(runtime: RuntimeState) {
+function updateCommandPreview(runtime: RuntimeState, now: number) {
   const frame = runtime.frame;
   setText(
     "command-altitude",
@@ -1495,7 +1589,7 @@ function updateCommandPreview(runtime: RuntimeState) {
         : "SIGNAL HOLD",
   );
   updateAdaptiveUi(runtime);
-  updateSignalScope(runtime.active);
+  updateSignalScope(runtime.active, now);
 }
 
 function cockpitTelemetry(runtime: RuntimeState): CockpitTelemetry {
@@ -1535,7 +1629,7 @@ function updateCommandLoop(now: number) {
   latestRuntime = runtime;
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
-  updateCommandPreview(runtime);
+  updateCommandPreview(runtime, now);
   gameDivePublisher.update(
     {
       volume01: runtime.active.metrics.breathing_volume,
@@ -2057,7 +2151,22 @@ setInterval(
   () => setText("clock", new Date().toLocaleTimeString("en-GB")),
   1000,
 );
+const traceResizeObserver =
+  typeof ResizeObserver === "function"
+    ? new ResizeObserver(() => {
+        traceCanvasResizePending = true;
+      })
+    : undefined;
+traceResizeObserver?.observe(element<HTMLCanvasElement>("ecg-preview"));
+addEventListener(
+  "resize",
+  () => {
+    traceCanvasResizePending = true;
+  },
+  { passive: true },
+);
 addEventListener("beforeunload", () => {
+  traceResizeObserver?.disconnect();
   gameHeartbeatPublisher.close();
   gameDivePublisher.close();
   void polar.disconnect({ emit: false });

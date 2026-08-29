@@ -70,6 +70,7 @@ function createPolarFixture({
   const commands: number[][] = [];
   let pmdDiscoveryFailures = failFirstPmdDiscovery ? 1 : 0;
   let connectCalls = 0;
+  let batteryRequests = 0;
 
   const pmdService = {
     async getCharacteristic(uuid: string) {
@@ -116,7 +117,10 @@ function createPolarFixture({
       }
       if (uuid === POLAR_UUIDS.pmdService) return pmdService;
       if (uuid === POLAR_UUIDS.heartRateService) return heartRateService;
-      if (uuid === POLAR_UUIDS.batteryService) return batteryService;
+      if (uuid === POLAR_UUIDS.batteryService) {
+        batteryRequests += 1;
+        return batteryService;
+      }
       throw new DOMException("Service unavailable", "NotFoundError");
     },
     disconnect() {
@@ -154,6 +158,7 @@ function createPolarFixture({
   return {
     commands,
     connectCalls: () => connectCalls,
+    batteryRequests: () => batteryRequests,
     navigatorObject: {
       bluetooth: {
         async requestDevice() {
@@ -186,6 +191,7 @@ describe("Polar browser session", () => {
     await session.connect((event: Record<string, unknown>) => events.push(event));
 
     expect(fixture.connectCalls()).toBe(2);
+    expect(fixture.batteryRequests()).toBe(0);
     expect(
       events.some(
         (event) =>
@@ -201,6 +207,10 @@ describe("Polar browser session", () => {
       heartRateFrameCount: 1,
       frameCount: 1,
       accelerometerFrameCount: 1,
+    });
+    expect(session.diagnosticSnapshot()).toMatchObject({
+      mtu: "browser-managed",
+      readyInMs: expect.any(Number),
     });
     expect(fixture.commands).toContainEqual(Array.from(POLAR_COMMANDS.startEcg));
     expect(fixture.commands).toContainEqual(

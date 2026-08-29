@@ -714,6 +714,8 @@ export class PolarH10BrowserSession {
       firstHeartRateFrame: false,
       firstAccelerometerFrame: false,
       mtu: "browser-managed",
+      connectStartedAtMs: undefined,
+      readyInMs: undefined,
       lastErrorCode: "",
       lastErrorMessage: "",
     };
@@ -763,7 +765,11 @@ export class PolarH10BrowserSession {
     this.processor.reset();
     this.breathingProcessor.reset();
     this.diagnosticState = this.createDiagnosticState();
-    this.updateDiagnostics({ stage: "chooser", chooser: "opening" });
+    this.updateDiagnostics({
+      stage: "chooser",
+      chooser: "opening",
+      connectStartedAtMs: this.now(),
+    });
     try {
       this.emit({
         kind: "status",
@@ -784,7 +790,6 @@ export class PolarH10BrowserSession {
         optionalServices: [
           POLAR_UUIDS.pmdService,
           POLAR_UUIDS.heartRateService,
-          POLAR_UUIDS.batteryService,
         ],
       });
       const availabilityPromise = this.readBluetoothAvailability();
@@ -797,21 +802,30 @@ export class PolarH10BrowserSession {
         });
         throw error;
       }
-      this.updateDiagnostics({
-        adapterAvailability: await availabilityPromise,
-        chooser: "selected",
+      this.updateDiagnostics({ chooser: "selected" });
+      void availabilityPromise.then((adapterAvailability) => {
+        this.updateDiagnostics({ adapterAvailability });
       });
       this.device.addEventListener(
         "gattserverdisconnected",
         this.boundDisconnected,
       );
-      const batteryPercent = await this.connectSelectedDeviceWithRecovery();
+      await this.connectSelectedDeviceWithRecovery();
       this.connected = true;
-      this.updateDiagnostics({ stage: "live", liveRecoveryAttempt: 0 });
+      const readyAtMs = this.now();
+      const connectStartedAtMs = Number(
+        this.diagnosticState.connectStartedAtMs,
+      );
+      this.updateDiagnostics({
+        stage: "live",
+        liveRecoveryAttempt: 0,
+        readyInMs: Number.isFinite(connectStartedAtMs)
+          ? Math.max(0, readyAtMs - connectStartedAtMs)
+          : undefined,
+      });
       this.emit({
         kind: "connection",
         connected: true,
-        batteryPercent,
         streamHealth: this.streamHealth(),
         message: "Polar H10 HR + 130 Hz ECG + 200 Hz ACC are live",
       });
@@ -968,19 +982,6 @@ export class PolarH10BrowserSession {
         "The H10 Bluetooth link dropped before all live signals were ready.",
         true,
       );
-    let batteryPercent;
-    try {
-      const batteryService = await this.server.getPrimaryService(
-        POLAR_UUIDS.batteryService,
-      );
-      const battery = await batteryService.getCharacteristic(
-        POLAR_UUIDS.batteryLevel,
-      );
-      batteryPercent = bytesFrom(await battery.readValue())[0];
-    } catch {
-      batteryPercent = undefined;
-    }
-    return batteryPercent;
   }
 
   async connectGatt() {
@@ -1159,7 +1160,7 @@ export class PolarH10BrowserSession {
     });
 
     try {
-      const batteryPercent = await this.connectSelectedDeviceWithRecovery();
+      await this.connectSelectedDeviceWithRecovery();
       if (this.stopRequested) {
         await this.disconnect({ emit: false });
         return;
@@ -1179,7 +1180,6 @@ export class PolarH10BrowserSession {
         kind: "connection",
         connected: true,
         recovered: true,
-        batteryPercent,
         streamHealth: this.streamHealth(),
         message:
           "Polar H10 HR, ECG, and ACC recovered without reopening the Bluetooth chooser",

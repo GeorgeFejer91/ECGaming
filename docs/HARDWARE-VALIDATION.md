@@ -12,6 +12,7 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Exercise the automatic reconnect by interrupting GATT during PMD service discovery. The same browser-selected H10 must retry the complete HR/ECG/ACC setup without reopening the chooser.
 - After readiness, interrupt each of HR, ECG, and ACC independently. Any signal stale for five seconds must revoke readiness and trigger the bounded full-stream restart.
 - Web Bluetooth does not expose ATT MTU selection. Record MTU as browser-managed for the GitHub Pages path; the H10 minimum-MTU tuning available to native Android clients cannot be asserted by this site.
+- Confirm the right-side raw ECG scope scrolls continuously at the 130 Hz sensor clock between batched BLE notifications. The renderer must not add a presentation buffer, synthesize samples, or redraw from the Bluetooth callback.
 - A chooser or GATT connection without a fresh valid ECG packet leaves Start Flight disabled.
 - Two quiet minutes after detector warmup: ECG beat count differs from Polar RR count by no more than one, and median matched interval error is at most 50 ms.
 - Movement-artifact trial: confidence falls or controls fail closed instead of producing uncontrolled repeated beats.
