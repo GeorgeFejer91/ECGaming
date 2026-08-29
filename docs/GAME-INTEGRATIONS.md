@@ -8,7 +8,7 @@ Third-party games consume ECGaming's derived, freshness-gated heartbeat messages
 
 - Pixel Hop Twins: playable under `games/pixel-hop/`; fresh beats queue the existing buffered jump.
 - SuperTux v0.6.3 WASM: launcher under `games/supertux/`; hosted builds add the official runtime and map fresh beats to the standard Space jump.
-- MOTH adaptation commit `aa9506473a856a63f19e5650656c74793865b5d1`: English-only hosted static build under `games/moth/`; all five chapters are immediately selectable, fresh beats jump on land, and underwater beat-paddles require the physical ACC dive gate.
+- MOTH adaptation commit `a56fa97e7f8e2a6abb75634799e963d54ce4c750`: English-only hosted static build under `games/moth/`; all five chapters are immediately selectable, the title moth has symmetrical attached wings, fresh beats jump on land, and underwater beat-paddles require the physical ACC dive gate.
 - Same-origin publishers: Ground Control, Smartphone Flight, and Flight Deck.
 - Keyboard controls remain available for accessibility, setup, and failure recovery.
 
