@@ -1,0 +1,22 @@
+const button = document.getElementById('localPlay');
+const label = document.getElementById('localPlayLabel');
+const note = document.getElementById('runtimeNote');
+
+try {
+  const response = await fetch('./runtime/supertux2.html', {
+    method: 'HEAD',
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  button.disabled = false;
+  label.textContent = 'Launch hosted SuperTux';
+  button.addEventListener('click', () => {
+    location.href = './runtime/supertux2.html?ecgaming=1';
+  });
+} catch {
+  label.textContent = 'Hosted runtime is not prepared';
+  note.innerHTML =
+    'The small launcher works locally, but the 246 MB runtime is added only by <code>npm run build:hosted</code>. ' +
+    '<a href="https://play.supertux.org/">Open the official web build</a> without ECG jump injection.';
+}
+

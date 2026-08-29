@@ -17,6 +17,8 @@ import {
   sanitizeMobileSettings,
 } from "./signals/mobile-control";
 import { CausalRPeakDetector } from "./signals/rpeak";
+import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
+import { GameDivePublisher } from "./game/dive-intent-channel";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
 import {
   PolarH10BrowserSession,
@@ -36,6 +38,8 @@ const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
 const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
 const session = new PolarH10BrowserSession();
 const detector = new CausalRPeakDetector(130);
+const gameHeartbeatPublisher = new GameHeartbeatPublisher("mobile-direct");
+const gameDivePublisher = new GameDivePublisher("mobile-direct");
 const game = createFlightScene(element("game-canvas"));
 const sound = new FlightSound();
 const log = new SessionCsvLog();
@@ -228,6 +232,15 @@ function registerBeat(source: "ecg-rpeak" | "polar-rr", confidence: number) {
   beatCounter = (beatCounter + 1) >>> 0;
   lastBeatAt = performance.now();
   detectorConfidence = confidence;
+  gameHeartbeatPublisher.publish({
+    source,
+    beatCounter,
+    ageMs: 0,
+    confidence,
+    physicalPolar: physicalConnected,
+    simulated,
+    ready: simulated || (physicalConnected && ecgReady),
+  });
   if (started && !signalHeld) {
     game.heartbeat();
     sound.beat();
@@ -509,6 +522,19 @@ function updateLoop(now: number) {
   }
   const ready = renderReadiness() && commandsValid;
   currentReady = ready;
+  gameDivePublisher.update(
+    {
+      volume01: metrics.breathing_volume,
+      ready:
+        breathingReady && performance.now() - lastBreathingAt <= 500,
+      physicalPolar: physicalConnected,
+      simulated,
+      signalAgeMs: Number.isFinite(lastBreathingAt)
+        ? Math.max(0, now - lastBreathingAt)
+        : 999_999,
+    },
+    now,
+  );
   const frame: FlightFrame = {
     sequence: (sequence = (sequence + 1) >>> 0),
     beatCounter,
@@ -752,6 +778,8 @@ game.addEventListener("score", ((event: CustomEvent) => {
 }) as EventListener);
 
 addEventListener("beforeunload", () => {
+  gameHeartbeatPublisher.close();
+  gameDivePublisher.close();
   if (resumeTimer) clearInterval(resumeTimer);
   if (rewardTimer) clearTimeout(rewardTimer);
   releaseSteering();

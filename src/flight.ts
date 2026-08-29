@@ -11,6 +11,7 @@ import {
 } from "./game/aircraft";
 import { FlightSound } from "./game/sound";
 import { SessionCsvLog } from "./logging/session-log";
+import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -21,6 +22,7 @@ const receiver = new FlightReceiver(),
   game = createFlightScene(element("game-canvas")),
   sound = new FlightSound(),
   log = new SessionCsvLog();
+const gameHeartbeatPublisher = new GameHeartbeatPublisher("flight-deck");
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
 const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
 let selectedAircraftId: AircraftId =
@@ -162,6 +164,18 @@ function acceptFrame(state: FlightReceiverSnapshot) {
     `${Math.round(signal * 100)}%`;
   if (isFreshBeat(frame, lastBeatCounter)) {
     lastBeatCounter = frame.beatCounter;
+    gameHeartbeatPublisher.publish({
+      source:
+        state.config?.mappings.beatSource === "polar-rr"
+          ? "polar-rr"
+          : "ecg-rpeak",
+      beatCounter: frame.beatCounter,
+      ageMs: frame.beatAgeMs,
+      confidence: frame.quality,
+      physicalPolar: Boolean(frame.flags & FlightFlags.physicalPolar),
+      simulated: Boolean(frame.flags & FlightFlags.simulation),
+      ready: isReady(state),
+    });
     game.heartbeat();
     sound.beat();
     if (element<HTMLInputElement>("flight-log-enabled").checked)
@@ -324,6 +338,7 @@ xrButton.addEventListener("click", async () => {
   }
 });
 addEventListener("beforeunload", () => {
+  gameHeartbeatPublisher.close();
   if (countdownTimer) clearInterval(countdownTimer);
   void receiver.stop();
   game.dispose();

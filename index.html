@@ -25,9 +25,12 @@
           ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
           ><span>EC GAMING</span></a
         >
-        <a class="nav-link" href="https://github.com/GeorgeFejer91/ECGaming"
-          >GitHub ↗</a
-        >
+        <div class="nav-actions">
+          <a class="nav-link" href="#games">Game menu</a>
+          <a class="nav-link" href="https://github.com/GeorgeFejer91/ECGaming"
+            >GitHub ↗</a
+          >
+        </div>
       </nav>
       <section class="hero-grid">
         <div class="hero-copy">
@@ -98,6 +101,67 @@
             <span>ECG SIGNAL</span><strong>LIVE</strong
             ><small>130 HZ · DATA ONLY</small>
           </div>
+        </div>
+      </section>
+      <section id="games" class="game-library" aria-labelledby="games-title">
+        <div class="game-library-heading">
+          <div>
+            <p class="eyebrow">OPEN-SOURCE GAME MENU</p>
+            <h2 id="games-title">Choose the heartbeat experiment.</h2>
+          </div>
+          <p>
+            Open Ground Control in one tab, then launch a game. Fresh selected
+            beats travel over a same-origin data-only channel; raw ECG stays in
+            the acquisition tab.
+          </p>
+        </div>
+        <div class="game-menu-grid">
+          <article class="game-menu-card pixel-hop-card">
+            <div class="game-menu-art" aria-hidden="true"><i></i><b></b><span></span></div>
+            <p class="game-menu-meta">01 · PLAYABLE · 2D · TIMED</p>
+            <h3>Pixel Hop Twins</h3>
+            <p>
+              Two timed platform levels. Every fresh R-peak queues the game's
+              normal buffered jump; keyboard controls remain available.
+            </p>
+            <div class="game-menu-actions">
+              <a class="game-play" href="./games/pixel-hop/">Play ECG edition →</a>
+              <a href="https://github.com/stm1978/retro-platformer">Original source ↗</a>
+              <a href="https://github.com/GeorgeFejer91/retro-platformer">Your fork ↗</a>
+            </div>
+            <small>MIT code · CC0 sprites, audio and levels</small>
+          </article>
+          <article class="game-menu-card supertux-card">
+            <div class="game-menu-art" aria-hidden="true"><i></i><b></b><span></span></div>
+            <p class="game-menu-meta">02 · HOSTED BUILD · 2D · CLASSIC</p>
+            <h3>SuperTux</h3>
+            <p>
+              The established Mario-style game. ECGaming verifies and stages
+              the official 0.6.3 browser build, then maps beats to Space-jump.
+            </p>
+            <div class="game-menu-actions">
+              <a class="game-play" href="./games/supertux/">Open ECG trial →</a>
+              <a href="https://github.com/SuperTux/supertux">Original source ↗</a>
+              <a href="https://github.com/GeorgeFejer91/supertux">Your fork ↗</a>
+            </div>
+            <small>GPL-3.0 code · separately credited game data · 246 MB first load</small>
+          </article>
+          <article class="game-menu-card moth-card">
+            <div class="game-menu-art" aria-hidden="true"><i></i><b></b><span></span></div>
+            <p class="game-menu-meta">03 · HOSTED BUILD · PUZZLE · SWIMMING</p>
+            <h3>MOTH</h3>
+            <p>
+              Five browser-native puzzle chapters. R-peaks jump on land;
+              underwater paddling unlocks after a fresh physical ACC inhale
+              crest is held steadily.
+            </p>
+            <div class="game-menu-actions">
+              <a class="game-play" href="./games/moth/">Play ECG edition →</a>
+              <a href="https://github.com/ahmedallam222/moth-game">Original source ↗</a>
+              <a href="https://github.com/GeorgeFejer91/moth-game">Your fork ↗</a>
+            </div>
+            <small>MIT · Polar ACC dive gate · keyboard/touch safety fallback</small>
+          </article>
         </div>
       </section>
       <section class="how-it-works" aria-labelledby="how-title">

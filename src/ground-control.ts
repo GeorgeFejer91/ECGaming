@@ -33,6 +33,8 @@ import {
 } from "./signals/readiness";
 import { CausalRPeakDetector } from "./signals/rpeak";
 import { GroundCockpit, type CockpitTelemetry } from "./game/ground-cockpit";
+import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
+import { GameDivePublisher } from "./game/dive-intent-channel";
 import { SessionCsvLog } from "./logging/session-log";
 import { installPretextFit } from "./ui/pretext-fit";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
@@ -219,6 +221,8 @@ const broadcaster = new FlightBroadcaster();
 const receiver = new FlightReceiver();
 const adaptiveRange = new AdaptiveRangeTracker();
 const cockpit = new GroundCockpit();
+const gameHeartbeatPublisher = new GameHeartbeatPublisher("ground-control");
+const gameDivePublisher = new GameDivePublisher("ground-control");
 const log = new SessionCsvLog();
 const ecgSamples: number[] = [];
 const scopeHistory = new Map<ScopeMetricId, number[]>();
@@ -1419,6 +1423,19 @@ function updateCommandPreview(runtime: RuntimeState) {
   ) {
     lastGroundBeatCounter = frame.beatCounter;
     pulseRadar();
+    gameHeartbeatPublisher.publish({
+      source:
+        mappings.beatSource === "polar-rr" ? "polar-rr" : "ecg-rpeak",
+      beatCounter: frame.beatCounter,
+      ageMs: frame.beatAgeMs,
+      confidence: frame.quality,
+      physicalPolar: runtime.active.physicalPolar,
+      simulated: runtime.active.simulation,
+      ready:
+        runtime.active.phase === "live" &&
+        runtime.beatReady &&
+        (runtime.active.physicalPolar || runtime.active.simulation),
+    });
   } else if (frame.beatCounter !== lastGroundBeatCounter) {
     lastGroundBeatCounter = frame.beatCounter;
   }
@@ -1519,6 +1536,19 @@ function updateCommandLoop(now: number) {
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
   updateCommandPreview(runtime);
+  gameDivePublisher.update(
+    {
+      volume01: runtime.active.metrics.breathing_volume,
+      ready: runtime.active.breathingReady,
+      physicalPolar: runtime.active.physicalPolar,
+      simulated: runtime.active.simulation,
+      signalAgeMs:
+        sourceMode === "polar"
+          ? ageSince(lastBreathingSignalAt, now)
+          : (runtime.readiness.signalAgeMs ?? 999_999),
+    },
+    now,
+  );
   if (cockpit.hasStarted()) cockpit.accept(cockpitTelemetry(runtime));
 
   if (loggingEnabled() && now - lastLoggedAt >= 100) {
@@ -2028,6 +2058,8 @@ setInterval(
   1000,
 );
 addEventListener("beforeunload", () => {
+  gameHeartbeatPublisher.close();
+  gameDivePublisher.close();
   void polar.disconnect({ emit: false });
   void broadcaster.stop();
   void receiver.stop();

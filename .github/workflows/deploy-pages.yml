@@ -27,7 +27,13 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - run: npm run build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/supertux
+            .cache/moth
+          key: browser-games-supertux-v0.6.3-moth-3095ddef
+      - run: npm run build:hosted
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

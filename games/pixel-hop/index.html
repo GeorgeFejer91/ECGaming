@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Hop Twins – 8-Bit Platformer</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <aside class="ecgaming-bar" aria-label="ECGaming connection">
+    <a class="ecgaming-home" href="../../">← ECGAMES</a>
+    <div class="ecgaming-link-state">
+      <span id="ecgDot" aria-hidden="true"></span>
+      <strong id="ecgStatus">WAITING FOR ECGAMES HEARTBEATS</strong>
+      <small id="ecgDetail">Keyboard controls remain available.</small>
+    </div>
+    <a href="../../ground-control/" target="_blank" rel="noopener">OPEN GROUND CONTROL ↗</a>
+    <a href="https://github.com/stm1978/retro-platformer" target="_blank" rel="noopener">ORIGINAL SOURCE ↗</a>
+  </aside>
+  <div id="container">
+    <canvas id="gameCanvas" aria-label="Pixel Hop Twins game canvas"></canvas>
+  </div>
+  <script type="module" src="./src/ecgaming-adapter.js"></script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

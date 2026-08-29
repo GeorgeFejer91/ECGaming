@@ -76,6 +76,47 @@ test("landing exposes phone, ground, and receiver workflows", async ({
   ).toBeVisible();
   await expect(page.locator(".tower-role-icon svg")).toBeVisible();
   await expect(page.locator(".aircraft-role-icon svg")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /choose the heartbeat experiment/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /play ecg edition/i }).first(),
+  ).toHaveAttribute("href", "./games/pixel-hop/");
+  await expect(
+    page.getByRole("link", { name: /open ecg trial/i }),
+  ).toHaveAttribute("href", "./games/supertux/");
+  await expect(
+    page.getByRole("link", { name: /play ecg edition/i }).nth(1),
+  ).toHaveAttribute("href", "./games/moth/");
+  await expect(
+    page.locator(".moth-card").getByRole("link", { name: /original source/i }),
+  ).toHaveAttribute("href", "https://github.com/ahmedallam222/moth-game");
+});
+
+test("Pixel Hop accepts one fresh ECGaming heartbeat message", async ({
+  page,
+}) => {
+  await page.goto("./games/pixel-hop/");
+  await expect(page.locator("#gameCanvas")).toBeVisible();
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("ecgaming-heartbeat-v1");
+    channel.postMessage({
+      kind: "ecgaming-heartbeat",
+      version: 1,
+      route: "ground-control",
+      source: "ecg-rpeak",
+      beatCounter: 42,
+      ageMs: 12,
+      confidence: 0.91,
+      physicalPolar: true,
+      simulated: false,
+      ready: true,
+      sentAtEpochMs: Date.now(),
+    });
+    setTimeout(() => channel.close(), 50);
+  });
+  await expect(page.locator("#ecgStatus")).toHaveText(/polar beat.*jump/i);
+  await expect(page.locator("#ecgDetail")).toContainText("beat 42");
 });
 
 test("Smartphone Flight offers an honest fallback and a playable simulator", async ({

@@ -1,0 +1,117 @@
+/* ============================================================
+   Pixel Hop Twins – global styles
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #07080F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ecgaming-bar {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: auto minmax(210px, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 16px;
+  color: #c0d0ff;
+  border-bottom: 1px solid #384078;
+  background: rgba(7, 8, 15, 0.92);
+  font: 700 11px/1.25 monospace;
+  letter-spacing: 0.05em;
+}
+
+.ecgaming-bar a {
+  color: #f0c840;
+  text-decoration: none;
+}
+
+.ecgaming-link-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 9px;
+}
+
+.ecgaming-link-state span {
+  grid-row: 1 / 3;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #667080;
+}
+
+.ecgaming-link-state span.is-live {
+  background: #62dc9a;
+  box-shadow: 0 0 12px #62dc9a;
+}
+
+.ecgaming-link-state span.is-simulated {
+  background: #f0c840;
+  box-shadow: 0 0 12px #f0c840;
+}
+
+.ecgaming-link-state small {
+  color: #8290b8;
+  font-weight: 400;
+}
+
+#container {
+  position: relative;
+  display: inline-block;
+  /* Scale the canvas to fill the viewport while keeping aspect ratio */
+  max-width: 100vw;
+  max-height: calc(100vh - 58px);
+  margin-top: 58px;
+}
+
+#gameCanvas {
+  display: block;
+  /*
+   * Render canvas at native resolution; CSS scales it up.
+   * image-rendering: pixelated keeps crisp pixel edges at any zoom level.
+   */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+
+  /* Scale to fit viewport, preserving aspect ratio */
+  max-width: 100vw;
+  max-height: calc(100vh - 58px);
+  width: auto;
+  height: auto;
+
+  /* Subtle outer glow for retro CRT feel */
+  box-shadow:
+    0 0 0 2px #1A1A3D,
+    0 0 24px 4px rgba(80, 96, 200, 0.4);
+}
+
+@media (max-width: 760px) {
+  .ecgaming-bar {
+    grid-template-columns: auto 1fr auto;
+    gap: 9px;
+    min-height: 72px;
+    padding: 8px;
+  }
+  .ecgaming-bar a:last-child { display: none; }
+  .ecgaming-link-state small { display: none; }
+  #container { max-height: calc(100vh - 72px); margin-top: 72px; }
+  #gameCanvas { max-height: calc(100vh - 72px); }
+}
+

@@ -218,6 +218,11 @@ a {
 .nav-link:hover {
   color: #fff;
 }
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
 .hero-grid {
   position: relative;
   z-index: 1;
@@ -512,6 +517,157 @@ a {
   font:
     800 2rem/1 "Barlow Condensed",
     sans-serif;
+}
+.game-library {
+  position: relative;
+  z-index: 1;
+  width: min(1280px, calc(100% - 3rem));
+  margin: auto;
+  padding: 5.5rem 0;
+  border-top: 1px solid var(--line);
+}
+.game-library-heading {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: end;
+  gap: 3rem;
+  margin-bottom: 2rem;
+}
+.game-library-heading h2 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--cream);
+  font: 700 clamp(2.8rem, 5vw, 5.5rem)/0.94 "Barlow Condensed", sans-serif;
+  text-transform: uppercase;
+}
+.game-library-heading > p {
+  max-width: 520px;
+  margin: 0;
+  color: #94aab2;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+.game-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.game-menu-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  background: rgba(11, 29, 42, 0.8);
+}
+.game-menu-card h3 {
+  margin: 0.35rem 0 0.75rem;
+  color: #fff;
+  font: 700 2.35rem/1 "Barlow Condensed", sans-serif;
+  text-transform: uppercase;
+}
+.game-menu-card > p:not(.game-menu-meta) {
+  margin: 0;
+  color: #94aab2;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.game-menu-meta {
+  margin: 1rem 0 0;
+  color: var(--cyan);
+  font: 600 0.64rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.14em;
+}
+.game-menu-art {
+  position: relative;
+  height: 190px;
+  overflow: hidden;
+  border: 1px solid rgba(105, 212, 222, 0.18);
+  background: linear-gradient(#15344c 0 58%, #172635 58%);
+}
+.game-menu-art::before,
+.game-menu-art::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34px;
+  height: 18px;
+  background: repeating-linear-gradient(90deg, #d98132 0 24px, #b54d2e 24px 48px);
+}
+.game-menu-art::after {
+  bottom: 0;
+  height: 34px;
+  background: #183d3e;
+}
+.game-menu-art i {
+  position: absolute;
+  z-index: 1;
+  left: 24%;
+  bottom: 52px;
+  width: 30px;
+  height: 42px;
+  background: var(--amber);
+  box-shadow: inset -8px 0 var(--orange);
+}
+.game-menu-art b {
+  position: absolute;
+  z-index: 1;
+  right: 20%;
+  bottom: 52px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #793b79;
+  box-shadow: inset -8px -7px #43234c;
+}
+.game-menu-art span {
+  position: absolute;
+  top: 25px;
+  right: 16%;
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+  background: var(--cyan);
+  box-shadow: 0 0 18px rgba(105, 212, 222, 0.75);
+}
+.supertux-card .game-menu-art {
+  background: linear-gradient(#4988bd 0 64%, #eaf4fa 64%);
+}
+.supertux-card .game-menu-art::before { background: #88b6d0; }
+.supertux-card .game-menu-art::after { background: #edf6fa; }
+.supertux-card .game-menu-art i { background: #121820; box-shadow: inset -8px 0 #f5f7f8; }
+.moth-card .game-menu-art { background: radial-gradient(circle at 65% 35%, #dbd4a4, #20222b 14%, #090b10 48%); }
+.moth-card .game-menu-art::before { background: #16191e; }
+.moth-card .game-menu-art::after { background: #050609; }
+.moth-card .game-menu-art i { width: 20px; background: #121318; box-shadow: 7px -26px 0 -5px #f3e9b1; }
+.game-menu-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+.game-menu-actions a {
+  color: #9db2b9;
+  font: 700 0.66rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.game-menu-actions .game-play {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.45rem;
+  padding: 0.9rem;
+  color: #07131f;
+  background: var(--amber);
+}
+.game-menu-card > small {
+  margin-top: 1.2rem;
+  color: #6f8993;
+  font-size: 0.64rem;
+  line-height: 1.45;
 }
 .how-it-works {
   position: relative;
@@ -2503,6 +2659,9 @@ a {
   .flow-strip {
     grid-template-columns: 1fr;
   }
+  .game-library-heading { grid-template-columns: 1fr; gap: 1rem; }
+  .game-menu-grid { grid-template-columns: 1fr; }
+  .game-menu-card { min-height: 470px; }
   .flow-strip > i {
     transform: rotate(90deg);
     justify-self: center;
@@ -2531,6 +2690,7 @@ a {
 @media (max-width: 600px) {
   .topbar,
   .hero-grid,
+  .game-library,
   .how-it-works {
     width: calc(100% - 2rem);
   }

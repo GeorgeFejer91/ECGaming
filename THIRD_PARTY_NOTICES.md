@@ -35,6 +35,32 @@ The ECG Flight adapter is independently implemented as BSD-3-Clause project code
 
 Inter and Barlow Condensed are self-hosted through Fontsource packages and licensed under the SIL Open Font License 1.1. Their package license files are retained by npm in `node_modules` during development and their font binaries are included in the production bundle.
 
+## Pixel Hop Twins
+
+The playable snapshot under `games/pixel-hop/` and `public/games/pixel-hop/` is adapted from [Pixel Hop Twins](https://github.com/stm1978/retro-platformer) at commit `9835295888c7cb8afa795ca2a31707a65167c2ea`. The user's fork is [GeorgeFejer91/retro-platformer](https://github.com/GeorgeFejer91/retro-platformer).
+
+- Source code: MIT, copyright © 2026 stm1978. The original licence is retained at `public/games/pixel-hop/LICENSE`.
+- Original sprites, synthesized audio, and levels: CC0, as declared in the retained upstream `README.md`.
+- ECGaming modifications: a queued heartbeat input, a same-origin heartbeat adapter, and visible source/signal navigation. These modifications remain under ECGaming's BSD-3-Clause licence without replacing the upstream notices.
+
+## SuperTux v0.6.3 WebAssembly
+
+Hosted deployments stage the [official SuperTux v0.6.3 WebAssembly archive](https://github.com/SuperTux/supertux/releases/download/v0.6.3/SuperTux-v0.6.3-WASM.zip) without modifying its binary or packed game data. The archive is accepted only when its SHA-256 is `f9fa6eed36d403a283f3c544540b8a45b6c110375c1824e137ce1b4357e2d5df`.
+
+SuperTux code is GPL-3.0. Its corresponding v0.6.3 source is available from the [original repository](https://github.com/SuperTux/supertux/tree/v0.6.3) and the user's [source fork](https://github.com/GeorgeFejer91/supertux/tree/v0.6.3). Much of the packed game data is CC BY-SA, with individual authors and exceptions recorded in the source tree and in the game's own credits. The GPL text is retained at `public/games/supertux/LICENSE-GPL-3.0.txt`.
+
+ECGaming adds only the surrounding launcher, build-time provenance record, cross-origin-isolation bootstrap, and a synthetic standard jump-key adapter. Those additions do not relicense SuperTux or its data.
+
+## MOTH — Drawn to the Light
+
+Hosted deployments build the user's [MOTH ECGaming adaptation](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) from pinned commit `3095ddeffc0fea5ea6b4296bef36947b91c0aba7`. It is based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game) commit `f8364bcd4a219cf3b39558588aa39c4ebd310708`.
+
+The repository is distributed under the MIT License, copyright © 2026 ahmedallam222, and its README states that its art, levels, audio, and code are original. The exact MIT text and a machine-readable provenance record are copied into the hosted game output. ECGaming adds a same-origin adapter and a small engine event bridge. R-peaks jump on land; underwater R-peak paddles require an active physical ACC inspiratory-crest gate. These changes do not relicense MOTH.
+
+## coi-serviceworker
+
+[coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker) is used under the MIT License to add the COOP/COEP response headers required by the threaded SuperTux WebAssembly build on GitHub Pages. The user's dependency fork is [GeorgeFejer91/coi-serviceworker](https://github.com/GeorgeFejer91/coi-serviceworker), and the licence is retained at `public/games/supertux/LICENSE-coi-serviceworker-MIT.txt`.
+
 ## Aircraft models
 
 The following redistributable aircraft are included under `public/assets/aircraft/`. Author names, source pages, and governing licenses are retained here prominently:
