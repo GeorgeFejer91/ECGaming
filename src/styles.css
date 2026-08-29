@@ -230,9 +230,9 @@ a {
   grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
   align-items: center;
   width: min(1280px, calc(100% - 3rem));
-  min-height: 720px;
+  min-height: 590px;
   margin: auto;
-  padding: 4rem 0;
+  padding: 2.75rem 0 3.25rem;
 }
 .hero-copy {
   position: relative;
@@ -243,7 +243,7 @@ a {
   margin: 0;
   color: var(--cream);
   font:
-    800 clamp(4.4rem, 8vw, 8.7rem)/0.78 "Barlow Condensed",
+    800 clamp(4.2rem, 7vw, 7.2rem)/0.8 "Barlow Condensed",
     sans-serif;
   letter-spacing: -0.045em;
   text-transform: uppercase;
@@ -254,10 +254,10 @@ a {
 }
 .lede {
   max-width: 610px;
-  margin: 2rem 0 2.2rem;
+  margin: 1.4rem 0 1.6rem;
   color: #aac0c7;
   font-size: 1.07rem;
-  line-height: 1.72;
+  line-height: 1.6;
 }
 .role-cards {
   display: grid;
@@ -269,8 +269,8 @@ a {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 250px;
-  padding: 1.25rem;
+  min-height: 190px;
+  padding: 1rem;
   overflow: hidden;
   border: 1px solid var(--line);
   background: rgba(11, 29, 42, 0.76);
@@ -305,17 +305,17 @@ a {
 .role-icon {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  margin: 1.35rem 0 1rem;
+  width: 42px;
+  height: 42px;
+  margin: 0.85rem 0 0.65rem;
   color: var(--amber);
   border: 1px solid rgba(244, 179, 58, 0.45);
   border-radius: 50%;
-  font-size: 1.75rem;
+  font-size: 1.35rem;
 }
 .role-icon svg {
-  width: 37px;
-  height: 37px;
+  width: 30px;
+  height: 30px;
   overflow: visible;
 }
 .tower-role-icon svg path {
@@ -341,16 +341,20 @@ a {
 }
 .role-card strong {
   font:
-    700 1.7rem/1 "Barlow Condensed",
+    700 1.35rem/1 "Barlow Condensed",
     sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 .role-card > span:not(.role-index):not(.role-icon) {
-  margin: 0.65rem 0 1.3rem;
+  display: -webkit-box;
+  margin: 0.45rem 0 0.8rem;
+  overflow: hidden;
   color: #94aab2;
-  font-size: 0.76rem;
-  line-height: 1.55;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .role-card b {
   margin-top: auto;
@@ -389,7 +393,7 @@ a {
 }
 .hero-visual {
   position: relative;
-  height: 600px;
+  height: 500px;
   margin-left: -5rem;
   perspective: 900px;
 }
@@ -523,7 +527,7 @@ a {
   z-index: 1;
   width: min(1280px, calc(100% - 3rem));
   margin: auto;
-  padding: 5.5rem 0;
+  padding: 3.5rem 0 4rem;
   border-top: 1px solid var(--line);
 }
 .game-library-heading {
@@ -531,13 +535,13 @@ a {
   grid-template-columns: 1.1fr 0.9fr;
   align-items: end;
   gap: 3rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 .game-library-heading h2 {
   max-width: 760px;
   margin: 0;
   color: var(--cream);
-  font: 700 clamp(2.8rem, 5vw, 5.5rem)/0.94 "Barlow Condensed", sans-serif;
+  font: 700 clamp(2.6rem, 4vw, 4.5rem)/0.94 "Barlow Condensed", sans-serif;
   text-transform: uppercase;
 }
 .game-library-heading > p {
@@ -549,14 +553,14 @@ a {
 }
 .game-menu-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 .game-menu-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 660px;
+  min-height: 500px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: rgba(8, 24, 36, 0.92);
@@ -568,7 +572,7 @@ a {
 }
 .game-menu-card:hover,
 .game-menu-card:has(.game-card-target:focus-visible) {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
   border-color: rgba(105, 212, 222, 0.56);
   box-shadow: 0 30px 85px rgba(0, 0, 0, 0.34);
 }
@@ -583,7 +587,7 @@ a {
 }
 .game-card-cover {
   position: relative;
-  height: 275px;
+  height: 155px;
   overflow: hidden;
   border-bottom: 1px solid rgba(105, 212, 222, 0.22);
   background: #07131f;
@@ -608,75 +612,71 @@ a {
 }
 .breath-mirror-card {
   min-height: 500px;
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
 }
 .breath-mirror-card .game-card-cover {
-  height: auto;
-  min-height: 100%;
-  border-right: 1px solid rgba(105, 212, 222, 0.22);
-  border-bottom: 0;
+  height: 155px;
+  min-height: 155px;
+  border-bottom: 1px solid rgba(105, 212, 222, 0.22);
   background:
     radial-gradient(circle at 50% 45%, rgba(74, 189, 164, 0.14), transparent 55%),
     #07131f;
 }
 .breath-mirror-card .game-card-cover img {
   object-fit: contain;
-  padding: clamp(2rem, 6vw, 5rem);
+  padding: 1.75rem;
 }
 .game-availability {
   position: absolute;
   z-index: 1;
-  right: 1rem;
-  bottom: 1rem;
-  padding: 0.45rem 0.62rem;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  padding: 0.38rem 0.5rem;
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
   background: rgba(5, 15, 23, 0.76);
   backdrop-filter: blur(8px);
-  font: 700 0.62rem/1 "Barlow Condensed", sans-serif;
-  letter-spacing: 0.14em;
+  font: 700 0.56rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.11em;
 }
 .game-card-copy {
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: 1.4rem;
+  padding: 1rem;
 }
 .game-menu-card h3 {
-  margin: 0.45rem 0 0.75rem;
+  margin: 0.4rem 0 0.55rem;
   color: #fff;
-  font: 700 clamp(2rem, 3.6vw, 3rem)/0.94 "Barlow Condensed", sans-serif;
+  font: 700 clamp(1.55rem, 2vw, 2rem)/0.94 "Barlow Condensed", sans-serif;
   text-transform: uppercase;
 }
 .game-card-copy > p:not(.game-menu-meta) {
   margin: 0;
   color: #94aab2;
-  font-size: 0.8rem;
-  line-height: 1.6;
+  font-size: 0.73rem;
+  line-height: 1.45;
 }
 .game-menu-meta {
   margin: 0;
   color: var(--cyan);
-  font: 600 0.64rem/1 "Barlow Condensed", sans-serif;
-  letter-spacing: 0.14em;
+  font: 600 0.58rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.11em;
 }
 .game-route-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-top: 1rem;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
 }
 .game-route-links a {
   position: relative;
   z-index: 2;
-  padding: 0.52rem 0.65rem;
+  padding: 0.4rem 0.48rem;
   border: 1px solid rgba(105, 212, 222, 0.22);
   color: var(--cyan);
   background: rgba(105, 212, 222, 0.05);
-  font: 700 0.66rem/1 "Barlow Condensed", sans-serif;
-  letter-spacing: 0.1em;
+  font: 700 0.58rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .game-route-links a:hover {
@@ -685,29 +685,29 @@ a {
 }
 .game-provenance {
   display: grid;
-  gap: 0.6rem;
-  margin-top: 1.2rem;
-  padding-top: 1rem;
+  gap: 0.38rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
   border-top: 1px solid rgba(122, 163, 176, 0.13);
 }
 .game-provenance > div {
   display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  gap: 0.7rem;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
+  gap: 0.45rem;
   align-items: baseline;
 }
 .game-provenance dt {
   color: #68818b;
-  font: 700 0.62rem/1.3 "Barlow Condensed", sans-serif;
-  letter-spacing: 0.1em;
+  font: 700 0.55rem/1.25 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .game-provenance dd {
   min-width: 0;
   margin: 0;
   color: #8199a2;
-  font-size: 0.68rem;
-  line-height: 1.45;
+  font-size: 0.64rem;
+  line-height: 1.35;
 }
 .game-provenance a {
   position: relative;
@@ -724,10 +724,10 @@ a {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 1.25rem;
+  padding-top: 0.85rem;
   color: var(--amber);
-  font: 800 0.74rem/1 "Barlow Condensed", sans-serif;
-  letter-spacing: 0.12em;
+  font: 800 0.64rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .game-card-cta b {
@@ -2705,41 +2705,38 @@ a {
 [hidden] {
   display: none !important;
 }
+@media (max-width: 1180px) {
+  .game-menu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 @media (max-width: 900px) {
   .hero-grid {
     grid-template-columns: 1fr;
-    padding-top: 4rem;
+    padding-block: 3.5rem;
   }
   .hero-visual {
-    order: -1;
-    height: 360px;
-    margin: 0;
+    display: none;
   }
   .hero-copy h1 {
     font-size: clamp(4rem, 17vw, 7rem);
   }
   .role-cards {
-    grid-template-columns: 1fr;
-  }
-  .role-card {
-    min-height: 220px;
+    max-width: none;
   }
   .flow-strip {
     grid-template-columns: 1fr;
   }
-  .game-library-heading { grid-template-columns: 1fr; gap: 1rem; }
-  .game-menu-grid { grid-template-columns: 1fr; }
-  .game-menu-card { min-height: 650px; }
-  .breath-mirror-card {
-    min-height: 650px;
-    grid-column: auto;
-    display: flex;
+  .game-library-heading {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
-  .breath-mirror-card .game-card-cover {
-    height: 275px;
-    min-height: 275px;
-    border-right: 0;
-    border-bottom: 1px solid rgba(105, 212, 222, 0.22);
+  .game-menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .game-menu-card,
+  .breath-mirror-card {
+    min-height: 500px;
   }
   .flow-strip > i {
     transform: rotate(90deg);
@@ -2796,6 +2793,23 @@ a {
   }
   .role-cards {
     gap: 0.75rem;
+    grid-template-columns: 1fr;
+  }
+  .role-card {
+    min-height: 180px;
+  }
+  .game-menu-grid {
+    grid-template-columns: none;
+    grid-auto-columns: minmax(270px, 82vw);
+    grid-auto-flow: column;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scrollbar-color: var(--cyan) rgba(105, 212, 222, 0.08);
+  }
+  .game-menu-card {
+    scroll-snap-align: start;
   }
   .app-header {
     grid-template-columns: 1fr auto;
