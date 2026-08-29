@@ -119,6 +119,8 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
       ageSeconds: Infinity,
       blend: 0,
       confidence01: 0,
+      locked: false,
+      ready: false,
       volume01: 0,
       flow01: 0,
       phase: "hold",
@@ -163,6 +165,11 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
       this.external.confidence01 = 0;
       return;
     }
+    if (message.type === "physiology-lock") {
+      this.external.locked = message.value === true;
+      if (!this.external.locked) this.external.ageSeconds = Infinity;
+      return;
+    }
     if (message.type !== "physiology") return;
 
     const value = message.value ?? {};
@@ -172,6 +179,7 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
     const volume01 = clamp(Number(value.volume01) || 0, 0, 1);
     this.external.ageSeconds = 0;
     this.external.confidence01 = clamp(Number(value.confidence01) || 0, 0, 1);
+    this.external.ready = value.ready === true;
     this.external.volume01 = volume01;
     this.external.flow01 = clamp(Number(value.flow01) || 0, 0, 1);
     this.external.phase = phase;
@@ -180,7 +188,10 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
 
     const requestedPhaseIndex =
       phase === "inhale" ? 0 : phase === "exhale" ? 2 : volume01 > 0.5 ? 1 : 3;
-    if (this.phaseIndex !== requestedPhaseIndex && this.external.confidence01 > 0.45) {
+    const phaseReady = this.external.locked
+      ? this.external.ready
+      : this.external.confidence01 > 0.45;
+    if (this.phaseIndex !== requestedPhaseIndex && phaseReady) {
       this.phaseIndex = requestedPhaseIndex;
       this.phase01 = phase === "hold" ? 0 : this.external.phaseTarget01;
       if (requestedPhaseIndex === 0) this.breathNumber += 1;
@@ -207,7 +218,9 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
   updateExternal(deltaSeconds) {
     this.external.ageSeconds += deltaSeconds;
     const freshness = clamp((0.9 - this.external.ageSeconds) / 0.55, 0, 1);
-    const targetBlend = freshness * this.external.confidence01;
+    const targetBlend = this.external.locked
+      ? freshness * (this.external.ready ? 1 : 0)
+      : freshness * this.external.confidence01;
     const amount = 1 - Math.exp(-deltaSeconds / 0.1);
     this.external.blend = mix(this.external.blend, targetBlend, amount);
 
@@ -268,17 +281,25 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
     for (let index = 0; index < sampleCount; index += 1) {
       this.smoothControls(deltaSeconds);
       this.updateExternal(deltaSeconds);
-      this.advancePhase(deltaSeconds);
+      if (!this.external.locked) this.advancePhase(deltaSeconds);
       const cycle = this.cycleFrame();
+      const lockedReady =
+        this.external.locked &&
+        this.external.ageSeconds < 0.65 &&
+        this.external.ready;
       const externalFlow = Math.pow(this.external.flow01, 0.83);
-      const flow01 = mix(cycle.flow01, externalFlow, this.external.blend);
-      const volume01 = mix(
-        cycle.volume01,
-        this.external.volume01,
-        this.external.blend,
-      );
+      const flow01 = this.external.locked
+        ? lockedReady
+          ? externalFlow
+          : 0
+        : mix(cycle.flow01, externalFlow, this.external.blend);
+      const volume01 = this.external.locked
+        ? this.external.volume01
+        : mix(cycle.volume01, this.external.volume01, this.external.blend);
       const isInhale =
-        this.external.blend > 0.5
+        this.external.locked
+          ? this.external.phase === "inhale"
+          : this.external.blend > 0.5
           ? this.external.phase === "inhale"
           : this.phaseIndex === 0;
       const brightness = this.currentTimbre.brightness01;
@@ -312,14 +333,15 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
       this.activeGain +=
         (activeTarget - this.activeGain) *
         (1 - Math.exp(-deltaSeconds / (this.active ? 0.025 : 0.045)));
-      const gain = amplitude * this.activeGain;
+      const lockGate = this.external.locked ? this.external.blend : 1;
+      const gain = amplitude * this.activeGain * lockGate;
       output[0][index] = Math.tanh(mix(center, left, width) * gain * 1.35);
       if (output[1])
         output[1][index] = Math.tanh(mix(center, right, width) * gain * 1.35);
 
       this.lastFrame = {
         phase:
-          this.external.blend > 0.5
+          this.external.locked || this.external.blend > 0.5
             ? this.external.phase === "hold"
               ? volume01 > 0.5
                 ? "inhale-hold"
@@ -329,7 +351,10 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
         phase01: this.phase01,
         volume01,
         flow01,
-        source: this.external.blend > 0.5 ? "physiology" : "cycle",
+        source:
+          this.external.locked || this.external.blend > 0.5
+            ? "physiology"
+            : "cycle",
         breathNumber: this.breathNumber,
       };
     }

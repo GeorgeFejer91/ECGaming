@@ -6,6 +6,15 @@ import {
   normalizeBreathTiming,
   type BreathTiming,
 } from "./breath-model";
+import { lungSilhouettePath } from "./lung-visual";
+import {
+  PolarBreathLock,
+  type PolarLockFrame,
+} from "./polar-breath-lock";
+import {
+  PolarH10BrowserSession,
+  polarWebBluetoothSupport,
+} from "../src/vendor/affect-tracker/polar-stream.js";
 import "./styles.css";
 
 const PRESETS: Record<string, BreathTiming> = {
@@ -30,8 +39,10 @@ const PRESETS: Record<string, BreathTiming> = {
 };
 
 const sonifier = new BreathSonifier();
+const polarSession = new PolarH10BrowserSession();
+const polarBreathLock = new PolarBreathLock();
 
-const byId = <ElementType extends HTMLElement>(id: string) => {
+const byId = <ElementType extends Element>(id: string) => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing #${id}`);
   return element as ElementType;
@@ -57,10 +68,48 @@ const cycleText = byId("cycle-value");
 const sensorEnabled = byId<HTMLInputElement>("sensor-enabled");
 const sensorVolume = byId<HTMLInputElement>("sensor-volume");
 const sensorConfidence = byId<HTMLInputElement>("sensor-confidence");
+const lungSilhouette = byId<SVGPathElement>("lung-silhouette");
+const polarLockCard = byId("polar-lock-card");
+const polarLockButton = byId<HTMLButtonElement>("polar-lock-toggle");
+const polarLockState = byId("polar-lock-state");
+const polarLockCopy = byId("polar-lock-copy");
+const polarPhase = byId("polar-phase");
+const polarCalibration = byId("polar-calibration");
+const polarConfidence = byId("polar-confidence");
 
 let playing = false;
 let rampFrame = 0;
 let sensorTimer = 0;
+let polarWatchTimer = 0;
+let polarConnecting = false;
+let polarConnected = false;
+let polarLockRequested = false;
+let polarFrameWasStale = false;
+let lungAnimationFrame = 0;
+let visualVolume = 0;
+let visualFlow = 0;
+let targetVolume = 0;
+let targetFlow = 0;
+
+function setVisualTarget(volume01: number, flow01: number): void {
+  targetVolume = Math.max(0, Math.min(1, volume01));
+  targetFlow = Math.max(0, Math.min(1, flow01));
+}
+
+function animateLung(): void {
+  visualVolume += (targetVolume - visualVolume) * 0.14;
+  visualFlow += (targetFlow - visualFlow) * 0.2;
+  lungSilhouette.setAttribute("d", lungSilhouettePath(visualVolume));
+  document.documentElement.style.setProperty(
+    "--breath-volume",
+    visualVolume.toFixed(4),
+  );
+  document.documentElement.style.setProperty(
+    "--breath-flow",
+    visualFlow.toFixed(4),
+  );
+  lungAnimationFrame = requestAnimationFrame(animateLung);
+}
 
 function readTiming(): BreathTiming {
   return normalizeBreathTiming({
@@ -107,16 +156,14 @@ function applyTimbre(): void {
 function renderFrame(frame: SonifierFrame): void {
   const label = frame.phase.replace("-", " ");
   phaseText.textContent = label;
-  sourceText.textContent = frame.source === "cycle" ? "timed cycle" : "live input";
-  sourceText.dataset.source = frame.source;
-  document.documentElement.style.setProperty(
-    "--breath-volume",
-    frame.volume01.toFixed(4),
-  );
-  document.documentElement.style.setProperty(
-    "--breath-flow",
-    frame.flow01.toFixed(4),
-  );
+  sourceText.textContent =
+    frame.source === "cycle"
+      ? "timed cycle"
+      : polarLockRequested
+        ? "polar acc · locked"
+        : "manual input";
+  sourceText.dataset.source = polarLockRequested ? "polar" : frame.source;
+  setVisualTarget(frame.volume01, frame.flow01);
   document.documentElement.style.setProperty(
     "--phase-progress",
     frame.phase01.toFixed(4),
@@ -138,7 +185,9 @@ async function togglePlayback(): Promise<void> {
       playing = true;
       playButton.textContent = "Pause breathing";
       playButton.setAttribute("aria-pressed", "true");
-      statusText.textContent = "Audio running";
+      statusText.textContent = polarLockRequested
+        ? "Audio armed for Polar ACC"
+        : "Audio running";
     }
   } catch (error) {
     statusText.textContent =
@@ -185,7 +234,13 @@ function startRamp(): void {
 function updateSensorStream(): void {
   window.clearInterval(sensorTimer);
   if (!sensorEnabled.checked) {
-    sonifier.releasePhysiology();
+    if (!polarLockRequested) sonifier.releasePhysiology();
+    sensorVolume.disabled = true;
+    sensorConfidence.disabled = true;
+    return;
+  }
+  if (polarLockRequested) {
+    sensorEnabled.checked = false;
     sensorVolume.disabled = true;
     sensorConfidence.disabled = true;
     return;
@@ -199,6 +254,202 @@ function updateSensorStream(): void {
     });
   push();
   sensorTimer = window.setInterval(push, 33);
+}
+
+function setPolarPanel(
+  state: string,
+  title: string,
+  copy: string,
+): void {
+  polarLockCard.dataset.state = state;
+  polarLockState.textContent = title;
+  polarLockCopy.textContent = copy;
+  polarLockButton.setAttribute("aria-pressed", String(polarLockRequested));
+  polarLockButton.textContent = polarConnecting
+    ? "Opening Polar chooser…"
+    : polarLockRequested
+      ? "Release Polar lock"
+      : "Lock to Polar H10";
+  polarLockButton.disabled = polarConnecting;
+}
+
+function applyPolarFrame(frame: PolarLockFrame): void {
+  polarCalibration.textContent = `${Math.round(frame.calibration01 * 100)}%`;
+  polarConfidence.textContent = `${Math.round(frame.confidence01 * 100)}%`;
+  polarPhase.textContent = frame.phase;
+  phaseText.textContent = frame.phase;
+  sourceText.textContent = "polar acc · locked";
+  sourceText.dataset.source = "polar";
+  setVisualTarget(frame.volume01, frame.flow01);
+  sonifier.pushPhysiology({
+    volume01: frame.volume01,
+    flow01: frame.flow01,
+    phase: frame.phaseValue,
+    confidence01: frame.ready ? frame.confidence01 : 0,
+    ready: frame.ready,
+    timestampMs: frame.receivedAtMs,
+  });
+
+  if (frame.stale) {
+    setPolarPanel(
+      "lost",
+      "ACC SIGNAL LOST",
+      "Polar lock is holding silent. Keep this tab visible and reconnect if the stream does not recover.",
+    );
+  } else if (frame.ready) {
+    setPolarPanel(
+      "locked",
+      "POLAR PHASE LOCKED",
+      "The generated mouth breath now follows the source-timed ACC phase classifier.",
+    );
+  } else if (!frame.calibrated) {
+    setPolarPanel(
+      "calibrating",
+      "CALIBRATING CHEST AXIS",
+      "Stay still and breathe normally while Polar collects the 12-second PCA calibration window.",
+    );
+  } else {
+    setPolarPanel(
+      "waiting",
+      "SIGNAL NOT READY",
+      "The classifier rejected this interval as unreliable motion. Audio remains silent until readiness returns.",
+    );
+  }
+  if (playing)
+    statusText.textContent = frame.ready
+      ? `Audio locked to Polar · ${frame.phase}`
+      : "Audio armed · waiting for Polar readiness";
+}
+
+function handlePolarEvent(event: any): void {
+  if (event.kind === "status") {
+    setPolarPanel(
+      "connecting",
+      "POLAR CONNECTING",
+      event.message ?? "Opening the Polar signal path…",
+    );
+  }
+  if (event.kind === "connection") {
+    polarConnected = event.connected === true;
+    if (!polarConnected && polarLockRequested) {
+      sonifier.releasePhysiology();
+      setPolarPanel(
+        "lost",
+        "POLAR LINK LOST",
+        "The lock is silent and fail-closed. Release it, then connect again.",
+      );
+    }
+  }
+  if (event.kind === "accelerometer" && polarLockRequested) {
+    const frame = polarBreathLock.accept(
+      event.breathing ?? {},
+      performance.now(),
+    );
+    polarFrameWasStale = false;
+    applyPolarFrame(frame);
+  }
+  if (event.kind === "warning" || event.kind === "error") {
+    setPolarPanel(
+      "error",
+      event.kind === "error" ? "POLAR SIGNAL ERROR" : "POLAR WARNING",
+      event.message ?? "The Polar breathing stream is unavailable.",
+    );
+  }
+}
+
+function renderPolarAvailability(): void {
+  const support = polarWebBluetoothSupport();
+  if (!support.supported) {
+    polarLockCard.dataset.state = "unsupported";
+    polarLockState.textContent = "DIRECT POLAR UNAVAILABLE";
+    polarLockCopy.textContent = support.reason;
+    polarLockButton.disabled = true;
+    return;
+  }
+  setPolarPanel(
+    "idle",
+    "POLAR READY TO PAIR",
+    "Choose a worn Polar H10. Calibration takes about 12 seconds of normal, still breathing.",
+  );
+}
+
+async function connectPolarLock(): Promise<void> {
+  const support = polarWebBluetoothSupport();
+  if (!support.supported) {
+    renderPolarAvailability();
+    return;
+  }
+  polarConnecting = true;
+  polarLockRequested = true;
+  polarConnected = false;
+  polarFrameWasStale = false;
+  polarBreathLock.reset();
+  sensorEnabled.checked = false;
+  sensorEnabled.disabled = true;
+  updateSensorStream();
+  sonifier.releasePhysiology();
+  sonifier.setPhysiologyLock(true);
+  setPolarPanel(
+    "connecting",
+    "OPENING POLAR",
+    "Choose your H10 in the browser Bluetooth prompt.",
+  );
+  try {
+    // connect() invokes requestDevice before its first await so the chooser
+    // retains this click's browser user activation.
+    await polarSession.connect(handlePolarEvent);
+    polarConnected = true;
+  } catch (error) {
+    polarLockRequested = false;
+    polarConnected = false;
+    sensorEnabled.disabled = false;
+    sonifier.setPhysiologyLock(false);
+    sonifier.releasePhysiology();
+    sourceText.textContent = "timed cycle";
+    sourceText.dataset.source = "cycle";
+    setPolarPanel(
+      "error",
+      "POLAR LOCK FAILED",
+      error instanceof Error ? error.message : String(error),
+    );
+  } finally {
+    polarConnecting = false;
+    polarLockButton.disabled = false;
+    polarLockButton.textContent = polarLockRequested
+      ? "Release Polar lock"
+      : "Lock to Polar H10";
+  }
+}
+
+async function releasePolarLock(): Promise<void> {
+  polarConnecting = true;
+  polarLockButton.disabled = true;
+  try {
+    await polarSession.disconnect();
+  } finally {
+    polarConnecting = false;
+    polarConnected = false;
+    polarLockRequested = false;
+    polarFrameWasStale = false;
+    polarBreathLock.reset();
+    sonifier.setPhysiologyLock(false);
+    sonifier.releasePhysiology();
+    sourceText.textContent = "timed cycle";
+    sourceText.dataset.source = "cycle";
+    phaseText.textContent = "inhale";
+    setVisualTarget(0, 0);
+    sensorEnabled.disabled = false;
+    polarCalibration.textContent = "0%";
+    polarConfidence.textContent = "0%";
+    polarPhase.textContent = "hold";
+    renderPolarAvailability();
+  }
+}
+
+function togglePolarLock(): void {
+  if (polarConnecting) return;
+  if (polarLockRequested) void releasePolarLock();
+  else void connectPolarLock();
 }
 
 for (const input of Object.values(inputs)) input.addEventListener("input", applyTiming);
@@ -218,13 +469,28 @@ rampButton.addEventListener("click", startRamp);
 sensorEnabled.addEventListener("change", updateSensorStream);
 sensorVolume.addEventListener("input", updateSensorStream);
 sensorConfidence.addEventListener("input", updateSensorStream);
+polarLockButton.addEventListener("click", togglePolarLock);
 sonifier.onFrame(renderFrame);
 
+lungSilhouette.setAttribute("d", lungSilhouettePath(0));
+lungAnimationFrame = requestAnimationFrame(animateLung);
+polarWatchTimer = window.setInterval(() => {
+  if (!polarLockRequested || !polarConnected) return;
+  const frame = polarBreathLock.read(performance.now());
+  if (frame?.stale && !polarFrameWasStale) {
+    polarFrameWasStale = true;
+    applyPolarFrame(frame);
+  }
+}, 200);
 applyTiming();
 applyTimbre();
 updateSensorStream();
+renderPolarAvailability();
 
 window.addEventListener("pagehide", () => {
   window.clearInterval(sensorTimer);
+  window.clearInterval(polarWatchTimer);
+  cancelAnimationFrame(lungAnimationFrame);
+  void polarSession.disconnect({ emit: false });
   void sonifier.destroy();
 });

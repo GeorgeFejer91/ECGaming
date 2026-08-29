@@ -11,6 +11,12 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
     page.getByRole("heading", { name: /breath.*mirror/i }),
   ).toBeVisible();
   await expect(page.locator("#bpm-value")).toHaveText("12.0");
+  await expect(page.locator(".lung-form")).toHaveCount(1);
+  await expect(page.locator("#lung-silhouette")).toHaveCount(1);
+  await expect(page.locator(".lung, .orbit")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Lock to Polar H10" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: /fast.*30 bpm/i }).click();
   await expect(page.locator("#bpm-value")).toHaveText("30.0");
@@ -20,12 +26,23 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
   await expect(page.locator("#source-text")).toHaveText("timed cycle");
 
   await page.locator(".switch").click();
-  await expect(page.getByLabel("Track input")).toBeChecked();
+  await expect(page.getByLabel("Manual lab")).toBeChecked();
+  await page.locator("#sensor-volume").fill("0.2");
+  await page.waitForTimeout(220);
+  const contractedLung = await page
+    .locator("#lung-silhouette")
+    .getAttribute("d");
   await page.locator("#sensor-volume").fill("0.8");
-  await expect(page.locator("#source-text")).toHaveText("live input");
+  await expect(page.locator("#source-text")).toHaveText("manual input");
+  await expect
+    .poll(() => page.locator("#lung-silhouette").getAttribute("d"))
+    .not.toBe(contractedLung);
+  await expect(page.locator("#lung-silhouette")).toHaveAttribute(
+    "d", /M 147/,
+  );
 
   await page.locator(".switch").click();
-  await expect(page.getByLabel("Track input")).not.toBeChecked();
+  await expect(page.getByLabel("Manual lab")).not.toBeChecked();
   await expect(page.locator("#source-text")).toHaveText("timed cycle", {
     timeout: 2_000,
   });
