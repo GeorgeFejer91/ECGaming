@@ -70,6 +70,8 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private steeringAxis = 0;
   private pulse = 0;
   private disposed = false;
+  private xrEntry?: Promise<void>;
+  private xrSession?: XRSession;
   private readonly headsetQuaternion = new THREE.Quaternion();
   private readonly headsetEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
@@ -89,6 +91,9 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.xr.enabled = true;
     this.renderer.xr.setReferenceSpaceType("local");
+    // A small XR framebuffer reduction is a useful safety margin on standalone
+    // headsets. Three.js ignores fixed foveation where the runtime lacks it.
+    this.renderer.xr.setFramebufferScaleFactor(0.9);
     this.container.append(this.renderer.domElement);
     this.buildLighting();
     this.buildPlane();
@@ -297,11 +302,23 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private updateInput(delta: number) {
     let axis: number;
     if (this.renderer.xr.isPresenting) {
+      let controllerAxis: number | undefined;
+      const session = this.renderer.xr.getSession();
+      for (const source of session?.inputSources ?? []) {
+        const axes = source.gamepad?.axes;
+        if (!axes) continue;
+        const candidate =
+          Math.abs(axes[2] ?? 0) > 0.12 ? (axes[2] ?? 0) : (axes[0] ?? 0);
+        if (Math.abs(candidate) > 0.12) {
+          controllerAxis = clamp(candidate, -1, 1);
+          break;
+        }
+      }
       const xrCamera = this.renderer.xr.getCamera();
       const headsetCamera = xrCamera.cameras[0] ?? xrCamera;
       headsetCamera.getWorldQuaternion(this.headsetQuaternion);
       this.headsetEuler.setFromQuaternion(this.headsetQuaternion, "YXZ");
-      axis = headTiltSteering(this.headsetEuler.z);
+      axis = controllerAxis ?? headTiltSteering(this.headsetEuler.z);
     } else {
       const keyboard =
         (this.keys.has("a") || this.keys.has("arrowleft") ? -1 : 0) +
@@ -500,23 +517,52 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       navigator.xr && (await navigator.xr.isSessionSupported("immersive-vr")),
     );
   }
-  async enterImmersive() {
+  enterImmersive() {
     if (!navigator.xr)
-      throw new Error("WebXR is not available in this browser.");
-    const session = await navigator.xr.requestSession("immersive-vr", {
-      optionalFeatures: ["local-floor", "bounded-floor"],
-    });
-    session.addEventListener(
-      "end",
-      () => this.dispatchEvent(event("xrchange", this.snapshot())),
-      { once: true },
-    );
-    await this.renderer.xr.setSession(session);
-    this.dispatchEvent(event("xrchange", this.snapshot()));
+      return Promise.reject(
+        new Error("WebXR is not available in this browser."),
+      );
+    if (this.renderer.xr.isPresenting) return Promise.resolve();
+    if (this.xrEntry) return this.xrEntry;
+
+    // requestSession must be invoked in the original click task. Do not put an
+    // await (audio unlock, feature probing, etc.) before this call.
+    const requested = navigator.xr.requestSession("immersive-vr");
+    this.xrEntry = requested
+      .then(async (session) => {
+        this.xrSession = session;
+        const changed = () =>
+          this.dispatchEvent(event("xrchange", this.snapshot()));
+        try {
+          await this.renderer.xr.setSession(session);
+        } catch (error) {
+          if (this.xrSession === session) this.xrSession = undefined;
+          void session.end().catch(() => undefined);
+          throw error;
+        }
+        this.renderer.xr.setFoveation(0.75);
+        session.addEventListener("visibilitychange", changed);
+        session.addEventListener(
+          "end",
+          () => {
+            session.removeEventListener("visibilitychange", changed);
+            if (this.xrSession === session) this.xrSession = undefined;
+            changed();
+          },
+          { once: true },
+        );
+        changed();
+      })
+      .finally(() => {
+        this.xrEntry = undefined;
+      });
+    return this.xrEntry;
   }
   dispose() {
     this.disposed = true;
     this.aircraftLoadToken += 1;
+    void this.xrSession?.end().catch(() => undefined);
+    this.xrSession = undefined;
     this.renderer.setAnimationLoop(null);
     if (this.aircraftVisual) disposeAircraftVisual(this.aircraftVisual);
     this.renderer.dispose();

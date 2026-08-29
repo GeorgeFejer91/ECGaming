@@ -37,6 +37,8 @@ const DISCOVERY_SETTLE_MS = 300,
   MIN_SEPARATION = MIN_INTERVAL - EARLY_TOLERANCE,
   BEACON_MIN_INTERVAL = 1000 / SIGNAL_BEACON_MAX_HZ,
   BEACON_MIN_SEPARATION = BEACON_MIN_INTERVAL - EARLY_TOLERANCE;
+const PEER_RECOVERY_DELAYS_MS = [250, 750, 1_500, 3_000, 5_000] as const;
+const VIEW_RECOVERY_DELAYS_MS = [750, 1_500, 3_000, 5_000] as const;
 
 type Sdk = EventTarget & {
   connect(): Promise<void>;
@@ -126,6 +128,15 @@ const sdkFactory = (forceTurn: boolean): Sdk => {
     password: false,
     salt: "ecgaming-flight-v1",
     forceTURN: forceTurn,
+    autoRecover: true,
+    autoRelay: true,
+    disconnectGracePeriod: 1_500,
+    recoveryTimeout: 4_000,
+    connectionTimeout: 10_000,
+    maxReconnectAttempts: 10,
+    reconnectDelay: 500,
+    autoPingViewer: true,
+    autoPingInterval: 2_000,
   });
 };
 const sourceItem = (value: any): RemoteSource => {
@@ -361,6 +372,11 @@ export class FlightBroadcaster extends RemoteBase {
   private nextBeaconChangedAt = -Infinity;
   private beaconHeartbeatTimer?: ReturnType<typeof setTimeout>;
   private beaconDropped = 0;
+  private peerRecoveryTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private peerRecoveryAttempts = new Map<string, number>();
   snapshot(extra: Partial<BroadcasterSnapshot> = {}): BroadcasterSnapshot {
     const values = [...this.qualities.values()],
       rtts = values.map((v) => v.rttMs).filter(Number.isFinite) as number[];
@@ -417,6 +433,7 @@ export class FlightBroadcaster extends RemoteBase {
       this.listen("dataChannelOpen", ((event: CustomEvent) => {
         const uuid = event.detail?.uuid;
         if (uuid) {
+          this.cancelPeerRecovery(uuid);
           this.deliverConfig(uuid);
           this.deliverBeaconConfig(uuid);
           void this.openRealtime(uuid);
@@ -430,11 +447,9 @@ export class FlightBroadcaster extends RemoteBase {
           this.deliverBeaconConfig(event.detail?.uuid);
       }) as EventListener);
       this.listen("dataChannelClose", ((event: CustomEvent) =>
-        this.removePeer(event.detail?.uuid)) as EventListener);
+        this.schedulePeerRecovery(event.detail?.uuid)) as EventListener);
       this.listen("userLeft", ((event: CustomEvent) =>
-        this.removePeer(
-          event.detail?.UUID ?? event.detail?.uuid,
-        )) as EventListener);
+        this.removePeer(event.detail?.UUID ?? event.detail?.uuid)) as EventListener);
       this.listen("error", ((event: CustomEvent) =>
         this.emit({
           message: errorMessage(event.detail?.error ?? event.detail),
@@ -497,9 +512,14 @@ export class FlightBroadcaster extends RemoteBase {
       channel.binaryType = "arraybuffer";
       channel.bufferedAmountLowThreshold = 0;
       this.channels.set(uuid, channel);
-      channel.addEventListener("close", () => this.removePeer(uuid), {
-        once: true,
-      });
+      channel.addEventListener(
+        "close",
+        () => {
+          if (this.channels.get(uuid) === channel)
+            this.schedulePeerRecovery(uuid);
+        },
+        { once: true },
+      );
       channel.addEventListener("bufferedamountlow", () =>
         this.flush(true, this.now(), uuid),
       );
@@ -533,9 +553,14 @@ export class FlightBroadcaster extends RemoteBase {
       channel.binaryType = "arraybuffer";
       channel.bufferedAmountLowThreshold = 0;
       this.beaconChannels.set(uuid, channel);
-      channel.addEventListener("close", () => this.removePeer(uuid), {
-        once: true,
-      });
+      channel.addEventListener(
+        "close",
+        () => {
+          if (this.beaconChannels.get(uuid) === channel)
+            this.schedulePeerRecovery(uuid);
+        },
+        { once: true },
+      );
       channel.addEventListener("bufferedamountlow", () =>
         this.flushBeacon(true, this.now(), uuid),
       );
@@ -737,15 +762,77 @@ export class FlightBroadcaster extends RemoteBase {
   }
   private removePeer(uuid: string) {
     if (!uuid) return;
-    this.channels.get(uuid)?.close();
-    if (this.beaconChannels.get(uuid) !== this.channels.get(uuid))
-      this.beaconChannels.get(uuid)?.close();
+    this.cancelPeerRecovery(uuid);
+    const flight = this.channels.get(uuid);
+    const beacon = this.beaconChannels.get(uuid);
     this.channels.delete(uuid);
     this.beaconChannels.delete(uuid);
     this.qualities.delete(uuid);
     this.opening.delete(uuid);
     this.beaconOpening.delete(uuid);
+    try {
+      flight?.close();
+    } catch {}
+    if (beacon !== flight)
+      try {
+        beacon?.close();
+      } catch {}
     this.emit();
+  }
+  private cancelPeerRecovery(uuid: string) {
+    const timer = this.peerRecoveryTimers.get(uuid);
+    this.clearTimer(timer);
+    this.peerRecoveryTimers.delete(uuid);
+    this.peerRecoveryAttempts.delete(uuid);
+  }
+  private schedulePeerRecovery(uuid: string, allowMissing = false) {
+    if (!uuid || this.phase !== "broadcasting") return;
+    if (
+      !allowMissing &&
+      !this.channels.has(uuid) &&
+      !this.beaconChannels.has(uuid)
+    )
+      return;
+    const flight = this.channels.get(uuid);
+    const beacon = this.beaconChannels.get(uuid);
+    this.channels.delete(uuid);
+    this.beaconChannels.delete(uuid);
+    this.qualities.delete(uuid);
+    this.opening.delete(uuid);
+    this.beaconOpening.delete(uuid);
+    try {
+      flight?.close();
+    } catch {}
+    if (beacon !== flight)
+      try {
+        beacon?.close();
+      } catch {}
+    if (this.peerRecoveryTimers.has(uuid)) return;
+    const attempt = this.peerRecoveryAttempts.get(uuid) ?? 0;
+    if (attempt >= PEER_RECOVERY_DELAYS_MS.length) {
+      this.emit({
+        message: "Receiver channel recovery paused until its peer reconnects.",
+        error: true,
+      });
+      return;
+    }
+    this.peerRecoveryAttempts.set(uuid, attempt + 1);
+    const timer = this.timeout(() => {
+      this.peerRecoveryTimers.delete(uuid);
+      void this.recoverPeer(uuid);
+    }, PEER_RECOVERY_DELAYS_MS[attempt]!);
+    this.peerRecoveryTimers.set(uuid, timer);
+    this.emit({ message: "Receiver link interrupted; reopening channels…" });
+  }
+  private async recoverPeer(uuid: string) {
+    if (this.phase !== "broadcasting") return;
+    await Promise.all([this.openRealtime(uuid), this.openBeacon(uuid)]);
+    if (this.channels.has(uuid) && this.beaconChannels.has(uuid)) {
+      this.peerRecoveryAttempts.delete(uuid);
+      this.emit({ message: "Receiver channels recovered." });
+      return;
+    }
+    this.schedulePeerRecovery(uuid, true);
   }
   private async refreshQuality() {
     if (!this.sdk?.getPeerQuality) return;
@@ -788,6 +875,8 @@ export class FlightBroadcaster extends RemoteBase {
     this.qualities.clear();
     this.opening.clear();
     this.beaconOpening.clear();
+    this.peerRecoveryTimers.clear();
+    this.peerRecoveryAttempts.clear();
     this.latest = undefined;
     this.lastSent = undefined;
     this.streamId = "";
@@ -836,6 +925,9 @@ export class FlightReceiver extends RemoteBase {
   private receivedFrames = 0;
   private sequenceGaps = 0;
   private staleTransitions = 0;
+  private viewRecoveryTimer?: ReturnType<typeof setTimeout>;
+  private viewRecoveryAttempts = 0;
+  private viewRecoveryInFlight = false;
   snapshot(at = this.now()): FlightReceiverSnapshot {
     const age = this.latest
       ? Math.max(0, at - this.latest.receivedAt)
@@ -889,6 +981,7 @@ export class FlightReceiver extends RemoteBase {
           : undefined,
         sequenceGaps: this.sequenceGaps,
         staleTransitions: this.staleTransitions,
+        reconnectAttempts: this.viewRecoveryAttempts,
       },
     };
   }
@@ -906,6 +999,11 @@ export class FlightReceiver extends RemoteBase {
       if (source.label !== formatSourceLabel(source.streamId))
         old.label = source.label;
     } else this.sources.set(source.streamId, source);
+    if (source.streamId === this.selectedStreamId && this.phase === "stale")
+      this.scheduleViewRecovery(
+        "Ground Control returned; restoring data channels.",
+        250,
+      );
     this.scheduleAuto();
     this.emit();
   }
@@ -967,6 +1065,17 @@ export class FlightReceiver extends RemoteBase {
           this.markBeaconStale("The derived-metric beacon channel closed.");
         else this.armStale("The realtime connection closed.");
       }) as EventListener);
+      this.listen("connectionRecovering", (() => {
+        this.armStale("VDO.Ninja is recovering the direct peer connection.");
+      }) as EventListener);
+      this.listen("connectionRecovered", (() => {
+        this.emit({
+          message: "Peer connection recovered; validating fresh data…",
+        });
+      }) as EventListener);
+      this.listen("connectionFailed", (() => {
+        this.markStale("Peer recovery was exhausted; requesting a fresh view.");
+      }) as EventListener);
       this.listen("error", ((event: CustomEvent) =>
         this.emit({
           message: errorMessage(event.detail?.error ?? event.detail),
@@ -1004,16 +1113,14 @@ export class FlightReceiver extends RemoteBase {
     this.lastBeaconSequence = undefined;
     this.beaconPhase = "unavailable";
     this.clearTimer(this.beaconStaleTimer);
+    this.clearTimer(this.viewRecoveryTimer);
+    this.viewRecoveryTimer = undefined;
+    this.viewRecoveryAttempts = 0;
+    this.viewRecoveryInFlight = false;
     this.phase = "connecting";
     this.emit({ message: `Connecting to ${formatSourceLabel(streamId)}…` });
     try {
-      await this.sdk.view(streamId, {
-        audio: false,
-        video: false,
-        downloads: false,
-        allowresources: false,
-        label: "EC Gaming Flight Deck data receiver",
-      });
+      await this.viewSelectedSource(streamId);
     } catch (error) {
       this.phase = "error";
       this.emit({ message: errorMessage(error), error: true });
@@ -1123,7 +1230,11 @@ export class FlightReceiver extends RemoteBase {
       );
       beacon.addEventListener(
         "close",
-        () => this.markBeaconStale("The derived-metric beacon channel closed."),
+        () => {
+          if (this.beaconChannel !== beacon) return;
+          this.beaconChannel = undefined;
+          this.markBeaconStale("The derived-metric beacon channel closed.");
+        },
         { once: true },
       );
       void this.refreshQuality();
@@ -1140,7 +1251,11 @@ export class FlightReceiver extends RemoteBase {
     );
     accepted.addEventListener(
       "close",
-      () => this.armStale("The realtime flight channel closed."),
+      () => {
+        if (this.channel !== accepted) return;
+        this.channel = undefined;
+        this.armStale("The realtime flight channel closed.");
+      },
       { once: true },
     );
     void this.refreshQuality();
@@ -1179,6 +1294,13 @@ export class FlightReceiver extends RemoteBase {
     this.clearTimer(this.staleTimer);
     if (this.phase === "live")
       this.staleTimer = this.timeout(() => this.checkStale(), FLIGHT_STALE_MS);
+    if (this.phase === "live" && this.beaconFreshAt(receivedAt))
+      this.resetViewRecovery();
+    else if (this.phase === "live")
+      this.scheduleViewRecovery(
+        "Command channel is live; restoring its matching ECG channel.",
+        3_000,
+      );
     this.dispatchEvent(detailEvent("frame", this.snapshot(receivedAt)));
     if (recovered) {
       this.recoveryFrames = 0;
@@ -1215,6 +1337,7 @@ export class FlightReceiver extends RemoteBase {
       () => this.checkBeaconStale(),
       SIGNAL_BEACON_STALE_MS,
     );
+    if (this.phase === "live") this.resetViewRecovery();
     this.dispatchEvent(detailEvent("beaconframe", this.snapshot(receivedAt)));
     this.emit({ message: "Fresh derived-metric beacon telemetry received." });
     return true;
@@ -1246,6 +1369,80 @@ export class FlightReceiver extends RemoteBase {
       this.recoveryFrames = 0;
       this.staleTransitions += 1;
       this.emit({ transition: "stale", message });
+    }
+    this.scheduleViewRecovery(message);
+  }
+  private viewSelectedSource(streamId = this.selectedStreamId) {
+    if (!this.sdk || !streamId) return Promise.resolve();
+    return this.sdk.view(streamId, {
+      audio: false,
+      video: false,
+      downloads: false,
+      allowresources: false,
+      label: "EC Gaming Flight Deck data receiver",
+    });
+  }
+  private beaconFreshAt(at = this.now()) {
+    return Boolean(
+      this.beaconPhase === "live" &&
+      this.latestBeacon &&
+      at - this.latestBeacon.receivedAt >= 0 &&
+      at - this.latestBeacon.receivedAt < SIGNAL_BEACON_STALE_MS,
+    );
+  }
+  private resetViewRecovery() {
+    this.clearTimer(this.viewRecoveryTimer);
+    this.viewRecoveryTimer = undefined;
+    this.viewRecoveryAttempts = 0;
+  }
+  private scheduleViewRecovery(message: string, minimumDelay = 750) {
+    if (
+      !this.sdk ||
+      !this.selectedStreamId ||
+      this.viewRecoveryTimer ||
+      this.viewRecoveryInFlight ||
+      (this.phase === "live" && this.beaconFreshAt())
+    )
+      return;
+    const index = Math.min(
+      this.viewRecoveryAttempts,
+      VIEW_RECOVERY_DELAYS_MS.length - 1,
+    );
+    const delay = Math.max(minimumDelay, VIEW_RECOVERY_DELAYS_MS[index]!);
+    this.viewRecoveryTimer = this.timeout(() => {
+      this.viewRecoveryTimer = undefined;
+      void this.recoverSelectedSource();
+    }, delay);
+    this.emit({ transition: "reconnecting", message });
+  }
+  private async recoverSelectedSource() {
+    const streamId = this.selectedStreamId;
+    if (
+      !this.sdk ||
+      !streamId ||
+      (this.phase === "live" && this.beaconFreshAt())
+    )
+      return;
+    this.viewRecoveryInFlight = true;
+    this.viewRecoveryAttempts += 1;
+    this.emit({
+      transition: "reconnecting",
+      message: `Requesting a fresh peer connection (attempt ${this.viewRecoveryAttempts})…`,
+    });
+    try {
+      await this.viewSelectedSource(streamId);
+    } catch (error) {
+      this.emit({
+        message: `Peer reconnect failed: ${errorMessage(error)}`,
+        error: true,
+      });
+    } finally {
+      this.viewRecoveryInFlight = false;
+      if (
+        this.selectedStreamId === streamId &&
+        (this.phase !== "live" || !this.beaconFreshAt())
+      )
+        this.scheduleViewRecovery("Still waiting for fresh command frames.");
     }
   }
   private checkBeaconStale() {
@@ -1323,6 +1520,10 @@ export class FlightReceiver extends RemoteBase {
     this.receivedFrames = 0;
     this.sequenceGaps = 0;
     this.staleTransitions = 0;
+    this.clearTimer(this.viewRecoveryTimer);
+    this.viewRecoveryTimer = undefined;
+    this.viewRecoveryAttempts = 0;
+    this.viewRecoveryInFlight = false;
     this.emit();
   }
 }

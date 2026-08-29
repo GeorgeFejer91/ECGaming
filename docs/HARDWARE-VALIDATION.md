@@ -36,6 +36,8 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Confirm changed signal telemetry never exceeds 20 Hz, the unchanged heartbeat is 250 ms, and a backpressured peer receives the newest state rather than an obsolete queue.
 - Stop the source: both standalone Flight Deck commands and receiving Ground Control telemetry become stale within two seconds. Neither path silently selects another public source.
 - Restart the standalone Flight Deck workflow: three fresh command frames and the three-second countdown are visible before movement resumes. Restart a signal-beacon session: the receiving Ground Control requires the new validated config/token and fresh derived frame before runway clearance.
+- Interrupt Wi-Fi briefly and restore it while the standalone Flight Deck runs. Confirm VDO.Ninja tries direct ICE recovery before relay, both custom channels reopen, the HUD shows recovery, and movement resumes only after command plus session-matched physical ECG telemetry are fresh.
+- Record direct-path RTT and command p95/max gaps on the target HMD. The 32-byte command frames must remain unordered/zero-retransmit with no application queue; the 92-byte derived ECG beacon must not contain raw ECG samples or delay plane controls.
 
 ## Adaptive normalization
 
@@ -66,6 +68,7 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Switching between the same-page Ground Control and Cockpit views preserves the selected receiver session and does not bypass runway clearance.
 - Seated local horizon remains stable; airplane bank does not rotate the camera.
 - Sustained immersive render target: at least 60 frames/second for ten minutes on the target headset.
+- In Meta Quest Browser and at least one other OpenXR/WebXR headset browser, enter immersive mode on the first button press, end the session, and enter again without reloading. Confirm controller thumbstick steering takes priority when active and head-tilt steering remains the fallback.
 
 ## Evidence record
 

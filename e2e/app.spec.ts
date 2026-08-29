@@ -768,7 +768,7 @@ test("Flight receives mocked commands without requesting Bluetooth or media", as
     await page.getByLabel("Aircraft").locator("option").count(),
   ).toBeGreaterThanOrEqual(7);
   await expect(page.locator("#start-panel")).toContainText(
-    "continuously tilt your head left or right",
+    "controller thumbstick or tilt your head left or right",
   );
   await expect(page.locator("#lives")).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).__authority)).toEqual({

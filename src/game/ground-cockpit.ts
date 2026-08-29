@@ -122,6 +122,7 @@ export class GroundCockpit extends EventTarget {
       throw this.gameFailure;
     }
     this.game.addEventListener("score", this.handleScore as EventListener);
+    this.game.addEventListener("xrchange", this.handleXrChange);
     this.aircraftReady = this.selectAircraft(this.selectedAircraftId);
     return this.game;
   }
@@ -268,9 +269,11 @@ export class GroundCockpit extends EventTarget {
     xrButton.addEventListener("click", async () => {
       try {
         const game = this.ensureGame();
-        await this.sound.unlock();
-        await game.enterImmersive();
+        const immersiveRequest = game.enterImmersive();
+        const audioRequest = this.sound.unlock();
+        await Promise.all([immersiveRequest, audioRequest]);
         xrButton.textContent = "IMMERSIVE ACTIVE";
+        xrButton.disabled = true;
       } catch (error) {
         xrButton.textContent = "WEBXR FAILED";
         console.error(error);
@@ -279,6 +282,13 @@ export class GroundCockpit extends EventTarget {
     this.bindSteeringButton("cockpit-steer-left", -1);
     this.bindSteeringButton("cockpit-steer-right", 1);
   }
+
+  private handleXrChange = () => {
+    const button = element<HTMLButtonElement>("cockpit-enter-xr");
+    const active = this.game?.snapshot().immersive ?? false;
+    button.textContent = active ? "IMMERSIVE ACTIVE" : "ENTER IMMERSIVE";
+    button.disabled = active;
+  };
 
   private updateSteering() {
     const latest = Array.from(this.steeringPointers.values()).at(-1);

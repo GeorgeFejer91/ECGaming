@@ -36,6 +36,8 @@ class FakeSdk extends EventTarget {
   sentData: { data: any; options: any }[] = [];
   announcements: any[] = [];
   viewed = "";
+  viewCalls = 0;
+  openCalls: string[] = [];
   async connect() {}
   async disconnect() {}
   async joinRoom() {}
@@ -44,13 +46,16 @@ class FakeSdk extends EventTarget {
   }
   async view(id: string) {
     this.viewed = id;
+    this.viewCalls += 1;
   }
   async stopViewing() {}
   async openChannel(_uuid: string, label: string) {
     expect([FLIGHT_CHANNEL, SIGNAL_BEACON_CHANNEL]).toContain(label);
-    return (label === FLIGHT_CHANNEL
-      ? this.channel
-      : this.beaconChannel) as unknown as RTCDataChannel;
+    this.openCalls.push(label);
+    const channel = new FakeChannel();
+    if (label === FLIGHT_CHANNEL) this.channel = channel;
+    else this.beaconChannel = channel;
+    return channel as unknown as RTCDataChannel;
   }
   sendData(data: any, options: any) {
     this.sentData.push({ data, options });
@@ -182,6 +187,46 @@ describe("VDO.Ninja flight bridge", () => {
     expect(sender.snapshot().droppedBackpressure).toBe(1);
     expect(sdk.channel.sent).toHaveLength(2);
     await sender.stop();
+  });
+  it("reopens both latest-state channels after either custom channel closes", async () => {
+    vi.useFakeTimers();
+    const sdk = new FakeSdk();
+    const sender = new FlightBroadcaster({ sdkFactory: () => sdk as any });
+    await sender.start(DEFAULT_MAPPINGS);
+    sdk.emit("dataChannelOpen", { uuid: "peer-1" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sdk.openCalls).toEqual([FLIGHT_CHANNEL, SIGNAL_BEACON_CHANNEL]);
+
+    sdk.channel.close();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(sdk.openCalls).toEqual([
+      FLIGHT_CHANNEL,
+      SIGNAL_BEACON_CHANNEL,
+      FLIGHT_CHANNEL,
+      SIGNAL_BEACON_CHANNEL,
+    ]);
+    expect(sender.snapshot()).toMatchObject({
+      listenerCount: 1,
+      beaconListenerCount: 1,
+    });
+    await sender.stop();
+  });
+  it("re-requests a selected view after stale command recovery is exhausted", async () => {
+    vi.useFakeTimers();
+    const sdk = new FakeSdk();
+    const receiver = new FlightReceiver({ sdkFactory: () => sdk as any });
+    await receiver.startDiscovery();
+    const sourceId = `${FLIGHT_SOURCE_PREFIX}recover1`;
+    sdk.emit("listing", { list: [{ streamID: sourceId, UUID: "peer-1" }] });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(sdk.viewCalls).toBe(1);
+
+    sdk.emit("connectionFailed", { streamID: sourceId, uuid: "peer-1" });
+    await vi.advanceTimersByTimeAsync(750);
+    expect(sdk.viewCalls).toBe(2);
+    expect(receiver.snapshot().diagnostics.reconnectAttempts).toBe(1);
+    await receiver.stop();
   });
   it("adds a separate derived-metric beacon with session fencing", async () => {
     vi.useFakeTimers();

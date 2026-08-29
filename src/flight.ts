@@ -1,5 +1,9 @@
 import "./styles.css";
-import { FlightFlags, isFreshBeat } from "./protocol/flight-frame";
+import {
+  FlightFlags,
+  isFreshBeat,
+  SignalBeaconFlags,
+} from "./protocol/flight-frame";
 import { FlightReceiver } from "./protocol/remote";
 import type { FlightReceiverSnapshot } from "./protocol/types";
 import { createFlightScene } from "./game/flight-scene";
@@ -101,6 +105,14 @@ function renderSources(state: FlightReceiverSnapshot) {
   }
 }
 function isReady(state: FlightReceiverSnapshot) {
+  const beaconFlags = state.beacon.latest?.flags ?? 0;
+  const physicalEcgBeacon = Boolean(
+    state.beacon.fresh &&
+    state.beacon.config?.sessionId === state.config?.sessionId &&
+    (beaconFlags & SignalBeaconFlags.physicalPolar) !== 0 &&
+    (beaconFlags & SignalBeaconFlags.ecgStreamReady) !== 0 &&
+    (beaconFlags & SignalBeaconFlags.simulation) === 0,
+  );
   return Boolean(
     state.phase === "live" &&
     state.config &&
@@ -108,22 +120,24 @@ function isReady(state: FlightReceiverSnapshot) {
     (state.latest.flags & FlightFlags.controlReady) !== 0 &&
     (state.latest.flags & FlightFlags.physicalPolar) !== 0 &&
     (state.latest.flags & FlightFlags.simulation) === 0 &&
-    (state.packetAgeMs ?? Infinity) < 2000,
+    (state.packetAgeMs ?? Infinity) < 2000 &&
+    physicalEcgBeacon,
   );
 }
 function updateConnection(state: FlightReceiverSnapshot, message?: string) {
   renderSources(state);
   const live = state.phase === "live" && isReady(state);
   element("link-dot").classList.toggle("is-live", live);
-  const simulated = Boolean(
-    (state.latest?.flags ?? 0) & FlightFlags.simulation,
-  );
   setText(
     "link-state",
     live
-      ? `${simulated ? "SIMULATED" : "GROUND"} LINK LIVE`
+      ? "GROUND + ECG LINK LIVE"
       : state.phase === "stale"
-        ? "GROUND LINK LOST"
+        ? state.diagnostics.reconnectAttempts > 0
+          ? "RECOVERING GROUND LINK"
+          : "GROUND LINK LOST"
+        : state.phase === "live"
+          ? "WAITING FOR PHYSICAL ECG"
         : state.phase === "connecting"
           ? "CONNECTING TO TOWER"
           : "GROUND LINK OFFLINE",
@@ -134,6 +148,10 @@ function updateConnection(state: FlightReceiverSnapshot, message?: string) {
     state.rttMs === undefined ? "— MS" : `${state.rttMs} MS`,
   );
   if (state.sourceLabel) setText("connection-title", state.sourceLabel);
+  element<HTMLButtonElement>("find-ground").disabled = ![
+    "idle",
+    "error",
+  ].includes(state.phase);
   if (message) setText("connection-copy", message);
   const ready = isReady(state);
   if (ready && !started) {
@@ -143,8 +161,8 @@ function updateConnection(state: FlightReceiverSnapshot, message?: string) {
     element("connection-panel").hidden = false;
     element("start-panel").hidden = true;
   }
-  if (state.phase === "stale" && started) pauseForSignal();
-  if (state.phase === "live" && started && game.snapshot().paused)
+  if (!ready && started) pauseForSignal();
+  if (ready && started && game.snapshot().paused)
     beginResumeCountdown();
 }
 function acceptFrame(state: FlightReceiverSnapshot) {
@@ -322,20 +340,34 @@ element<HTMLInputElement>("flight-log-enabled").addEventListener(
   },
 );
 const xrButton = element<HTMLButtonElement>("enter-xr");
-void game.immersiveSupported().then((supported) => {
-  xrButton.hidden = !supported;
-});
+void game
+  .immersiveSupported()
+  .then((supported) => {
+    xrButton.hidden = !supported;
+  })
+  .catch(() => {
+    xrButton.hidden = true;
+  });
 xrButton.addEventListener("click", async () => {
   try {
-    await sound.unlock();
-    await game.enterImmersive();
+    // Start WebXR synchronously from the click. Awaiting audio first consumes
+    // transient activation in stricter headset browsers.
+    const immersiveRequest = game.enterImmersive();
+    const audioRequest = sound.unlock();
+    await Promise.all([immersiveRequest, audioRequest]);
     xrButton.textContent = "IMMERSIVE ACTIVE";
+    xrButton.disabled = true;
     if (element<HTMLInputElement>("flight-log-enabled").checked)
       log.add({ event: "mode", mode: "webxr" });
   } catch (error) {
     xrButton.textContent = "WEBXR FAILED";
     console.error(error);
   }
+});
+game.addEventListener("xrchange", () => {
+  const active = game.snapshot().immersive;
+  xrButton.textContent = active ? "IMMERSIVE ACTIVE" : "ENTER IMMERSIVE";
+  xrButton.disabled = active;
 });
 addEventListener("beforeunload", () => {
   gameHeartbeatPublisher.close();

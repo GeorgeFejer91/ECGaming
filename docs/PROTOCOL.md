@@ -82,7 +82,7 @@ Ground Control captures immutable mappings when broadcasting begins. A `FlightCo
 }
 ```
 
-Legacy v1 configurations without `normalization` remain valid and sanitize to fixed mode. The standalone Flight Deck does not start until it has both a valid configuration and a fresh realtime frame with `controlReady` set.
+Legacy v1 configurations without `normalization` remain valid and sanitize to fixed mode. The standalone Flight Deck does not start until it has a valid configuration, a fresh realtime frame with `controlReady` set, and a fresh session-matched signal beacon that asserts physical-Polar and ECG-stream readiness without simulation.
 
 ## Realtime frame
 
@@ -200,7 +200,9 @@ After two seconds without a valid newer command frame, the standalone receiver e
 
 The signal beacon independently becomes stale after two seconds without a valid newer frame. Ground Control immediately withdraws flight readiness; it does not reuse the last metric as fresh data, substitute simulation, or switch to another discovered source. A newly validated source session starts with no inherited beacon telemetry or adaptive calibration.
 
-Sequence comparison is wrap-safe. Diagnostics retain a bounded 128-gap window, p95/max packet gap, missing sequence count, route (`direct`, `relay`, or `unknown`), RTT, and stale transitions.
+Sequence comparison is wrap-safe. Diagnostics retain a bounded 128-gap window, p95/max packet gap, missing sequence count, route (`direct`, `relay`, or `unknown`), RTT, stale transitions, and fresh-view reconnect attempts.
+
+The vendored VDO.Ninja SDK retains room/publish/view intent across signaling loss, performs direct ICE restart, and can escalate to TURN after direct recovery fails. ECGaming uses shortened bounded recovery timers for this low-latency data-only workload. A broadcaster reopens lost custom command and signal channels with bounded backoff; a receiver re-requests its selected view when either required path does not recover. Command and signal channels remain unordered with zero retransmits throughout recovery, so old plane state is never made reliable and delivered late.
 
 ## Teardown
 

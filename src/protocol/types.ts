@@ -140,5 +140,6 @@ export interface FlightReceiverSnapshot {
     maxGapMs?: number;
     sequenceGaps: number;
     staleTransitions: number;
+    reconnectAttempts: number;
   };
 }
