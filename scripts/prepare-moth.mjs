@@ -10,7 +10,7 @@ const cacheRoot = resolve(projectRoot, ".cache", "moth");
 const sourceRoot = resolve(cacheRoot, "source");
 const forkUrl = "https://github.com/GeorgeFejer91/moth-game.git";
 const upstreamUrl = "https://github.com/ahmedallam222/moth-game";
-const pinnedCommit = "99e05962a928b77cf254bc810afaf108e3e208ea";
+const pinnedCommit = "aa9506473a856a63f19e5650656c74793865b5d1";
 
 function assertInside(root, target) {
   const path = relative(root, target);
