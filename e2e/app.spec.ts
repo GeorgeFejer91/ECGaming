@@ -86,7 +86,7 @@ test("landing exposes phone, ground, and receiver workflows", async ({
     [".flight-game-card", "./ground-control/", "ECGaming repository"],
     [".pixel-hop-card", "./games/pixel-hop/", "stm1978/retro-platformer"],
     [".supertux-card", "./games/supertux/", "SuperTux v0.6.3"],
-    [".moth-card", "./games/moth/", "ahmedallam222/moth-game"],
+    [".moth-card", "./games/moth/?v=99e05962", "ahmedallam222/moth-game"],
   ] as const;
 
   for (const [selector, href, sourceName] of expectedCards) {
