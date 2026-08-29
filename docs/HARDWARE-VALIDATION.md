@@ -8,7 +8,10 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - Heart Rate Service delivers real HR plus RR values.
 - PMD Control Point responses are received and ECG data is live.
 - PMD ACC starts at 200 Hz after ECG qualification; breathing remains unavailable until the source-timed PCA processor finishes its 12-second calibration and reports fresh readiness.
-- Observed ECG rate remains close to 130 Hz; first and live packets are required before physical readiness.
+- Observed ECG rate remains close to 130 Hz; a real HR frame, raw ECG frame, and ACC frame are all required before physical readiness.
+- Exercise the automatic reconnect by interrupting GATT during PMD service discovery. The same browser-selected H10 must retry the complete HR/ECG/ACC setup without reopening the chooser.
+- After readiness, interrupt each of HR, ECG, and ACC independently. Any signal stale for five seconds must revoke readiness and trigger the bounded full-stream restart.
+- Web Bluetooth does not expose ATT MTU selection. Record MTU as browser-managed for the GitHub Pages path; the H10 minimum-MTU tuning available to native Android clients cannot be asserted by this site.
 - A chooser or GATT connection without a fresh valid ECG packet leaves Start Flight disabled.
 - Two quiet minutes after detector warmup: ECG beat count differs from Polar RR count by no more than one, and median matched interval error is at most 50 ms.
 - Movement-artifact trial: confidence falls or controls fail closed instead of producing uncontrolled repeated beats.

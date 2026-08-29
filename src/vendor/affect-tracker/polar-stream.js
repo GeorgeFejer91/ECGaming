@@ -17,7 +17,7 @@ export const POLAR_UUIDS = Object.freeze({
 export const POLAR_COMMANDS = Object.freeze({
   startEcg: Object.freeze([0x02, 0x00, 0x00, 0x01, 130, 0, 0x01, 0x01, 14, 0]),
   startAccelerometer: Object.freeze([
-    0x02, 0x02, 0x02, 0x01, 8, 0, 0x00, 0x01, 200, 0, 0x01, 0x01, 16, 0,
+    0x02, 0x02, 0x00, 0x01, 200, 0, 0x01, 0x01, 16, 0, 0x02, 0x01, 8, 0,
   ]),
   stopEcg: Object.freeze([0x03, 0x00]),
   stopAccelerometer: Object.freeze([0x03, 0x02]),
@@ -144,12 +144,18 @@ const RR_WINDOW_VALUES = 300;
 const GATT_CONNECT_RETRY_DELAYS_MS = Object.freeze([750, 1_500, 3_000]);
 const CONTROL_RESPONSE_TIMEOUT_MS = 7_500;
 const FIRST_ECG_TIMEOUT_MS = 10_000;
+const FIRST_HEART_RATE_TIMEOUT_MS = 10_000;
+const FIRST_ACCELEROMETER_TIMEOUT_MS = 10_000;
 const PMD_RESPONSE_GRACE_AFTER_FRAME_MS = 250;
-const STREAM_SETUP_ATTEMPTS = 2;
-const STREAM_SETUP_RETRY_DELAY_MS = 750;
+const STREAM_SETUP_RETRY_DELAYS_MS = Object.freeze([750, 1_500, 3_000]);
 const STREAM_SETUP_RETRY_CODES = new Set([
+  "BLUETOOTH_LINK_LOST_DURING_SETUP",
   "PMD_CONTROL_TIMEOUT",
   "PMD_FIRST_ECG_TIMEOUT",
+  "PMD_ACC_CONTROL_TIMEOUT",
+  "PMD_FIRST_ACC_TIMEOUT",
+  "PMD_FIRST_HEART_RATE_TIMEOUT",
+  "PMD_COMMAND_REJECTED",
 ]);
 export const POLAR_LIVE_ECG_TIMEOUT_MS = 5_000;
 export const POLAR_LIVE_ECG_RECOVERY_ATTEMPTS = 1;
@@ -593,6 +599,14 @@ function bluetoothStageError(error, code, label) {
   );
 }
 
+function retryableStreamSetupError(error) {
+  const code = String(error?.code ?? "");
+  return (
+    STREAM_SETUP_RETRY_CODES.has(code) ||
+    (error?.retryable === true && /^BLUETOOTH_.+_FAILED$/.test(code))
+  );
+}
+
 export class PolarH10BrowserSession {
   constructor({
     navigatorObject = globalThis.navigator,
@@ -601,7 +615,10 @@ export class PolarH10BrowserSession {
     now = () => Date.now(),
     controlResponseTimeoutMs = CONTROL_RESPONSE_TIMEOUT_MS,
     firstEcgTimeoutMs = FIRST_ECG_TIMEOUT_MS,
+    firstHeartRateTimeoutMs = FIRST_HEART_RATE_TIMEOUT_MS,
+    firstAccelerometerTimeoutMs = FIRST_ACCELEROMETER_TIMEOUT_MS,
     liveEcgTimeoutMs = POLAR_LIVE_ECG_TIMEOUT_MS,
+    streamSetupRetryDelaysMs = STREAM_SETUP_RETRY_DELAYS_MS,
     allowQuestExperiment = false,
   } = {}) {
     this.navigatorObject = navigatorObject;
@@ -610,6 +627,12 @@ export class PolarH10BrowserSession {
     this.now = now;
     this.controlResponseTimeoutMs = controlResponseTimeoutMs;
     this.firstEcgTimeoutMs = firstEcgTimeoutMs;
+    this.firstHeartRateTimeoutMs = firstHeartRateTimeoutMs;
+    this.firstAccelerometerTimeoutMs = firstAccelerometerTimeoutMs;
+    this.streamSetupRetryDelaysMs = Array.from(
+      streamSetupRetryDelaysMs ?? STREAM_SETUP_RETRY_DELAYS_MS,
+      (delay) => Math.max(0, Number(delay) || 0),
+    );
     this.liveEcgTimeoutMs = Math.max(
       1,
       Number(liveEcgTimeoutMs) || POLAR_LIVE_ECG_TIMEOUT_MS,
@@ -640,6 +663,10 @@ export class PolarH10BrowserSession {
       new PolarStreamError("PMD_SESSION_ENDED", "The Polar PMD session ended."),
     );
     this.rejectWaiter(
+      this.firstHeartRateFrame,
+      new PolarStreamError("PMD_SESSION_ENDED", "The Polar PMD session ended."),
+    );
+    this.rejectWaiter(
       this.firstAccelerometerFrame,
       new PolarStreamError("PMD_SESSION_ENDED", "The Polar PMD session ended."),
     );
@@ -653,13 +680,17 @@ export class PolarH10BrowserSession {
     this.recoveringLiveEcg = false;
     this.pendingControlResponse = null;
     this.firstEcgFrame = null;
+    this.firstHeartRateFrame = null;
     this.firstAccelerometerFrame = null;
     this.currentStage = "idle";
     this.streamStartedAtMs = undefined;
     this.streamInitialSampleCount = 0;
     this.lastEcgFrameAtMs = undefined;
+    this.lastHeartRateFrameAtMs = undefined;
     this.lastAccelerometerFrameAtMs = undefined;
     this.ecgFrameCount = 0;
+    this.heartRateFrameCount = 0;
+    this.accelerometerFrameCount = 0;
     this.maximumEcgGapMs = 0;
   }
 
@@ -675,11 +706,14 @@ export class PolarH10BrowserSession {
       gattAttempt: 0,
       gattAttemptsTotal: GATT_CONNECT_RETRY_DELAYS_MS.length + 1,
       streamSetupAttempt: 0,
-      streamSetupAttemptsTotal: STREAM_SETUP_ATTEMPTS,
+      streamSetupAttemptsTotal: this.streamSetupRetryDelaysMs.length + 1,
       liveRecoveryAttempt: 0,
       liveRecoveryAttemptsTotal: POLAR_LIVE_ECG_RECOVERY_ATTEMPTS,
       pmdResponse: "not started",
       firstEcgFrame: false,
+      firstHeartRateFrame: false,
+      firstAccelerometerFrame: false,
+      mtu: "browser-managed",
       lastErrorCode: "",
       lastErrorMessage: "",
     };
@@ -779,7 +813,7 @@ export class PolarH10BrowserSession {
         connected: true,
         batteryPercent,
         streamHealth: this.streamHealth(),
-        message: "Polar H10 ECG is live at 130 Hz",
+        message: "Polar H10 HR + 130 Hz ECG + 200 Hz ACC are live",
       });
       this.armLiveEcgWatchdog();
     } catch (error) {
@@ -797,33 +831,35 @@ export class PolarH10BrowserSession {
 
   async connectSelectedDeviceWithRecovery() {
     let lastError;
-    for (let attempt = 1; attempt <= STREAM_SETUP_ATTEMPTS; attempt += 1) {
+    const selectedDevice = this.device;
+    const totalAttempts = this.streamSetupRetryDelaysMs.length + 1;
+    for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
       this.updateDiagnostics({ streamSetupAttempt: attempt });
       try {
         return await this.connectSelectedDevice();
       } catch (error) {
         lastError = error;
-        if (
-          attempt === STREAM_SETUP_ATTEMPTS ||
-          !STREAM_SETUP_RETRY_CODES.has(error?.code)
-        )
+        if (attempt === totalAttempts || !retryableStreamSetupError(error))
           throw error;
 
-        const selectedDevice = this.device;
         await this.disconnect({ emit: false });
         this.processor.reset();
         this.breathingProcessor.reset();
         this.device = selectedDevice;
+        if (!this.device) throw error;
         this.device.addEventListener(
           "gattserverdisconnected",
           this.boundDisconnected,
         );
         this.emit({
           kind: "status",
-          message: `No live ECG packet arrived; fully resetting the H10 stream and retrying setup ${attempt + 1}/${STREAM_SETUP_ATTEMPTS}…`,
+          message: `Polar link setup dropped; retrying the full HR, ECG, and ACC setup ${attempt + 1}/${totalAttempts}…`,
         });
         await new Promise((resolve) =>
-          this.timer.setTimeout(resolve, STREAM_SETUP_RETRY_DELAY_MS),
+          this.timer.setTimeout(
+            resolve,
+            this.streamSetupRetryDelaysMs[attempt - 1],
+          ),
         );
       }
     }
@@ -871,21 +907,39 @@ export class PolarH10BrowserSession {
       "Polar PMD control indications",
       () => this.control.startNotifications(),
     );
-    try {
-      const heartRateService = await this.server.getPrimaryService(
-        POLAR_UUIDS.heartRateService,
-      );
-      this.heartRate = await heartRateService.getCharacteristic(
-        POLAR_UUIDS.heartRateMeasurement,
-      );
-      this.heartRate.addEventListener(
-        "characteristicvaluechanged",
-        this.boundHeartRate,
-      );
-      await this.heartRate.startNotifications();
-    } catch {
-      this.heartRate = null;
-    }
+    const heartRateService = await this.runStage(
+      "HEART_RATE_SERVICE",
+      "Polar heart-rate service discovery",
+      () =>
+        this.server.getPrimaryService(
+          POLAR_UUIDS.heartRateService,
+        ),
+    );
+    this.heartRate = await this.runStage(
+      "HEART_RATE_MEASUREMENT",
+      "Polar heart-rate measurement discovery",
+      () =>
+        heartRateService.getCharacteristic(
+          POLAR_UUIDS.heartRateMeasurement,
+        ),
+    );
+    this.heartRate.addEventListener(
+      "characteristicvaluechanged",
+      this.boundHeartRate,
+    );
+    this.firstHeartRateFrame = this.createWaiter(
+      this.firstHeartRateTimeoutMs,
+      new PolarStreamError(
+        "PMD_FIRST_HEART_RATE_TIMEOUT",
+        "The H10 connected but did not deliver a live heart-rate frame. Keep the worn strap wet and disconnect other Polar apps or tabs before retrying.",
+        true,
+      ),
+    );
+    await this.runStage(
+      "HEART_RATE_NOTIFY",
+      "Polar heart-rate notifications",
+      () => this.heartRate.startNotifications(),
+    );
     this.emit({
       kind: "status",
       message: "Starting 130 Hz ECG and waiting for the first live packet…",
@@ -898,7 +952,22 @@ export class PolarH10BrowserSession {
       message:
         "ECG is live; starting 200 Hz chest accelerometer for breathing control…",
     });
-    await this.startAccelerometerBestEffort();
+    await this.runStage("ACC_START", "Polar accelerometer startup", () =>
+      this.startAccelerometerAndWaitForData(),
+    );
+    await this.runStage(
+      "HEART_RATE_FIRST_FRAME",
+      "Polar live heart-rate stream",
+      () => this.firstHeartRateFrame.promise,
+    );
+    this.firstHeartRateFrame = null;
+    this.updateDiagnostics({ firstHeartRateFrame: true });
+    if (!this.server?.connected)
+      throw new PolarStreamError(
+        "BLUETOOTH_LINK_LOST_DURING_SETUP",
+        "The H10 Bluetooth link dropped before all live signals were ready.",
+        true,
+      );
     let batteryPercent;
     try {
       const batteryService = await this.server.getPrimaryService(
@@ -957,15 +1026,25 @@ export class PolarH10BrowserSession {
     this.ecgWatchdogTimer = undefined;
   }
 
-  armLiveEcgWatchdog(delayMs = this.liveEcgTimeoutMs) {
+  armLiveEcgWatchdog() {
     this.clearLiveEcgWatchdog();
+    const lastFrames = [
+      this.lastEcgFrameAtMs,
+      this.lastHeartRateFrameAtMs,
+      this.lastAccelerometerFrameAtMs,
+    ];
     if (
       !this.connected ||
       this.recoveringLiveEcg ||
       this.stopRequested ||
-      !Number.isFinite(this.lastEcgFrameAtMs)
+      lastFrames.some((timestamp) => !Number.isFinite(timestamp))
     )
       return;
+    const oldestFrameAtMs = Math.min(...lastFrames);
+    const delayMs = Math.max(
+      1,
+      oldestFrameAtMs + this.liveEcgTimeoutMs - this.now(),
+    );
     this.ecgWatchdogTimer = this.timer.setTimeout(
       () => {
         this.ecgWatchdogTimer = undefined;
@@ -979,21 +1058,30 @@ export class PolarH10BrowserSession {
     if (
       !this.connected ||
       this.recoveringLiveEcg ||
-      this.stopRequested ||
-      !Number.isFinite(this.lastEcgFrameAtMs)
+      this.stopRequested
     )
       return;
-    const packetAgeMs = Math.max(0, this.now() - this.lastEcgFrameAtMs);
-    if (packetAgeMs < this.liveEcgTimeoutMs) {
-      this.armLiveEcgWatchdog(this.liveEcgTimeoutMs - packetAgeMs);
+    const now = this.now();
+    const packetAges = {
+      ECG: Math.max(0, now - this.lastEcgFrameAtMs),
+      "heart rate": Math.max(0, now - this.lastHeartRateFrameAtMs),
+      accelerometer: Math.max(0, now - this.lastAccelerometerFrameAtMs),
+    };
+    const staleSignals = Object.entries(packetAges)
+      .filter(([, ageMs]) => ageMs >= this.liveEcgTimeoutMs)
+      .map(([label]) => label);
+    if (!staleSignals.length) {
+      this.armLiveEcgWatchdog();
       return;
     }
     if (this.liveRecoveryPromise) return;
-    this.liveRecoveryPromise = this.recoverLiveEcgStream(packetAgeMs).finally(
-      () => {
-        this.liveRecoveryPromise = null;
-      },
-    );
+    const packetAgeMs = Math.max(...Object.values(packetAges));
+    this.liveRecoveryPromise = this.recoverLiveEcgStream(
+      packetAgeMs,
+      staleSignals,
+    ).finally(() => {
+      this.liveRecoveryPromise = null;
+    });
     await this.liveRecoveryPromise;
   }
 
@@ -1004,6 +1092,8 @@ export class PolarH10BrowserSession {
     this.updateDiagnostics({
       stage: "failed",
       firstEcgFrame: false,
+      firstHeartRateFrame: false,
+      firstAccelerometerFrame: false,
       lastErrorCode: error.code,
       lastErrorMessage: error.message,
     });
@@ -1017,12 +1107,13 @@ export class PolarH10BrowserSession {
     this.onEvent = null;
   }
 
-  async recoverLiveEcgStream(packetAgeMs) {
+  async recoverLiveEcgStream(packetAgeMs, staleSignals = ["ECG"]) {
+    const stalledLabel = staleSignals.join(", ");
     if (this.liveRecoveryAttempts >= POLAR_LIVE_ECG_RECOVERY_ATTEMPTS) {
       await this.failLiveEcgSession(
         new PolarStreamError(
-          "PMD_LIVE_ECG_STALLED",
-          `Live ECG stopped for ${Math.round(packetAgeMs / 1_000)} seconds after the bounded automatic restart. Press Connect to choose the worn H10 again.`,
+          "POLAR_LIVE_SIGNAL_STALLED",
+          `Live Polar ${stalledLabel} data stopped for ${Math.round(packetAgeMs / 1_000)} seconds after the bounded automatic restart. Press Connect to choose the worn H10 again.`,
           true,
         ),
       );
@@ -1037,16 +1128,18 @@ export class PolarH10BrowserSession {
     this.updateDiagnostics({
       stage: "recovering",
       firstEcgFrame: false,
+      firstHeartRateFrame: false,
+      firstAccelerometerFrame: false,
       liveRecoveryAttempt: recoveryAttempt,
-      lastErrorCode: "PMD_LIVE_ECG_STALLED",
-      lastErrorMessage: `No valid ECG packet for ${Math.round(packetAgeMs / 1_000)} seconds.`,
+      lastErrorCode: "POLAR_LIVE_SIGNAL_STALLED",
+      lastErrorMessage: `No valid ${stalledLabel} packet for ${Math.round(packetAgeMs / 1_000)} seconds.`,
     });
     this.emit({
       kind: "connection",
       connected: false,
       recovering: true,
       message:
-        "Live ECG paused; restarting the same browser-selected H10 without another chooser…",
+        `Live ${stalledLabel} data paused; restarting the same browser-selected H10 without another chooser…`,
     });
 
     await this.disconnect({ emit: false });
@@ -1076,6 +1169,8 @@ export class PolarH10BrowserSession {
       this.updateDiagnostics({
         stage: "live",
         firstEcgFrame: true,
+        firstHeartRateFrame: true,
+        firstAccelerometerFrame: true,
         liveRecoveryAttempt: recoveryAttempt,
         lastErrorCode: "",
         lastErrorMessage: "",
@@ -1087,7 +1182,7 @@ export class PolarH10BrowserSession {
         batteryPercent,
         streamHealth: this.streamHealth(),
         message:
-          "Polar H10 live ECG recovered without reopening the Bluetooth chooser",
+          "Polar H10 HR, ECG, and ACC recovered without reopening the Bluetooth chooser",
       });
       this.armLiveEcgWatchdog();
     } catch (error) {
@@ -1254,7 +1349,7 @@ export class PolarH10BrowserSession {
     }
   }
 
-  async startAccelerometerBestEffort() {
+  async startAccelerometerAndWaitForData() {
     const response = this.createWaiter(
       this.controlResponseTimeoutMs,
       new PolarStreamError(
@@ -1266,7 +1361,7 @@ export class PolarH10BrowserSession {
     response.command = POLAR_COMMANDS.startAccelerometer[0];
     response.measurement = POLAR_COMMANDS.startAccelerometer[1];
     const firstFrame = this.createWaiter(
-      this.firstEcgTimeoutMs,
+      this.firstAccelerometerTimeoutMs,
       new PolarStreamError(
         "PMD_FIRST_ACC_TIMEOUT",
         "The H10 did not deliver a live accelerometer packet.",
@@ -1287,23 +1382,18 @@ export class PolarH10BrowserSession {
       if (first.kind === "error") throw first.error;
       if (first.kind === "ack") await firstFrame.promise;
       response.resolve(first.value);
+      this.updateDiagnostics({ firstAccelerometerFrame: true });
       this.emit({
         kind: "status",
         message:
-          "Polar ECG + accelerometer are live; breathing calibrates from 12 seconds of chest motion.",
+          "Polar ECG + 200 Hz accelerometer are live; confirming heart rate…",
       });
       return true;
     } catch (error) {
       this.rejectWaiter(response, error);
       this.rejectWaiter(firstFrame, error);
       await Promise.allSettled([response.promise, firstFrame.promise]);
-      this.emit({
-        kind: "warning",
-        code: error?.code ?? "PMD_ACC_UNAVAILABLE",
-        message:
-          "ECG remains available, but accelerometer breathing control could not start. Disconnect other Polar apps or tabs and reconnect to retry.",
-      });
-      return false;
+      throw error;
     } finally {
       if (this.pendingControlResponse === response)
         this.pendingControlResponse = null;
@@ -1331,6 +1421,8 @@ export class PolarH10BrowserSession {
         );
         const receivedAtMs = this.now();
         this.lastAccelerometerFrameAtMs = receivedAtMs;
+        this.accelerometerFrameCount += 1;
+        this.updateDiagnostics({ firstAccelerometerFrame: true });
         this.firstAccelerometerFrame?.resolve({
           sampleCount: accelerometer.samples.length,
           receivedAtMs,
@@ -1341,6 +1433,8 @@ export class PolarH10BrowserSession {
           breathing,
           receivedAtMs,
         });
+        if (this.connected && !this.recoveringLiveEcg)
+          this.armLiveEcgWatchdog();
         if (breathing) {
           const heartSnapshot = this.processor.snapshot();
           const breathingValues = Object.fromEntries(
@@ -1390,6 +1484,18 @@ export class PolarH10BrowserSession {
   handleHeartRate(event) {
     const frame = decodePolarHeartRate(event.target.value);
     const snapshot = this.processor.pushHeartRate(frame);
+    if (frame.beatsPerMinute > 0) {
+      this.lastHeartRateFrameAtMs = this.now();
+      this.heartRateFrameCount += 1;
+      this.updateDiagnostics({ firstHeartRateFrame: true });
+      this.firstHeartRateFrame?.resolve({
+        beatsPerMinute: frame.beatsPerMinute,
+        rrCount: frame.rrIntervalsMs.length,
+        receivedAtMs: this.now(),
+      });
+      if (this.connected && !this.recoveringLiveEcg)
+        this.armLiveEcgWatchdog();
+    }
     // ECGaming needs the count and timing of every RR value, not only the
     // latest derived snapshot. Keep the original metrics event for source
     // compatibility and add a lossless, derived HR/RR event (never raw ECG).
@@ -1437,6 +1543,8 @@ export class PolarH10BrowserSession {
         : 0;
     return {
       frameCount: this.ecgFrameCount,
+      heartRateFrameCount: this.heartRateFrameCount,
+      accelerometerFrameCount: this.accelerometerFrameCount,
       sampleCount: this.processor.totalEcgSamples,
       observedSampleRateHz:
         elapsedMs > 0
@@ -1509,6 +1617,34 @@ export class PolarH10BrowserSession {
 
   handleDisconnected() {
     if (this.disconnecting) return;
+    if (!this.connected) {
+      const error = new PolarStreamError(
+        "BLUETOOTH_LINK_LOST_DURING_SETUP",
+        "The H10 Bluetooth link dropped while its HR, ECG, and ACC services were being prepared.",
+        true,
+      );
+      this.rejectWaiter(this.pendingControlResponse, error);
+      this.rejectWaiter(this.firstEcgFrame, error);
+      this.rejectWaiter(this.firstHeartRateFrame, error);
+      this.rejectWaiter(this.firstAccelerometerFrame, error);
+      this.pendingControlResponse = null;
+      this.firstEcgFrame = null;
+      this.firstHeartRateFrame = null;
+      this.firstAccelerometerFrame = null;
+      this.updateDiagnostics({
+        stage: "setup_disconnected",
+        firstEcgFrame: false,
+        firstHeartRateFrame: false,
+        firstAccelerometerFrame: false,
+        lastErrorCode: error.code,
+        lastErrorMessage: error.message,
+      });
+      this.emit({
+        kind: "status",
+        message: "Polar link dropped during setup; preparing an automatic reconnect…",
+      });
+      return;
+    }
     this.stopRequested = true;
     this.resetConnectionState();
     this.updateDiagnostics({
