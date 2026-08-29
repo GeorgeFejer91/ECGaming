@@ -95,6 +95,18 @@ async function patchRuntime() {
     resolve(projectRoot, "node_modules", "coi-serviceworker", "coi-serviceworker.js"),
     join(outputRoot, "coi-serviceworker.js"),
   );
+  const launcherRoot = dirname(outputRoot);
+  const launcherHtmlPath = join(launcherRoot, "index.html");
+  let launcherHtml = await readFile(launcherHtmlPath, "utf8");
+  launcherHtml = launcherHtml.replace(
+    "</head>",
+    '  <script src="./coi-serviceworker.js"></script>\n</head>',
+  );
+  await writeFile(launcherHtmlPath, launcherHtml, "utf8");
+  await copyFile(
+    resolve(projectRoot, "node_modules", "coi-serviceworker", "coi-serviceworker.js"),
+    join(launcherRoot, "coi-serviceworker.js"),
+  );
   await writeFile(
     join(outputRoot, "ECGAMING_SOURCE.txt"),
     [

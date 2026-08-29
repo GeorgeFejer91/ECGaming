@@ -31,7 +31,7 @@ All three game adapters show whether they are waiting, receiving physical Polar 
 
 ## Hosted SuperTux build
 
-`scripts/prepare-supertux.mjs` downloads the official v0.6.3 archive, checks the pinned SHA-256, extracts only to `dist/games/supertux/runtime`, copies the pinned MIT isolation service worker, injects the ECG adapter, and writes `ECGAMING_SOURCE.txt`. The normal `npm run build` stays small and offline after dependencies are installed; `npm run build:hosted` prepares the distributable SuperTux runtime.
+`scripts/prepare-supertux.mjs` downloads the official v0.6.3 archive, checks the pinned SHA-256, extracts only to `dist/games/supertux/runtime`, copies the pinned MIT isolation service worker, injects the ECG adapter, and writes `ECGAMING_SOURCE.txt`. The launcher establishes cross-origin isolation before enabling Play, avoiding a fresh-browser race where the threaded WebAssembly script could run before `SharedArrayBuffer` became available. The normal `npm run build` stays small and offline after dependencies are installed; `npm run build:hosted` prepares the distributable SuperTux runtime.
 
 The official browser build is old because the current SuperTux WebAssembly line has unresolved 0.7.0 failures. It also downloads about 246 MB of packed game data. These limitations must remain visible rather than being hidden behind the menu.
 
