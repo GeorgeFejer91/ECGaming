@@ -74,6 +74,8 @@ test("landing exposes phone, ground, and receiver workflows", async ({
   await expect(
     page.getByRole("link", { name: /play on this phone/i }),
   ).toBeVisible();
+  await expect(page.locator(".tower-role-icon svg")).toBeVisible();
+  await expect(page.locator(".aircraft-role-icon svg")).toBeVisible();
 });
 
 test("Smartphone Flight offers an honest fallback and a playable simulator", async ({
@@ -226,6 +228,18 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
     "aria-pressed",
     "false",
   );
+  await expect(
+    page.locator("#ground-view-toggle .tower-widget svg"),
+  ).toBeVisible();
+  await expect(
+    page.locator("#ground-view-toggle .widget-structure"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator("#cockpit-view-toggle .cockpit-widget svg"),
+  ).toBeVisible();
+  await expect(
+    page.locator("#cockpit-view-toggle .widget-airframe"),
+  ).toHaveCount(1);
   await expect(start).toBeDisabled();
 
   await page.evaluate(() => {

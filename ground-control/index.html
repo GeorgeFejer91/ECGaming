@@ -32,8 +32,20 @@
               aria-controls="ground-view"
               aria-pressed="true"
             >
-              <span class="mini-radar-icon" aria-hidden="true"><i></i></span>
-              Ground Control
+              <span class="view-mode-widget tower-widget" aria-hidden="true">
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <path class="widget-signal signal-outer" d="M7 15a17 17 0 0 1 34 0" />
+                  <path class="widget-signal signal-inner" d="M13 15a11 11 0 0 1 22 0" />
+                  <circle class="widget-beacon" cx="24" cy="14" r="2.4" />
+                  <path class="widget-structure" d="M15 19h18l3 8H12l3-8Z" />
+                  <path class="widget-window" d="M18 21.5h4v3h-4zm8 0h4v3h-4z" />
+                  <path class="widget-lines" d="M18 27 14 44m16-17 4 17M17 35h14m-15 5h16M20 27l8 17m0-17-8 17" />
+                  <path class="widget-runway" d="M8 44h32M5 40h4m30 0h4" />
+                </svg>
+              </span>
+              <span class="view-mode-copy"
+                ><small>Tower station</small><strong>Ground Control</strong></span
+              >
             </button>
             <button
               id="cockpit-view-toggle"
@@ -42,8 +54,17 @@
               aria-controls="cockpit-view"
               aria-pressed="false"
             >
-              <span class="mini-plane-icon" aria-hidden="true">✦</span>
-              Cockpit
+              <span class="view-mode-widget cockpit-widget" aria-hidden="true">
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <circle class="widget-horizon" cx="24" cy="24" r="20" />
+                  <path class="widget-horizon-marks" d="M4 24h7m26 0h7M24 4v5m0 30v5" />
+                  <path class="widget-airframe" d="M24 5c2.1 2.8 3 7.2 3 13l14 7v4l-14-3v11l6 4v3l-9-2-9 2v-3l6-4V26L7 29v-4l14-7c0-5.8.9-10.2 3-13Z" />
+                  <path class="widget-cockpit" d="M24 12c1.1 2.2 1.4 4.5 1.4 7.2h-2.8c0-2.7.3-5 1.4-7.2Z" />
+                </svg>
+              </span>
+              <span class="view-mode-copy"
+                ><small>Flight deck</small><strong>Cockpit</strong></span
+              >
             </button>
           </div>
         </div>
