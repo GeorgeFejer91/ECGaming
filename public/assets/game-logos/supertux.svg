@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="title desc">
+  <title id="title">SuperTux 0.6.3</title>
+  <desc id="desc">A penguin emblem over an icy blue landscape.</desc>
+  <defs>
+    <linearGradient id="ice" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#4b93c7"/>
+      <stop offset=".68" stop-color="#acd9ef"/>
+      <stop offset=".69" stop-color="#e9f6fb"/>
+      <stop offset="1" stop-color="#b8d7e6"/>
+    </linearGradient>
+    <linearGradient id="diamond" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#d9f2ff"/>
+      <stop offset="1" stop-color="#286fa7"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="360" rx="24" fill="url(#ice)"/>
+  <path d="M0 284 104 210l82 45 118-100 112 98 88-70 216 101v76H0z" fill="#f7fcff" opacity=".86"/>
+  <rect x="486" y="64" width="176" height="176" rx="20" transform="rotate(45 574 152)" fill="url(#diamond)" stroke="#fff" stroke-width="5"/>
+  <g transform="translate(505 48)">
+    <ellipse cx="70" cy="105" rx="54" ry="78" fill="#101820"/>
+    <ellipse cx="72" cy="127" rx="35" ry="51" fill="#f4f6f6"/>
+    <ellipse cx="52" cy="68" rx="30" ry="31" fill="#f4f6f6"/>
+    <circle cx="60" cy="61" r="8" fill="#fff"/>
+    <circle cx="63" cy="62" r="4" fill="#101820"/>
+    <path d="m78 72 42 14-39 18z" fill="#f0b23d"/>
+    <path d="m23 100-32 54 52-24z" fill="#101820"/>
+    <path d="m111 103 32 55-51-25z" fill="#101820"/>
+    <path d="m45 177-36 22 52 2zm53 0 38 23-52 1z" fill="#efaa2f"/>
+  </g>
+  <text x="42" y="70" fill="#123c5d" font-family="Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="4">OFFICIAL 0.6.3 WASM · ECG JUMP</text>
+  <text x="42" y="145" fill="#fff" stroke="#235c87" stroke-width="2" paint-order="stroke" font-family="Arial,sans-serif" font-size="72" font-weight="900">SUPER</text>
+  <text x="42" y="214" fill="#133852" font-family="Arial,sans-serif" font-size="72" font-weight="900" letter-spacing="8">TUX</text>
+</svg>

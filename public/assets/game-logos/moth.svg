@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="title desc">
+  <title id="title">MOTH: Drawn to the Light</title>
+  <desc id="desc">A dark moth silhouette drawn toward a warm light.</desc>
+  <defs>
+    <radialGradient id="light" cx="73%" cy="32%" r="62%">
+      <stop stop-color="#eee5ae" stop-opacity=".95"/>
+      <stop offset=".14" stop-color="#8d875e" stop-opacity=".35"/>
+      <stop offset=".52" stop-color="#11131a" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#050609" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="720" height="360" rx="24" fill="#050609"/>
+  <rect width="720" height="360" rx="24" fill="url(#light)"/>
+  <circle cx="547" cy="104" r="10" fill="#fffbe0"/>
+  <circle cx="547" cy="104" r="27" fill="#fff6b0" opacity=".15"/>
+  <g transform="translate(454 76)" fill="#020204">
+    <path d="M92 66C40 18 6 32 4 70c-2 32 28 58 66 65-35 14-43 44-26 61 20 19 59-6 70-49l-6-64z"/>
+    <path d="M120 66c52-48 86-34 88 4 2 32-28 58-66 65 35 14 43 44 26 61-20 19-59-6-70-49l6-64z"/>
+    <ellipse cx="106" cy="126" rx="13" ry="68"/>
+    <circle cx="106" cy="59" r="17"/>
+    <path d="M99 48C84 19 68 13 52 10m61 38c15-29 31-35 47-38" fill="none" stroke="#020204" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="100" cy="57" r="3.5" fill="#fff"/>
+    <circle cx="112" cy="57" r="3.5" fill="#fff"/>
+  </g>
+  <text x="42" y="70" fill="#c8bf8d" font-family="Georgia,serif" font-size="18" font-weight="700" letter-spacing="5">ECG + ACC EDITION</text>
+  <text x="42" y="160" fill="#e6e3d5" font-family="Georgia,serif" font-size="84" letter-spacing="16">MOTH</text>
+  <text x="46" y="205" fill="#8d8b80" font-family="Georgia,serif" font-size="22" letter-spacing="4">DRAWN TO THE LIGHT</text>
+</svg>

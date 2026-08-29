@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="title desc">
+  <title id="title">Pixel Hop Twins</title>
+  <desc id="desc">Two pixel characters jumping across a neon platform.</desc>
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#102a43"/>
+      <stop offset="1" stop-color="#07131f"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0v32" fill="none" stroke="#69d4de" stroke-opacity=".08"/>
+    </pattern>
+  </defs>
+  <rect width="720" height="360" rx="24" fill="url(#night)"/>
+  <rect width="720" height="360" rx="24" fill="url(#grid)"/>
+  <path d="M0 294h720v66H0z" fill="#153b3d"/>
+  <path d="M0 274h720v24H0z" fill="#d66c2e"/>
+  <path d="M0 274h720" stroke="#f4b55d" stroke-width="7" stroke-dasharray="32 18"/>
+  <g shape-rendering="crispEdges">
+    <g transform="translate(432 132)">
+      <path d="M0 22h28V0h42v22h20v64H0z" fill="#f4b55d"/>
+      <path d="M14 36h13v13H14zm49 0h13v13H63z" fill="#07131f"/>
+      <path d="M12 86h24v34H4V96h8zm50 0h24v10h8v24H62z" fill="#e98537"/>
+    </g>
+    <g transform="translate(555 92)">
+      <path d="M0 22h24V0h42v22h24v64H0z" fill="#a55ea3"/>
+      <path d="M14 36h13v13H14zm49 0h13v13H63z" fill="#07131f"/>
+      <path d="M12 86h24v34H4V96h8zm50 0h24v10h8v24H62z" fill="#744474"/>
+    </g>
+    <rect x="625" y="54" width="22" height="22" transform="rotate(45 636 65)" fill="#69d4de"/>
+  </g>
+  <text x="42" y="70" fill="#69d4de" font-family="monospace" font-size="18" font-weight="700" letter-spacing="4">ECG EDITION</text>
+  <text x="42" y="135" fill="#fff" font-family="monospace" font-size="52" font-weight="900">PIXEL HOP</text>
+  <text x="42" y="190" fill="#f4b55d" font-family="monospace" font-size="52" font-weight="900" letter-spacing="8">TWINS</text>
+</svg>

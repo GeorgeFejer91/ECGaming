@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="title desc">
+  <title id="title">Heartbeat Flight</title>
+  <desc id="desc">An airplane crossing an ECG pulse inside a glowing flight ring.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#07131f"/>
+      <stop offset="1" stop-color="#123c4b"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="72%" cy="30%" r="58%">
+      <stop stop-color="#f2a64a" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#f2a64a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="720" height="360" rx="24" fill="url(#sky)"/>
+  <rect width="720" height="360" rx="24" fill="url(#sun)"/>
+  <circle cx="520" cy="144" r="104" fill="none" stroke="#f4b55d" stroke-width="9" opacity=".8"/>
+  <circle cx="520" cy="144" r="74" fill="none" stroke="#69d4de" stroke-width="2" opacity=".55"/>
+  <path d="M0 238h155l22-2 17-44 18 83 22-64 17 27h469" fill="none" stroke="#69d4de" stroke-width="5"/>
+  <g transform="translate(426 94) rotate(-8)" fill="#f6f1df">
+    <path d="M90 0c15 20 21 50 21 91l96 46v28l-96-20v73l40 26v22l-61-15-61 15v-22l40-26v-73l-96 20v-28l96-46C69 50 75 20 90 0Z"/>
+    <path d="M69 91h42v54H69z" fill="#d66c2e"/>
+  </g>
+  <text x="40" y="66" fill="#69d4de" font-family="Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="5">ECG EDITION</text>
+  <text x="40" y="116" fill="#fff" font-family="Arial,sans-serif" font-size="46" font-weight="900">HEARTBEAT</text>
+  <text x="40" y="163" fill="#f4b55d" font-family="Arial,sans-serif" font-size="46" font-weight="900" letter-spacing="9">FLIGHT</text>
+</svg>

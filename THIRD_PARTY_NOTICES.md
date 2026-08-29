@@ -53,7 +53,7 @@ ECGaming adds only the surrounding launcher, build-time provenance record, cross
 
 ## MOTH — Drawn to the Light
 
-Hosted deployments build the user's [MOTH ECGaming adaptation](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) from pinned commit `3095ddeffc0fea5ea6b4296bef36947b91c0aba7`. It is based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game) commit `f8364bcd4a219cf3b39558588aa39c4ebd310708`.
+Hosted deployments build the user's English-only [MOTH ECGaming adaptation](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) from pinned commit `99e05962a928b77cf254bc810afaf108e3e208ea`. It is based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game) commit `f8364bcd4a219cf3b39558588aa39c4ebd310708`.
 
 The repository is distributed under the MIT License, copyright © 2026 ahmedallam222, and its README states that its art, levels, audio, and code are original. The exact MIT text and a machine-readable provenance record are copied into the hosted game output. ECGaming adds a same-origin adapter and a small engine event bridge. R-peaks jump on land; underwater R-peak paddles require an active physical ACC inspiratory-crest gate. These changes do not relicense MOTH.
 

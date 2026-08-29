@@ -75,11 +75,11 @@ Polar Heart Rate Service RR notifications are available as an alternate beat sou
 
 ## Open-source game library
 
-The landing-page game menu adds three browser-playable ECG adapters while keeping signal ownership in ECGaming:
+The landing-page game menu presents four browser-playable ECG experiences while keeping signal ownership, upstream attribution, and licences visible:
 
 - **Pixel Hop Twins ECG edition** is a vendored static snapshot of [stm1978/retro-platformer](https://github.com/stm1978/retro-platformer) at commit `9835295888c7cb8afa795ca2a31707a65167c2ea`. Its MIT code and CC0 procedural sprites, audio, and levels are retained under `games/pixel-hop/` and `public/games/pixel-hop/`. A fresh selected beat queues the game's normal buffered jump.
 - **SuperTux heartbeat trial** uses the official SuperTux v0.6.3 WebAssembly release. `npm run build:hosted` downloads the official archive, verifies SHA-256 `f9fa6eed36d403a283f3c544540b8a45b6c110375c1824e137ce1b4357e2d5df`, and stages it under the built site. The runtime is not committed because its data file is about 246 MB. A scoped MIT service-worker shim supplies the cross-origin isolation required on GitHub Pages, and a small adapter maps fresh beats to SuperTux's standard Space-key input.
-- **MOTH heartbeat + dive trial** is built from the user's [MOTH adaptation branch](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) at commit `3095ddeffc0fea5ea6b4296bef36947b91c0aba7`, based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game). Fresh R-peaks jump on land. Underwater R-peak paddles are accepted only while fresh physical Polar ACC breathing input is at a stable calibrated upper crest. Keyboard, touch, and gamepad remain available as a safety fallback.
+- **MOTH heartbeat + dive trial** is built from the user's English-only [MOTH adaptation branch](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) at commit `99e05962a928b77cf254bc810afaf108e3e208ea`, based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game). Fresh R-peaks jump on land. Underwater R-peak paddles are accepted only while fresh physical Polar ACC breathing input is at a stable calibrated upper crest. Keyboard, touch, and gamepad remain available as a safety fallback.
 
 Open Ground Control, Smartphone Flight, or Flight Deck in one same-origin tab and the selected game in another. The acquisition tab publishes only a versioned beat event containing timing, confidence, readiness, and simulated/physical labels. It never publishes raw ECG or a Polar identifier. Keyboard controls remain available.
 

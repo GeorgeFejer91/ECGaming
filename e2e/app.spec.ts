@@ -77,20 +77,26 @@ test("landing exposes phone, ground, and receiver workflows", async ({
   await expect(page.locator(".tower-role-icon svg")).toBeVisible();
   await expect(page.locator(".aircraft-role-icon svg")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /choose the heartbeat experiment/i }),
+    page.getByRole("heading", { name: /pick a game.*know its source/i }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /play ecg edition/i }).first(),
-  ).toHaveAttribute("href", "./games/pixel-hop/");
-  await expect(
-    page.getByRole("link", { name: /open ecg trial/i }),
-  ).toHaveAttribute("href", "./games/supertux/");
-  await expect(
-    page.getByRole("link", { name: /play ecg edition/i }).nth(1),
-  ).toHaveAttribute("href", "./games/moth/");
-  await expect(
-    page.locator(".moth-card").getByRole("link", { name: /original source/i }),
-  ).toHaveAttribute("href", "https://github.com/ahmedallam222/moth-game");
+  const cards = page.locator(".game-menu-card");
+  await expect(cards).toHaveCount(4);
+
+  const expectedCards = [
+    [".flight-game-card", "./ground-control/", "ECGaming repository"],
+    [".pixel-hop-card", "./games/pixel-hop/", "stm1978/retro-platformer"],
+    [".supertux-card", "./games/supertux/", "SuperTux v0.6.3"],
+    [".moth-card", "./games/moth/", "ahmedallam222/moth-game"],
+  ] as const;
+
+  for (const [selector, href, sourceName] of expectedCards) {
+    const card = page.locator(selector);
+    await expect(card.locator(".game-card-target")).toHaveAttribute("href", href);
+    await expect(card.locator(".game-card-cover img")).toBeVisible();
+    await expect(card.locator(".game-provenance")).toContainText("Original source");
+    await expect(card.locator(".game-provenance")).toContainText("Licence");
+    await expect(card.getByRole("link", { name: sourceName })).toBeVisible();
+  }
 });
 
 test("Pixel Hop accepts one fresh ECGaming heartbeat message", async ({

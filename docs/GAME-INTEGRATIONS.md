@@ -8,7 +8,7 @@ Third-party games consume ECGaming's derived, freshness-gated heartbeat messages
 
 - Pixel Hop Twins: playable under `games/pixel-hop/`; fresh beats queue the existing buffered jump.
 - SuperTux v0.6.3 WASM: launcher under `games/supertux/`; hosted builds add the official runtime and map fresh beats to the standard Space jump.
-- MOTH adaptation commit `3095ddeffc0fea5ea6b4296bef36947b91c0aba7`: hosted static build under `games/moth/`; fresh beats jump on land, while underwater beat-paddles require the physical ACC dive gate.
+- MOTH adaptation commit `99e05962a928b77cf254bc810afaf108e3e208ea`: English-only hosted static build under `games/moth/`; fresh beats jump on land, while underwater beat-paddles require the physical ACC dive gate.
 - Same-origin publishers: Ground Control, Smartphone Flight, and Flight Deck.
 - Keyboard controls remain available for accessibility, setup, and failure recovery.
 
@@ -50,7 +50,7 @@ MOTH's original breath meter remains game state. ECGaming adds a separate `ecgam
 ## Validation
 
 - Unit-test message construction, validation, readiness, and freshness limits.
-- Browser-test that Pixel Hop receives one valid message and that all three landing cards route to browser game paths while retaining original-source links.
+- Browser-test that Pixel Hop receives one valid message and that all four landing cards route to browser game paths while retaining original-source and licence links.
 - Run typecheck, unit tests, browser tests, normal build, and hosted preparation.
 - On the deployed HTTPS origin, confirm the SuperTux runtime becomes cross-origin isolated after its service-worker reload and that both SuperTux and MOTH receive actual Space input from a fresh beat.
 - Hardware acceptance still requires a worn/wet/awake H10 smoke test and latency evidence; simulation is setup evidence only.
