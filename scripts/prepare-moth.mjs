@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build as viteBuild } from "vite";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = resolve(projectRoot, "dist");
@@ -11,6 +12,7 @@ const sourceRoot = resolve(cacheRoot, "source");
 const forkUrl = "https://github.com/GeorgeFejer91/moth-game.git";
 const upstreamUrl = "https://github.com/ahmedallam222/moth-game";
 const pinnedCommit = "a56fa97e7f8e2a6abb75634799e963d54ce4c750";
+const adapterRevision = "heart-link-v2";
 
 function assertInside(root, target) {
   const path = relative(root, target);
@@ -69,22 +71,34 @@ async function stageBuild() {
   let html = await readFile(htmlPath, "utf8");
   html = html.replace(
     "</body>",
-    `  <script type="module" src="./ecgaming-moth-adapter.js?v=${pinnedCommit.slice(0, 8)}"></script>\n</body>`,
+    `  <script type="module" src="./ecgaming-moth-adapter.js?v=${adapterRevision}"></script>\n</body>`,
   );
   await writeFile(htmlPath, html, "utf8");
+  await viteBuild({
+    configFile: false,
+    root: projectRoot,
+    publicDir: false,
+    build: {
+      target: "es2022",
+      minify: true,
+      emptyOutDir: false,
+      outDir: outputRoot,
+      lib: {
+        entry: resolve(projectRoot, "src", "moth", "ecg-connector.ts"),
+        formats: ["es"],
+        fileName: () => "ecgaming-moth-adapter.js",
+      },
+    },
+  });
   const workerPath = join(outputRoot, "sw.js");
   let worker = await readFile(workerPath, "utf8");
   worker = worker
-    .replace("const CACHE = 'moth-v3';", `const CACHE = 'moth-ecgaming-${pinnedCommit.slice(0, 8)}';`)
+    .replace("const CACHE = 'moth-v3';", `const CACHE = 'moth-ecgaming-${pinnedCommit.slice(0, 8)}-${adapterRevision}';`)
     .replace(
       "'./icon-512.png'];",
       "'./icon-512.png', './ecgaming-moth-adapter.js'];",
     );
   await writeFile(workerPath, worker, "utf8");
-  await cp(
-    resolve(projectRoot, "public", "games", "moth", "ecgaming-moth-adapter.js"),
-    join(outputRoot, "ecgaming-moth-adapter.js"),
-  );
   await cp(join(sourceRoot, "LICENSE"), join(outputRoot, "LICENSE-MIT.txt"));
   await writeFile(
     join(outputRoot, "ECGAMING_SOURCE.txt"),
@@ -94,7 +108,7 @@ async function stageBuild() {
       `Original source: ${upstreamUrl}`,
       `ECGaming fork: ${forkUrl.replace(/\.git$/, "")}`,
       "Licence: MIT (copyright 2026 ahmedallam222).",
-      "ECGaming adds a same-origin R-peak to standard Space-input adapter.",
+      "ECGaming adds a direct Polar H10 heart-link and a same-origin R-peak to standard jump-input adapter.",
       "",
     ].join("\n"),
     "utf8",
