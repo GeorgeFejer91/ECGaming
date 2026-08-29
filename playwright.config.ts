@@ -8,13 +8,13 @@ export default defineConfig({
   reporter: "list",
   timeout: 30_000,
   use: {
-    baseURL: "http://127.0.0.1:4179/ECGaming/",
+    baseURL: "http://127.0.0.1:4179/",
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
   },
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 4179",
-    url: "http://127.0.0.1:4179/ECGaming/",
+    url: "http://127.0.0.1:4179/",
     reuseExistingServer: true,
     timeout: 120_000,
   },
