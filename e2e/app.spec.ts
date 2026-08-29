@@ -427,8 +427,21 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
   expect(fixedRail.panelWidth).toBeCloseTo(430, 0);
   expect(fixedRail.panelHeight).toBeCloseTo(fixedRail.workspaceHeight, 0);
   expect(fixedRail.rows).toHaveLength(4);
-  for (const [index, ratio] of [0.11, 0.3, 0.39, 0.2].entries())
+  for (const [index, ratio] of [0.08, 0.48, 0.24, 0.2].entries())
     expect(fixedRail.rows[index] / fixedRail.panelHeight).toBeCloseTo(ratio, 2);
+
+  const polarWorkflowFit = await page.evaluate(() => {
+    const panel = document.querySelector<HTMLElement>(".control-panel")!;
+    const openBody = document.querySelector<HTMLElement>(
+      '.accordion-item[data-section="polar"].is-open .accordion-body',
+    )!;
+    return {
+      panelOverflow: panel.scrollHeight - panel.clientHeight,
+      openBodyOverflow: openBody.scrollHeight - openBody.clientHeight,
+    };
+  });
+  expect(polarWorkflowFit.panelOverflow).toBeLessThanOrEqual(1);
+  expect(polarWorkflowFit.openBodyOverflow).toBeLessThanOrEqual(1);
 
   await next.click();
   await expect(page.locator("#ground-aircraft-name")).toHaveText(
@@ -467,6 +480,30 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
     expect(text.horizontal, text.id).toBeLessThanOrEqual(1);
     expect(text.vertical, text.id).toBeLessThanOrEqual(1);
   }
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.reload();
+  const shortDesktopFit = await page.evaluate(() => {
+    const selectors = [
+      ".control-panel",
+      ".public-warning",
+      '.accordion-item[data-section="polar"].is-open .accordion-body',
+      ".aircraft-showcase",
+      ".flight-gate",
+    ];
+    return {
+      documentOverflow:
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight,
+      regions: selectors.map((selector) => {
+        const element = document.querySelector<HTMLElement>(selector)!;
+        return element.scrollHeight - element.clientHeight;
+      }),
+    };
+  });
+  expect(shortDesktopFit.documentOverflow).toBeLessThanOrEqual(1);
+  for (const overflow of shortDesktopFit.regions)
+    expect(overflow).toBeLessThanOrEqual(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
