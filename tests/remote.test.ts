@@ -4,6 +4,7 @@ import {
   FlightReceiver,
   FLIGHT_CHANNEL,
   FLIGHT_SOURCE_PREFIX,
+  sanitizePilotName,
   SIGNAL_BEACON_CHANNEL,
 } from "../src/protocol/remote";
 import {
@@ -33,11 +34,14 @@ class FakeSdk extends EventTarget {
   channel = new FakeChannel();
   beaconChannel = new FakeChannel();
   sentData: { data: any; options: any }[] = [];
+  announcements: any[] = [];
   viewed = "";
   async connect() {}
   async disconnect() {}
   async joinRoom() {}
-  async announce() {}
+  async announce(value: any) {
+    this.announcements.push(value);
+  }
   async view(id: string) {
     this.viewed = id;
   }
@@ -73,6 +77,38 @@ const frame = (sequence: number) =>
 
 afterEach(() => vi.useRealTimers());
 describe("VDO.Ninja flight bridge", () => {
+  it("announces a safe pilot name and preserves it during discovery", async () => {
+    const senderSdk = new FakeSdk();
+    const sender = new FlightBroadcaster({
+      sdkFactory: () => senderSdk as any,
+    });
+    await sender.start(DEFAULT_MAPPINGS, "  Captain <George>  ");
+    expect(sanitizePilotName("  Captain <George>  ")).toBe("Captain George");
+    expect(sender.snapshot().sourceLabel).toBe("Captain George");
+    expect(senderSdk.announcements[0]).toMatchObject({
+      label: "Captain George",
+      meta: { pilotName: "Captain George" },
+    });
+    await sender.stop();
+
+    const receiverSdk = new FakeSdk();
+    const receiver = new FlightReceiver({
+      sdkFactory: () => receiverSdk as any,
+    });
+    await receiver.startDiscovery();
+    receiverSdk.emit("listing", {
+      list: [
+        {
+          streamID: `${FLIGHT_SOURCE_PREFIX}named001`,
+          UUID: "pilot-peer",
+          label: "Captain George",
+        },
+      ],
+    });
+    expect(receiver.snapshot().sources[0]?.label).toBe("Captain George");
+    await receiver.stop();
+  });
+
   it("discovers one source, validates config, goes stale, and needs three frames to recover", async () => {
     vi.useFakeTimers();
     const sdk = new FakeSdk();

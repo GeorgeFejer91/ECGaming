@@ -12,7 +12,7 @@ The added `heart-rate` event in `polar-stream.js` exposes the already-decoded RR
 
 `src/vendor/polar-stream/breathing.js` adapts the browser Polar H10 accelerometer decoder and source-timed PCA breathing waveform from [GeorgeFejer91/Polar-Stream](https://github.com/GeorgeFejer91/Polar-Stream) at commit `5300e2c2c9593f405f3b74b21b3330000e90b6f2`.
 
-MIT License. Copyright © 2025 Till Harbaum. ECGaming retains the 200 Hz PMD timing, X+Z PCA calibration, filtering, readiness, and quality logic needed for its single `breathing_volume` game input. It does not claim lung-volume, airflow, clinical, or physiological validation.
+MIT License. Copyright © 2025 Till Harbaum. ECGaming retains the 200 Hz PMD source timing, X+Z PCA calibration, filtering, normalized waveform, derivative-driven phase/hysteresis, readiness, and quality logic needed for its single `breathing_volume` game input. The signal scope consumes the processor's source-timestamped presentation points. It does not claim lung-volume, airflow, clinical, or physiological validation.
 
 ## VDO.Ninja SDK 1.5.5
 

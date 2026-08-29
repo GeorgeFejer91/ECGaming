@@ -160,11 +160,21 @@
                         >
                       </div>
                     </div>
+                    <div
+                      id="polar-connect-nudge"
+                      class="prerequisite-nudge"
+                      aria-live="polite"
+                    >
+                      <span aria-hidden="true">↳</span>
+                      <strong>START HERE</strong>
+                      <small>Connect your worn sensor to unlock live ECG and breathing.</small>
+                    </div>
                     <div class="button-row">
                       <button
                         id="connect-polar"
-                        class="button primary instrument-button"
+                        class="button primary instrument-button needs-attention"
                         type="button"
+                        aria-describedby="polar-connect-nudge"
                       >
                         <span
                           class="action-widget action-widget-heart"
@@ -342,6 +352,29 @@
                   <p class="tower-id">
                     <span>FIXED ROOM</span><strong>ecgaming_flight_v1</strong>
                   </p>
+                  <label id="pilot-name-field" class="pilot-name-field">
+                    <span class="pilot-name-heading">
+                      <strong>PILOT NAME</strong>
+                      <small>REQUIRED BEFORE BROADCAST</small>
+                    </span>
+                    <span class="pilot-name-input-row">
+                      <span class="pilot-name-arrow" aria-hidden="true">↳</span>
+                      <input
+                        id="pilot-name"
+                        name="pilot-name"
+                        type="text"
+                        required
+                        maxlength="32"
+                        autocomplete="nickname"
+                        placeholder="e.g. Captain George"
+                        aria-describedby="pilot-name-help"
+                      />
+                      <span class="pilot-name-tag">BEACON ID</span>
+                    </span>
+                    <small id="pilot-name-help"
+                      >Shown to other browsers when they scan for your beacon.</small
+                    >
+                  </label>
                   <div class="button-row">
                     <button
                       id="start-broadcast"
@@ -623,6 +656,72 @@
                   <b class="radar-plane">✦</b
                   ><span class="radar-beat"></span>
                 </div>
+                <div class="metric-widget-panel">
+                  <div class="metric-widget-heading">
+                    <span>SCOPE METRICS</span><small>SELECT DISPLAY</small>
+                  </div>
+                  <div
+                    id="scope-metric-selector"
+                    class="metric-widget-grid"
+                    role="group"
+                    aria-label="Choose the metric shown on the signal scope"
+                  >
+                    <button
+                      type="button"
+                      class="metric-widget-button is-selected"
+                      data-scope-metric="excitement_score"
+                      aria-pressed="true"
+                    >
+                      <img src="/assets/metrics/excitement.svg" alt="" />
+                      <span><strong>EXCITE</strong><small><output id="widget-excitement_score">--</output> · 0–1</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
+                      data-scope-metric="heart_rate"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/heart-rate.svg" alt="" />
+                      <span><strong>HEART</strong><small><output id="widget-heart_rate">--</output> BPM</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
+                      data-scope-metric="rr_interval"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/rr-interval.svg" alt="" />
+                      <span><strong>RR TIME</strong><small><output id="widget-rr_interval">--</output> MS</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
+                      data-scope-metric="breathing_volume"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/breathing.svg" alt="" />
+                      <span><strong>BREATH</strong><small><output id="widget-breathing_volume">--</output> · 0–1</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
+                      data-scope-metric="rmssd"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/hrv.svg" alt="" />
+                      <span><strong>HRV</strong><small><output id="widget-rmssd">--</output> MS</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
+                      data-scope-metric="ecg_local_power"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/ecg-power.svg" alt="" />
+                      <span><strong>ECG PWR</strong><small><output id="widget-ecg_local_power">--</output> µV²</small></span>
+                    </button>
+                  </div>
+                </div>
                 <p id="beacon-radar-summary" class="instrument-caption">
                   No incoming beacon selected. Radar marks are discovery icons,
                   not geographic positions.
@@ -650,7 +749,19 @@
                     height="260"
                     aria-hidden="true"
                   ></canvas>
-                  <span class="ecg-calibration" aria-hidden="true">1 mV</span>
+                  <div class="scope-metric-badge" aria-live="polite">
+                    <img
+                      id="scope-metric-icon"
+                      src="/assets/metrics/excitement.svg"
+                      alt=""
+                    />
+                    <span>
+                      <small>FOCUSED METRIC</small>
+                      <strong id="scope-metric-label">EXCITE-O-METER</strong>
+                    </span>
+                    <output id="scope-metric-value">--</output>
+                  </div>
+                  <span id="scope-metric-unit" class="ecg-calibration" aria-hidden="true">0–1</span>
                 </div>
                 <dl class="metric-grid avionics-metrics">
                   <div>

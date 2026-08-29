@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Heart-rate variability</title>
+  <path d="M5 42h7l3-4 4 9 5-23 5 18h9l2-3 3 7 4-18 4 14h8" stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+  <path d="M24 17v-5m23 9v-5M19 13h28" stroke="#f4b33a" stroke-dasharray="2 5" stroke-linecap="round" stroke-width="3"/>
+  <circle cx="24" cy="24" r="2.5" fill="#f4b33a"/>
+  <circle cx="47" cy="28" r="2.5" fill="#f4b33a"/>
+</svg>
