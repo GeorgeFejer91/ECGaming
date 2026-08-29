@@ -33,6 +33,13 @@ Commands:     Polar H10 ──Bluetooth──▶ Ground Control ──WebRTC dat
 
 Direct phone pairing is feature-detected, requires HTTPS, and must begin with the **Connect Polar H10** tap. Chrome for Android and compatible Chromium-based Android browsers are the supported path. Safari/WebKit does not expose native Web Bluetooth, so iPhone and iPad use Flight Deck with Ground Control running on another supported device. The deterministic simulator remains available on every browser and is always labelled simulated.
 
+All direct-capable front ends use one central browser connector module and its
+versioned `ecgaming-polar-hub-v1` ownership protocol. Only that hub may
+instantiate the raw H10 adapter. It prevents duplicate sessions within a page,
+announces a fresh owner across ECGaming tabs, and uses an exclusive Web Lock as
+the race-proof authority. The protocol shares low-rate health/readiness status,
+never raw ECG or accelerometer samples.
+
 The fixed discovery room is `ecgaming_flight_v1`. It is **public and unauthenticated**. Anonymous random source IDs and the signal-beacon session token fence accidental cross-session packets, but they are not authentication or access control. Do not transmit sensitive data or use a source you do not recognize. A remote `physicalPolar` flag is an unauthenticated source claim, not proof of device identity.
 
 ## Ground Control and Cockpit views

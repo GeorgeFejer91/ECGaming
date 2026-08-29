@@ -96,7 +96,8 @@ breath.setTimbre({ intensity01: 0.75, brightness01: 0.6 });
 
 ## Polar Breath Connector and phase lock
 
-The in-game connector uses `PolarH10BrowserSession` to open the H10's live HR,
+The in-game connector uses the shared `PolarBrowserHub`, whose sole low-level
+adapter is `PolarH10BrowserSession`, to open the H10's live HR,
 130 Hz PMD ECG, and 200 Hz PMD accelerometer channels. Its UI only marks a
 channel live after a decoded packet actually arrives. The ECG and heart-rate
 channels verify that the worn strap is streaming, but they do **not** drive the
@@ -104,6 +105,20 @@ breathing phase. Breath control comes separately from the accelerometer feeding
 the vendored `PolarBreathingProcessor`. That processor is aligned to Polar
 Stream commit `5300e2c`: `timed-pca-v1` waveform estimation and `hysteresis-v1`
 phase classification.
+
+Every browser GATT setup stage has a 12-second deadline. A stalled service or
+characteristic discovery is disconnected and retried through the complete HR,
+ECG, and ACC setup path instead of leaving the UI pending forever. The connector
+shows the current stage and setup attempt so PMD discovery failures can be
+distinguished from chooser, Bluetooth-link, notification, and first-packet
+failures.
+
+Direct H10 ownership is also exclusive across ECGaming tabs through the
+origin-scoped Web Locks API where Chromium provides it. This prevents Breath
+Mirror, Ground Control, Mobile, and a direct game connector from racing the same
+PMD session. When another ECGaming tab owns the strap, the new caller fails with
+an explicit instruction to disconnect that tab or use Ground Control as the
+single sensor owner and relay game inputs.
 
 The classifier reconstructs every sample in PMD source time, calibrates an X+Z
 PCA chest-motion axis for 12 seconds, low-passes its fixed-coordinate velocity,

@@ -24,7 +24,7 @@ describe("page authority boundaries", () => {
       resolve(process.cwd(), "src/mobile.ts"),
       "utf8",
     );
-    expect(source).toMatch(/PolarH10BrowserSession/);
+    expect(source).toMatch(/getPolarBrowserHub/);
     expect(source).not.toMatch(/FlightBroadcaster|FlightReceiver|VDONinjaSDK/);
   });
 });

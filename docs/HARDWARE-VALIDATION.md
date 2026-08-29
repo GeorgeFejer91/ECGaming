@@ -13,6 +13,14 @@ Deterministic unit and mocked-browser tests are automated. The following gates r
 - After readiness, interrupt each of HR, ECG, and ACC independently. Any signal stale for five seconds must revoke readiness and trigger the bounded full-stream restart.
 - Web Bluetooth does not expose ATT MTU selection. Record MTU as browser-managed for the GitHub Pages path; the H10 minimum-MTU tuning available to native Android clients cannot be asserted by this site.
 - Confirm the right-side raw ECG scope scrolls continuously at the 130 Hz sensor clock between batched BLE notifications. The renderer must not add a presentation buffer, synthesize samples, or redraw from the Bluetooth callback.
+- While one ECGaming tab is connecting or live, press Connect in a second
+  ECGaming front end. The second tab must identify the fresh central hub owner
+  before opening another chooser. A simultaneous race must be rejected by the
+  origin-scoped Web Lock. Closing or explicitly disconnecting the owner must
+  release ownership so a later user gesture can acquire it.
+- Leave PMD service discovery unresolved in the conformance fixture. Each GATT
+  stage must time out after 12 seconds, disconnect, and enter the bounded full
+  HR/ECG/ACC retry path instead of remaining pending forever.
 - A chooser or GATT connection without a fresh valid ECG packet leaves Start Flight disabled.
 - Two quiet minutes after detector warmup: ECG beat count differs from Polar RR count by no more than one, and median matched interval error is at most 50 ms.
 - Movement-artifact trial: confidence falls or controls fail closed instead of producing uncontrolled repeated beats.

@@ -61,6 +61,7 @@ function accelerometerFrame() {
 
 function createPolarFixture({
   failFirstPmdDiscovery = false,
+  hangFirstPmdDiscovery = false,
   emitHeartRate = true,
 } = {}) {
   const control = new FakeCharacteristic();
@@ -69,6 +70,7 @@ function createPolarFixture({
   const battery = new FakeCharacteristic();
   const commands: number[][] = [];
   let pmdDiscoveryFailures = failFirstPmdDiscovery ? 1 : 0;
+  let pmdDiscoveryHangs = hangFirstPmdDiscovery ? 1 : 0;
   let connectCalls = 0;
   let batteryRequests = 0;
 
@@ -106,6 +108,10 @@ function createPolarFixture({
           "GATT Server is disconnected. Cannot retrieve services.",
           "NetworkError",
         );
+      if (uuid === POLAR_UUIDS.pmdService && pmdDiscoveryHangs > 0) {
+        pmdDiscoveryHangs -= 1;
+        return new Promise(() => {});
+      }
       if (uuid === POLAR_UUIDS.pmdService && pmdDiscoveryFailures > 0) {
         pmdDiscoveryFailures -= 1;
         server.connected = false;
@@ -175,6 +181,103 @@ function createPolarFixture({
 }
 
 describe("Polar browser session", () => {
+  it("holds the shared ECGaming H10 lease until disconnect", async () => {
+    const fixture = createPolarFixture();
+    let leaseHeld = false;
+    Object.assign(fixture.navigatorObject, {
+      locks: {
+        request: async (
+          _name: string,
+          _options: { ifAvailable?: boolean },
+          callback: (lock: Record<string, never>) => Promise<void>,
+        ) => {
+          leaseHeld = true;
+          await callback({});
+          leaseHeld = false;
+        },
+      },
+    });
+    const session = new PolarH10BrowserSession({
+      navigatorObject: fixture.navigatorObject as unknown as Navigator,
+      secureContext: true,
+      firstHeartRateTimeoutMs: 100,
+      firstEcgTimeoutMs: 100,
+      firstAccelerometerTimeoutMs: 100,
+      controlResponseTimeoutMs: 100,
+    });
+
+    await session.connect(() => {});
+    expect(leaseHeld).toBe(true);
+    expect(session.diagnosticSnapshot()).toMatchObject({ tabLease: "held" });
+
+    await session.disconnect();
+    expect(leaseHeld).toBe(false);
+    expect(session.diagnosticSnapshot()).toMatchObject({ tabLease: "released" });
+  });
+
+  it("prevents two ECGaming tabs from competing for the same H10", async () => {
+    const fixture = createPolarFixture();
+    Object.assign(fixture.navigatorObject, {
+      locks: {
+        request: async (
+          _name: string,
+          options: { ifAvailable?: boolean },
+          callback: (lock: null) => Promise<void>,
+        ) => {
+          expect(options.ifAvailable).toBe(true);
+          await callback(null);
+        },
+      },
+    });
+    const session = new PolarH10BrowserSession({
+      navigatorObject: fixture.navigatorObject as unknown as Navigator,
+      secureContext: true,
+    });
+
+    await expect(session.connect(() => {})).rejects.toMatchObject({
+      code: "POLAR_SESSION_IN_USE",
+      retryable: true,
+    });
+    expect(fixture.connectCalls()).toBe(0);
+    expect(session.diagnosticSnapshot()).toMatchObject({
+      stage: "failed",
+      tabLease: "released",
+      lastErrorCode: "POLAR_SESSION_IN_USE",
+    });
+  });
+
+  it("times out and retries when Chromium leaves PMD discovery pending", async () => {
+    const fixture = createPolarFixture({ hangFirstPmdDiscovery: true });
+    const events: Array<Record<string, unknown>> = [];
+    const session = new PolarH10BrowserSession({
+      navigatorObject: fixture.navigatorObject as unknown as Navigator,
+      secureContext: true,
+      stageTimeoutMs: 5,
+      streamSetupRetryDelaysMs: [0],
+      firstHeartRateTimeoutMs: 100,
+      firstEcgTimeoutMs: 100,
+      firstAccelerometerTimeoutMs: 100,
+      controlResponseTimeoutMs: 100,
+    });
+
+    await session.connect((event: Record<string, unknown>) => events.push(event));
+
+    expect(fixture.connectCalls()).toBe(2);
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "status" &&
+          String(event.message).includes("retrying the full HR, ECG, and ACC setup"),
+      ),
+    ).toBe(true);
+    expect(session.diagnosticSnapshot()).toMatchObject({
+      stage: "live",
+      stageTimeoutMs: 5,
+    });
+
+    await session.disconnect();
+  });
+
   it("retries a disconnect during PMD discovery and requires live HR, ECG, and ACC", async () => {
     const fixture = createPolarFixture({ failFirstPmdDiscovery: true });
     const events: Array<Record<string, unknown>> = [];

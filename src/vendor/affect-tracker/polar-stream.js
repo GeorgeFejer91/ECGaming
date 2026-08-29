@@ -146,6 +146,7 @@ const CONTROL_RESPONSE_TIMEOUT_MS = 7_500;
 const FIRST_ECG_TIMEOUT_MS = 10_000;
 const FIRST_HEART_RATE_TIMEOUT_MS = 10_000;
 const FIRST_ACCELEROMETER_TIMEOUT_MS = 10_000;
+const GATT_STAGE_TIMEOUT_MS = 12_000;
 const PMD_RESPONSE_GRACE_AFTER_FRAME_MS = 250;
 const STREAM_SETUP_RETRY_DELAYS_MS = Object.freeze([750, 1_500, 3_000]);
 const STREAM_SETUP_RETRY_CODES = new Set([
@@ -157,6 +158,7 @@ const STREAM_SETUP_RETRY_CODES = new Set([
   "PMD_FIRST_HEART_RATE_TIMEOUT",
   "PMD_COMMAND_REJECTED",
 ]);
+const POLAR_BROWSER_LEASE = "ecgaming-polar-h10-direct-v1";
 export const POLAR_LIVE_ECG_TIMEOUT_MS = 5_000;
 export const POLAR_LIVE_ECG_RECOVERY_ATTEMPTS = 1;
 
@@ -588,6 +590,7 @@ function bluetoothStageError(error, code, label) {
     "AbortError",
     "InvalidStateError",
     "NetworkError",
+    "TimeoutError",
   ].includes(name);
   const hint = likelyLeaseConflict
     ? " Disconnect the H10 from Polar Stream, Polar Beat/Flow, or another browser tab, then retry here."
@@ -617,6 +620,7 @@ export class PolarH10BrowserSession {
     firstEcgTimeoutMs = FIRST_ECG_TIMEOUT_MS,
     firstHeartRateTimeoutMs = FIRST_HEART_RATE_TIMEOUT_MS,
     firstAccelerometerTimeoutMs = FIRST_ACCELEROMETER_TIMEOUT_MS,
+    stageTimeoutMs = GATT_STAGE_TIMEOUT_MS,
     liveEcgTimeoutMs = POLAR_LIVE_ECG_TIMEOUT_MS,
     streamSetupRetryDelaysMs = STREAM_SETUP_RETRY_DELAYS_MS,
     allowQuestExperiment = false,
@@ -629,6 +633,10 @@ export class PolarH10BrowserSession {
     this.firstEcgTimeoutMs = firstEcgTimeoutMs;
     this.firstHeartRateTimeoutMs = firstHeartRateTimeoutMs;
     this.firstAccelerometerTimeoutMs = firstAccelerometerTimeoutMs;
+    this.stageTimeoutMs = Math.max(
+      1,
+      Number(stageTimeoutMs) || GATT_STAGE_TIMEOUT_MS,
+    );
     this.streamSetupRetryDelaysMs = Array.from(
       streamSetupRetryDelaysMs ?? STREAM_SETUP_RETRY_DELAYS_MS,
       (delay) => Math.max(0, Number(delay) || 0),
@@ -640,6 +648,9 @@ export class PolarH10BrowserSession {
     this.allowQuestExperiment = allowQuestExperiment;
     this.processor = new PolarMetricProcessor();
     this.breathingProcessor = new PolarBreathingProcessor();
+    this.browserLeaseHeld = false;
+    this.browserLeaseRelease = null;
+    this.browserLeaseTask = null;
     this.ecgWatchdogTimer = undefined;
     this.liveRecoveryPromise = null;
     this.liveRecoveryAttempts = 0;
@@ -716,6 +727,11 @@ export class PolarH10BrowserSession {
       mtu: "browser-managed",
       connectStartedAtMs: undefined,
       readyInMs: undefined,
+      stageTimeoutMs: this.stageTimeoutMs,
+      tabLease:
+        typeof this.navigatorObject?.locks?.request === "function"
+          ? "available"
+          : "unsupported",
       lastErrorCode: "",
       lastErrorMessage: "",
     };
@@ -806,6 +822,7 @@ export class PolarH10BrowserSession {
       void availabilityPromise.then((adapterAvailability) => {
         this.updateDiagnostics({ adapterAvailability });
       });
+      await this.acquireBrowserLease();
       this.device.addEventListener(
         "gattserverdisconnected",
         this.boundDisconnected,
@@ -856,7 +873,7 @@ export class PolarH10BrowserSession {
         if (attempt === totalAttempts || !retryableStreamSetupError(error))
           throw error;
 
-        await this.disconnect({ emit: false });
+        await this.disconnect({ emit: false, releaseLease: false });
         this.processor.reset();
         this.breathingProcessor.reset();
         this.device = selectedDevice;
@@ -1009,8 +1026,19 @@ export class PolarH10BrowserSession {
   async runStage(code, label, operation) {
     this.currentStage = code;
     this.updateDiagnostics({ stage: code });
+    let timeoutId;
     try {
-      return await operation();
+      const operationPromise = Promise.resolve().then(operation);
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = this.timer.setTimeout(() => {
+          const error = new Error(
+            `${label} did not finish within ${Math.round(this.stageTimeoutMs / 1_000)} seconds. Chrome's Bluetooth GATT request stalled.`,
+          );
+          error.name = "TimeoutError";
+          reject(error);
+        }, this.stageTimeoutMs);
+      });
+      return await Promise.race([operationPromise, timeoutPromise]);
     } catch (error) {
       const staged = bluetoothStageError(error, code, label);
       this.updateDiagnostics({
@@ -1018,7 +1046,71 @@ export class PolarH10BrowserSession {
         lastErrorMessage: staged.message,
       });
       throw staged;
+    } finally {
+      if (timeoutId !== undefined) this.timer.clearTimeout?.(timeoutId);
     }
+  }
+
+  async acquireBrowserLease() {
+    if (this.browserLeaseHeld) return;
+    const locks = this.navigatorObject?.locks;
+    if (typeof locks?.request !== "function") return;
+
+    let resolveAvailability;
+    let rejectAvailability;
+    const availability = new Promise((resolve, reject) => {
+      resolveAvailability = resolve;
+      rejectAvailability = reject;
+    });
+    let releaseHold;
+    const hold = new Promise((resolve) => {
+      releaseHold = resolve;
+    });
+    const leaseTask = Promise.resolve().then(() =>
+      locks.request(
+        POLAR_BROWSER_LEASE,
+        { mode: "exclusive", ifAvailable: true },
+        async (lock) => {
+          if (!lock) {
+            resolveAvailability(false);
+            return;
+          }
+          this.browserLeaseHeld = true;
+          this.browserLeaseRelease = releaseHold;
+          this.updateDiagnostics({ tabLease: "held" });
+          resolveAvailability(true);
+          await hold;
+        },
+      ),
+    );
+    this.browserLeaseTask = leaseTask;
+    void leaseTask.catch(rejectAvailability);
+
+    const acquired = await availability;
+    if (acquired) return;
+    this.browserLeaseTask = null;
+    this.updateDiagnostics({ tabLease: "busy" });
+    throw new PolarStreamError(
+      "POLAR_SESSION_IN_USE",
+      "Another ECGaming tab already owns the Polar H10. Disconnect it there first, or keep Ground Control as the single sensor owner and use its game relay.",
+      true,
+    );
+  }
+
+  async releaseBrowserLease() {
+    const release = this.browserLeaseRelease;
+    const task = this.browserLeaseTask;
+    this.browserLeaseHeld = false;
+    this.browserLeaseRelease = null;
+    this.browserLeaseTask = null;
+    release?.();
+    await task?.catch(() => {});
+    this.updateDiagnostics({
+      tabLease:
+        typeof this.navigatorObject?.locks?.request === "function"
+          ? "released"
+          : "unsupported",
+    });
   }
 
   clearLiveEcgWatchdog() {
@@ -1143,7 +1235,7 @@ export class PolarH10BrowserSession {
         `Live ${stalledLabel} data paused; restarting the same browser-selected H10 without another chooser…`,
     });
 
-    await this.disconnect({ emit: false });
+    await this.disconnect({ emit: false, releaseLease: false });
     if (this.stopRequested || !selectedDevice) return;
     this.processor.reset();
     this.breathingProcessor.reset();
@@ -1162,7 +1254,7 @@ export class PolarH10BrowserSession {
     try {
       await this.connectSelectedDeviceWithRecovery();
       if (this.stopRequested) {
-        await this.disconnect({ emit: false });
+        await this.disconnect({ emit: false, releaseLease: false });
         return;
       }
       this.connected = true;
@@ -1557,7 +1649,7 @@ export class PolarH10BrowserSession {
     };
   }
 
-  async disconnect({ emit = true } = {}) {
+  async disconnect({ emit = true, releaseLease = true } = {}) {
     if (emit) this.stopRequested = true;
     if (this.disconnecting) return;
     this.disconnecting = true;
@@ -1587,6 +1679,7 @@ export class PolarH10BrowserSession {
     } finally {
       this.resetConnectionState();
     }
+    if (releaseLease) await this.releaseBrowserLease();
     if (emit)
       this.updateDiagnostics({
         stage: "idle",
@@ -1657,6 +1750,7 @@ export class PolarH10BrowserSession {
       connected: false,
       message: "The Polar H10 left Bluetooth range or disconnected",
     });
+    void this.releaseBrowserLease();
     this.onEvent = null;
   }
 

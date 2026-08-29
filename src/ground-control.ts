@@ -39,11 +39,11 @@ import { GameDivePublisher } from "./game/dive-intent-channel";
 import { SessionCsvLog } from "./logging/session-log";
 import { installPretextFit } from "./ui/pretext-fit";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
+import { POLAR_METRICS } from "./vendor/affect-tracker/polar-stream.js";
 import {
-  POLAR_METRICS,
-  PolarH10BrowserSession,
+  getPolarBrowserHub,
   polarWebBluetoothSupport,
-} from "./vendor/affect-tracker/polar-stream.js";
+} from "./polar/browser-hub";
 
 const SETTINGS_KEY = "ecgaming-ground-settings-v2";
 const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
@@ -216,7 +216,7 @@ interface RuntimeState {
   signalLabel: string;
 }
 
-const polar = new PolarH10BrowserSession();
+const polar = getPolarBrowserHub();
 const detector = new CausalRPeakDetector(130);
 const broadcaster = new FlightBroadcaster();
 const receiver = new FlightReceiver();

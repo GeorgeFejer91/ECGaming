@@ -21,9 +21,9 @@ import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 import { GameDivePublisher } from "./game/dive-intent-channel";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
 import {
-  PolarH10BrowserSession,
+  getPolarBrowserHub,
   polarWebBluetoothSupport,
-} from "./vendor/affect-tracker/polar-stream.js";
+} from "./polar/browser-hub";
 
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -36,7 +36,7 @@ const clamp = (value: number, minimum = 0, maximum = 1) =>
 const SETTINGS_KEY = "ecgaming-mobile-settings-v1";
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
 const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
-const session = new PolarH10BrowserSession();
+const session = getPolarBrowserHub();
 const detector = new CausalRPeakDetector(130);
 const gameHeartbeatPublisher = new GameHeartbeatPublisher("mobile-direct");
 const gameDivePublisher = new GameDivePublisher("mobile-direct");

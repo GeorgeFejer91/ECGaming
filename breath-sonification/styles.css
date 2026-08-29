@@ -787,6 +787,21 @@ input[type="range"]:disabled {
   background: rgba(255, 255, 255, 0.065);
 }
 
+.polar-diagnostic {
+  margin: 11px 0 -3px;
+  color: #484844;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 7px;
+  letter-spacing: 0.15em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.polar-lock-card[data-state="connecting"] .polar-diagnostic,
+.polar-lock-card[data-state="calibrating"] .polar-diagnostic {
+  color: #777771;
+}
+
 .polar-stream-step {
   position: relative;
   display: grid;

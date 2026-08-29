@@ -1,9 +1,9 @@
 import { CausalRPeakDetector } from "../signals/rpeak";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
 import {
-  PolarH10BrowserSession,
+  getPolarBrowserHub,
   polarWebBluetoothSupport,
-} from "../vendor/affect-tracker/polar-stream.js";
+} from "../polar/browser-hub";
 
 const HEART_CHANNEL = "ecgaming-heartbeat-v1";
 const DIVE_CHANNEL = "ecgaming-breathing-v1";
@@ -52,7 +52,7 @@ type DiveEnvelope = {
   state?: string;
 };
 
-const session = new PolarH10BrowserSession();
+const session = getPolarBrowserHub();
 const detector = new CausalRPeakDetector(SAMPLE_RATE_HZ);
 const ecgSamples: number[] = [];
 

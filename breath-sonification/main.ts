@@ -16,9 +16,9 @@ import {
   type PolarLockFrame,
 } from "./polar-breath-lock";
 import {
-  PolarH10BrowserSession,
+  getPolarBrowserHub,
   polarWebBluetoothSupport,
-} from "../src/vendor/affect-tracker/polar-stream.js";
+} from "../src/polar/browser-hub";
 import "./styles.css";
 
 const PRESETS: Record<string, BreathTiming> = {
@@ -43,7 +43,7 @@ const PRESETS: Record<string, BreathTiming> = {
 };
 
 const sonifier = new BreathSonifier();
-const polarSession = new PolarH10BrowserSession();
+const polarSession = getPolarBrowserHub();
 const polarBreathLock = new PolarBreathLock();
 
 const byId = <ElementType extends Element>(id: string) => {
@@ -80,6 +80,7 @@ const polarLockCopy = byId("polar-lock-copy");
 const polarPhase = byId("polar-phase");
 const polarCalibration = byId("polar-calibration");
 const polarConfidence = byId("polar-confidence");
+const polarDiagnostic = byId("polar-diagnostic");
 const polarHeartRate = byId("polar-heart-rate");
 const polarEcgRate = byId("polar-ecg-rate");
 const polarLinkStep = byId("polar-link-step");
@@ -332,6 +333,39 @@ function resetPolarChannels(): void {
   setPolarChannel(polarAccStep, polarAccChannel, "idle", "awaiting samples");
   polarHeartRate.textContent = "-- bpm";
   polarEcgRate.textContent = "-- Hz";
+  polarCalibration.textContent = "0%";
+  polarConfidence.textContent = "0%";
+  polarPhase.textContent = "hold";
+  polarDiagnostic.textContent = "stage idle · setup 0 / 4";
+}
+
+const polarStageLabels: Record<string, string> = {
+  idle: "idle",
+  chooser: "device chooser",
+  GATT_CONNECT: "Bluetooth link",
+  PMD_SERVICE: "PMD service",
+  PMD_CONTROL: "PMD control",
+  PMD_DATA: "PMD data",
+  PMD_DATA_NOTIFY: "ECG notifications",
+  PMD_CONTROL_NOTIFY: "PMD indications",
+  HEART_RATE_SERVICE: "heart-rate service",
+  HEART_RATE_MEASUREMENT: "heart-rate measurement",
+  HEART_RATE_NOTIFY: "heart-rate notifications",
+  ECG_START: "ECG startup",
+  ACC_START: "ACC startup",
+  HEART_RATE_FIRST_FRAME: "first heart-rate packet",
+  live: "all channels live",
+  recovering: "automatic recovery",
+  failed: "failed",
+  disconnected: "disconnected",
+};
+
+function renderPolarDiagnostics(snapshot: Record<string, unknown>): void {
+  const stage = String(snapshot.stage ?? "idle");
+  const attempt = Math.max(0, Number(snapshot.streamSetupAttempt) || 0);
+  const total = Math.max(1, Number(snapshot.streamSetupAttemptsTotal) || 4);
+  const label = polarStageLabels[stage] ?? stage.replaceAll("_", " ").toLowerCase();
+  polarDiagnostic.textContent = `stage ${label} · setup ${attempt} / ${total}`;
 }
 
 function applyPolarFrame(frame: PolarLockFrame): void {
@@ -398,6 +432,8 @@ function applyPolarFrame(frame: PolarLockFrame): void {
 }
 
 function handlePolarEvent(event: any): void {
+  if (event.kind === "diagnostic" && event.snapshot)
+    renderPolarDiagnostics(event.snapshot);
   if (event.kind === "status") {
     setPolarChannel(polarLinkStep, polarLinkChannel, "starting", "setting up");
     setPolarPanel(
@@ -508,6 +544,7 @@ async function connectPolarLock(): Promise<void> {
   polarBreathReady = false;
   polarFrameWasStale = false;
   polarBreathLock.reset();
+  resetPolarChannels();
   sensorEnabled.checked = false;
   sensorEnabled.disabled = true;
   updateSensorStream();

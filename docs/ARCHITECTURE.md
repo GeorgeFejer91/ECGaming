@@ -2,9 +2,33 @@
 
 EC Gaming keeps acquisition, signal authority, mapping, transport, and rendering in explicit zones. The primary `/ground-control/` page composes those zones into two views without duplicating them: Ground Control is the configuration and authority view; Cockpit is a presentation adapter over the same running state.
 
+## Central browser Polar hub
+
+`src/polar/browser-hub.ts` is the single UI-facing Polar connector. Ground
+Control, Smartphone Flight, Breath Mirror, and the Moth integration obtain the
+same per-page hub singleton; none of those front ends instantiate the raw Polar
+adapter. The hub owns connection deduplication, status fan-out, and the
+`ecgaming-polar-hub-v1` cross-tab ownership protocol. The underlying adapter
+owns the exclusive origin-scoped Web Lock and the complete HR, 130 Hz ECG, and
+200 Hz ACC readiness gate.
+
+Web Bluetooth cannot be moved to the hosted server: the device chooser and
+GATT connection must run locally in a secure, user-activated browser context.
+“Central” therefore means one authoritative browser-local hub per ECGaming
+origin/profile. A fresh tab observes a low-rate hub heartbeat before opening a
+chooser, and the Web Lock resolves simultaneous races. Raw ECG and ACC sample
+arrays are never placed on the hub status channel; it carries only ownership,
+stage, attempt, BPM, ECG-rate, and breathing-readiness summaries.
+
+If the owning tab disappears, the browser releases its Web Lock and the hub
+heartbeat becomes stale after two seconds. Another front end may then acquire
+the H10 through an explicit Connect gesture. External applications such as
+Polar Beat/Flow are outside the browser protocol, so their GATT lease is
+reported as a connection/setup error rather than silently overridden.
+
 | Plane                    | Owner                                             | Responsibilities                                                                  | Explicitly excluded                                    |
 | ------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Physical acquisition     | Direct Polar adapter or Smartphone Flight         | Web Bluetooth, PMD ECG, HR/RR, local derived metrics, R-peak estimates            | network transport and game rendering                   |
+| Physical acquisition     | Central browser Polar hub                          | Web Bluetooth, PMD ECG, HR/RR, local derived metrics, R-peak estimates            | network transport and game rendering                   |
 | Remote signal adapter    | Ground Control beacon receiver                    | discovery, source/session validation, derived metrics and beat timing             | raw ECG, device identity, source authentication        |
 | Signal authority         | Ground Control source selector                    | select exactly one direct or remote source and reset source-scoped state           | fusion, implicit failover, beacon rebroadcast          |
 | Control                  | Ground Control or Smartphone Flight               | mappings, adaptive ranges, smoothing, beat action, readiness, normalized commands | stale/manual/simulated fallback                        |
