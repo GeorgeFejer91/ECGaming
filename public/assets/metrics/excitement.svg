@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Excite-O-Meter activation</title>
+  <g stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path opacity=".42" d="M12 30a20 20 0 0 1 40 0"/>
+    <path d="M9 41h10l4-7 5 14 7-26 6 19h14"/>
+  </g>
+  <path d="m45 17 1.8 4.2L51 23l-4.2 1.8L45 29l-1.8-4.2L39 23l4.2-1.8L45 17Z" fill="#f4b33a"/>
+  <path d="M17 25v-3m30 3v-3M32 16v-3" stroke="#f4b33a" stroke-linecap="round" stroke-width="2"/>
+</svg>

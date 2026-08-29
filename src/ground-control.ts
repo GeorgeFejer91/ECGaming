@@ -7,6 +7,7 @@ import {
 import {
   FlightBroadcaster,
   FlightReceiver,
+  sanitizePilotName,
   type SignalBeaconOffer,
 } from "./protocol/remote";
 import type {
@@ -44,6 +45,8 @@ import {
 const SETTINGS_KEY = "ecgaming-ground-settings-v2";
 const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
 const SOURCE_KEY = "ecgaming-ground-source-v1";
+const SCOPE_METRIC_KEY = "ecgaming-scope-metric-v1";
+const PILOT_NAME_KEY = "ecgaming-pilot-name-v1";
 const COMMANDS: ContinuousCommand[] = ["altitude", "throttle", "traffic"];
 const COMMAND_LABELS: Record<ContinuousCommand, string> = {
   altitude: "Vertical control · plane up/down",
@@ -85,6 +88,84 @@ const METRIC_DEFINITIONS = [
   maximum: number;
   unit: string;
 }[];
+
+type ScopeMetricId =
+  | "excitement_score"
+  | "heart_rate"
+  | "rr_interval"
+  | "breathing_volume"
+  | "rmssd"
+  | "ecg_local_power";
+
+const METRIC_ASSET_ROOT = import.meta.env.BASE_URL + "assets/metrics/";
+const SCOPE_METRICS: Record<
+  ScopeMetricId,
+  {
+    label: string;
+    icon: string;
+    unit: string;
+    digits: number;
+    minimum: number;
+    maximum: number;
+  }
+> = {
+  excitement_score: {
+    label: "EXCITE-O-METER",
+    icon: METRIC_ASSET_ROOT + "excitement.svg",
+    unit: "0–1",
+    digits: 2,
+    minimum: 0,
+    maximum: 1,
+  },
+  heart_rate: {
+    label: "HEART RATE",
+    icon: METRIC_ASSET_ROOT + "heart-rate.svg",
+    unit: "BPM",
+    digits: 0,
+    minimum: 45,
+    maximum: 160,
+  },
+  rr_interval: {
+    label: "RR INTERVAL",
+    icon: METRIC_ASSET_ROOT + "rr-interval.svg",
+    unit: "MS",
+    digits: 0,
+    minimum: 400,
+    maximum: 1_300,
+  },
+  breathing_volume: {
+    label: "ACC BREATHING",
+    icon: METRIC_ASSET_ROOT + "breathing.svg",
+    unit: "0–1",
+    digits: 2,
+    minimum: 0,
+    maximum: 1,
+  },
+  rmssd: {
+    label: "HRV · RMSSD",
+    icon: METRIC_ASSET_ROOT + "hrv.svg",
+    unit: "MS",
+    digits: 0,
+    minimum: 0,
+    maximum: 120,
+  },
+  ecg_local_power: {
+    label: "LOCAL ECG POWER",
+    icon: METRIC_ASSET_ROOT + "ecg-power.svg",
+    unit: "µV²",
+    digits: 0,
+    minimum: 10_000,
+    maximum: 2_250_000,
+  },
+};
+const SCOPE_METRIC_IDS = Object.keys(SCOPE_METRICS) as ScopeMetricId[];
+
+function storedScopeMetric(): ScopeMetricId {
+  const stored = localStorage.getItem(SCOPE_METRIC_KEY) as ScopeMetricId | null;
+  return stored && SCOPE_METRIC_IDS.includes(stored)
+    ? stored
+    : "excitement_score";
+}
 
 function storedMappings() {
   for (const key of [SETTINGS_KEY, LEGACY_SETTINGS_KEY]) {
@@ -140,11 +221,12 @@ const adaptiveRange = new AdaptiveRangeTracker();
 const cockpit = new GroundCockpit();
 const log = new SessionCsvLog();
 const ecgSamples: number[] = [];
-const remoteTrace: number[] = [];
+const scopeHistory = new Map<ScopeMetricId, number[]>();
 const polarMetrics: Record<string, number> = {};
 let mappings = storedMappings();
 let sourceMode: SourceMode =
   localStorage.getItem(SOURCE_KEY) === "beacon" ? "beacon" : "polar";
+let scopeMetric = storedScopeMetric();
 let physicalConnected = false;
 let ecgReady = false;
 let simulated = false;
@@ -164,7 +246,7 @@ let detectorConfidence = 0;
 let rrBeatQuality = 0;
 let localSequence = 0;
 let lastGroundBeatCounter: number | undefined;
-let lastRemoteTraceAt = -Infinity;
+let lastScopeSampleAt = -Infinity;
 let latestRuntime: RuntimeState | undefined;
 let sourceSignature = "";
 let wakeLock: any;
@@ -461,6 +543,63 @@ function syncSourcePanels() {
   element("beacon-source-controls").hidden = polarSelected;
   element<HTMLButtonElement>("start-broadcast").disabled =
     !polarSelected || broadcaster.snapshot().phase === "broadcasting";
+  element<HTMLInputElement>("pilot-name").disabled =
+    broadcaster.snapshot().phase === "broadcasting";
+  syncPolarAttention();
+}
+
+function syncPolarAttention() {
+  const needsAttention =
+    sourceMode === "polar" && !physicalConnected && !simulated;
+  element("polar-connect-nudge").hidden = !needsAttention;
+  element<HTMLButtonElement>("connect-polar").classList.toggle(
+    "needs-attention",
+    needsAttention,
+  );
+}
+
+function clearPilotNameAttention() {
+  const field = element("pilot-name-field");
+  const input = element<HTMLInputElement>("pilot-name");
+  field.classList.remove("needs-attention");
+  input.removeAttribute("aria-invalid");
+  setText(
+    "pilot-name-help",
+    "Shown to other browsers when they scan for your beacon.",
+  );
+}
+
+function requirePilotName() {
+  const field = element("pilot-name-field");
+  const input = element<HTMLInputElement>("pilot-name");
+  field.classList.remove("needs-attention");
+  void field.offsetWidth;
+  field.classList.add("needs-attention");
+  input.setAttribute("aria-invalid", "true");
+  setText(
+    "pilot-name-help",
+    "Enter your pilot name before starting the beacon.",
+  );
+  setText("broadcast-source", "Pilot name required");
+  input.focus({ preventScroll: true });
+  field.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function setupPilotNameField() {
+  const input = element<HTMLInputElement>("pilot-name");
+  input.value = sanitizePilotName(localStorage.getItem(PILOT_NAME_KEY));
+  input.addEventListener("input", () => {
+    const pilotName = sanitizePilotName(input.value);
+    if (pilotName) {
+      localStorage.setItem(PILOT_NAME_KEY, pilotName);
+      clearPilotNameAttention();
+    } else {
+      localStorage.removeItem(PILOT_NAME_KEY);
+    }
+  });
+  input.addEventListener("blur", () => {
+    input.value = sanitizePilotName(input.value);
+  });
 }
 
 function pulseRadar() {
@@ -513,6 +652,96 @@ function drawTrace(values: number[], remote: boolean) {
   context.fill();
 }
 
+function resetScopeHistory() {
+  scopeHistory.clear();
+  lastScopeSampleAt = -Infinity;
+}
+
+function appendBreathingPresentationPoints(points: unknown) {
+  if (!Array.isArray(points) || !points.length) return;
+  const history = scopeHistory.get("breathing_volume") ?? [];
+  for (const point of points) {
+    const value = Number(point?.volume01);
+    if (Number.isFinite(value)) history.push(clamp(value));
+  }
+  if (history.length > 240) history.splice(0, history.length - 240);
+  scopeHistory.set("breathing_volume", history);
+}
+
+function sampleScopeMetrics(active: ActiveSignal, now: number) {
+  if (now - lastScopeSampleAt < 200) return;
+  lastScopeSampleAt = now;
+  for (const id of SCOPE_METRIC_IDS) {
+    // Physical Polar breathing arrives as source-timestamped 200 Hz points.
+    // Do not dilute that waveform with the slower UI sampling loop.
+    if (
+      id === "breathing_volume" &&
+      sourceMode === "polar" &&
+      !active.simulation &&
+      (scopeHistory.get(id)?.length ?? 0) > 0
+    )
+      continue;
+    const value = active.metrics[id];
+    if (!Number.isFinite(value)) continue;
+    const definition = SCOPE_METRICS[id];
+    const normalized = clamp(
+      (value - definition.minimum) /
+        (definition.maximum - definition.minimum),
+    );
+    const history = scopeHistory.get(id) ?? [];
+    history.push(normalized);
+    if (history.length > 240) history.splice(0, history.length - 240);
+    scopeHistory.set(id, history);
+  }
+}
+
+function formatScopeMetric(id: ScopeMetricId, value: number | undefined) {
+  if (!Number.isFinite(value)) return "--";
+  if (id === "ecg_local_power") {
+    if (Number(value) >= 1_000_000)
+      return (Number(value) / 1_000_000).toFixed(2) + "M";
+    if (Number(value) >= 10_000)
+      return (Number(value) / 1_000).toFixed(0) + "K";
+  }
+  return Number(value).toFixed(SCOPE_METRICS[id].digits);
+}
+
+function syncScopeMetricUi(values: Record<string, number>) {
+  for (const id of SCOPE_METRIC_IDS) {
+    setText("widget-" + id, formatScopeMetric(id, values[id]));
+  }
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-scope-metric]")
+    .forEach((button) => {
+      const selected = button.dataset.scopeMetric === scopeMetric;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+  const definition = SCOPE_METRICS[scopeMetric];
+  const icon = element<HTMLImageElement>("scope-metric-icon");
+  if (icon.getAttribute("src") !== definition.icon) icon.src = definition.icon;
+  setText("scope-metric-label", definition.label);
+  setText(
+    "scope-metric-value",
+    formatScopeMetric(scopeMetric, values[scopeMetric]),
+  );
+}
+
+function setupScopeMetricSelector() {
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-scope-metric]")
+    .forEach((button) =>
+      button.addEventListener("click", () => {
+        const next = button.dataset.scopeMetric as ScopeMetricId;
+        if (!SCOPE_METRIC_IDS.includes(next)) return;
+        scopeMetric = next;
+        localStorage.setItem(SCOPE_METRIC_KEY, scopeMetric);
+        syncScopeMetricUi(latestRuntime?.active.metrics ?? {});
+      }),
+    );
+  syncScopeMetricUi({});
+}
+
 function showMetric(values: Record<string, number>, id: string, digits = 0) {
   const value = values[id];
   setText(
@@ -523,27 +752,37 @@ function showMetric(values: Record<string, number>, id: string, digits = 0) {
 
 function updateSignalScope(active: ActiveSignal) {
   const remote = sourceMode === "beacon";
-  setText("ecg-display-mode", remote ? "REMOTE BEACON" : "LOCAL SENSOR");
+  const rawLocalEcg =
+    !remote && !active.simulation && scopeMetric === "heart_rate" && ecgSamples.length > 1;
+  setText(
+    "ecg-display-mode",
+    remote ? "REMOTE BEACON" : rawLocalEcg ? "LOCAL SENSOR" : "LOCAL DERIVED",
+  );
   setText(
     "ecg-display-state",
     remote
       ? active.phase === "live"
         ? "DERIVED TELEMETRY LIVE"
         : "WAITING FOR BEACON"
-      : ecgReady
+      : rawLocalEcg && ecgReady
         ? "ECG WAVEFORM LIVE"
-        : "WAITING FOR POLAR",
+        : Number.isFinite(active.metrics[scopeMetric])
+          ? "METRIC TELEMETRY LIVE"
+          : "WAITING FOR METRIC",
   );
   showMetric(active.metrics, "heart_rate");
   showMetric(active.metrics, "rr_interval");
   showMetric(active.metrics, "excitement_score", 2);
   showMetric(active.metrics, "breathing_volume", 2);
-  if (remote) {
-    setText("ecg-rate", "NET");
-    drawTrace(remoteTrace, true);
-  } else {
+  syncScopeMetricUi(active.metrics);
+  if (rawLocalEcg) {
+    setText("scope-metric-unit", "RAW ECG");
     drawTrace(ecgSamples, false);
+  } else {
+    setText("scope-metric-unit", SCOPE_METRICS[scopeMetric].unit);
+    drawTrace(scopeHistory.get(scopeMetric) ?? [], true);
   }
+  if (remote) setText("ecg-rate", "NET");
 }
 
 function observeMetrics(
@@ -622,6 +861,7 @@ function handlePolarEvent(event: any) {
     element<HTMLButtonElement>("connect-polar").disabled = physicalConnected;
     element<HTMLButtonElement>("disconnect-polar").disabled =
       !physicalConnected;
+    syncPolarAttention();
   }
   if (event.kind === "metrics") {
     Object.assign(polarMetrics, event.snapshot?.values ?? {});
@@ -657,11 +897,13 @@ function handlePolarEvent(event: any) {
       if (detector.ready)
         registerBeat("ecg-rpeak", beat.confidence, performance.now());
     }
-    if (sourceMode === "polar") drawTrace(ecgSamples, false);
+    if (sourceMode === "polar" && scopeMetric === "heart_rate")
+      drawTrace(ecgSamples, false);
   }
   if (event.kind === "accelerometer") {
     lastBreathingSignalAt = now;
     breathingReady = event.breathing?.ready === true;
+    appendBreathingPresentationPoints(event.breathing?.presentationPoints);
   }
   if (event.kind === "warning") {
     setText("polar-detail", event.message ?? "Optional Polar signal unavailable");
@@ -683,6 +925,7 @@ async function connectPolar() {
   element<HTMLInputElement>("sim-enabled").checked = false;
   for (const key of Object.keys(polarMetrics)) delete polarMetrics[key];
   ecgSamples.length = 0;
+  resetScopeHistory();
   breathingReady = false;
   lastBreathingSignalAt = -Infinity;
   detector.reset();
@@ -698,6 +941,7 @@ async function connectPolar() {
       "polar-detail",
       error instanceof Error ? error.message : String(error),
     );
+    syncPolarAttention();
   }
 }
 
@@ -708,8 +952,10 @@ async function disconnectPolar() {
   breathingReady = false;
   lastPolarSignalAt = -Infinity;
   lastBreathingSignalAt = -Infinity;
+  resetScopeHistory();
   detector.reset();
   if (sourceMode === "polar") adaptiveRange.startSession("");
+  syncPolarAttention();
 }
 
 function simulatedSignals(now: number) {
@@ -720,6 +966,8 @@ function simulatedSignals(now: number) {
   polarMetrics.rr_interval = 60_000 / bpm;
   polarMetrics.excitement_score = excitement;
   polarMetrics.excitometer = clamp(excitement * 0.85 + 0.08);
+  polarMetrics.rmssd = 72 - excitement * 42;
+  polarMetrics.ecg_local_power = 320_000 + excitement * 880_000;
   polarMetrics.breathing_volume = Number(
     element<HTMLInputElement>("sim-breath").value,
   );
@@ -1269,16 +1517,7 @@ function updateCommandLoop(now: number) {
   const runtime = computeRuntime(now, delta);
   latestRuntime = runtime;
   offerBroadcast(runtime, now);
-  if (
-    sourceMode === "beacon" &&
-    runtime.active.lastSignalAt !== undefined &&
-    runtime.active.lastSignalAt !== lastRemoteTraceAt
-  ) {
-    lastRemoteTraceAt = runtime.active.lastSignalAt;
-    remoteTrace.push(clamp((runtime.frame.altitude + 1) / 2));
-    if (remoteTrace.length > 240)
-      remoteTrace.splice(0, remoteTrace.length - 240);
-  }
+  sampleScopeMetrics(runtime.active, now);
   updateCommandPreview(runtime);
   if (cockpit.hasStarted()) cockpit.accept(cockpitTelemetry(runtime));
 
@@ -1348,11 +1587,21 @@ async function startBroadcast() {
     setText("broadcast-source", "Switch to Direct Polar first");
     return;
   }
+  const input = element<HTMLInputElement>("pilot-name");
+  const pilotName = sanitizePilotName(input.value);
+  if (!pilotName) {
+    requirePilotName();
+    return;
+  }
+  input.value = pilotName;
+  localStorage.setItem(PILOT_NAME_KEY, pilotName);
+  clearPilotNameAttention();
   try {
-    await broadcaster.start(mappings);
+    await broadcaster.start(mappings, pilotName);
     syncMappingAvailability();
     element<HTMLButtonElement>("start-broadcast").disabled = true;
     element<HTMLButtonElement>("stop-broadcast").disabled = false;
+    input.disabled = true;
     void schedulingGuard(true);
   } catch (error) {
     setText(
@@ -1368,6 +1617,7 @@ async function stopBroadcast() {
   element<HTMLButtonElement>("start-broadcast").disabled =
     sourceMode !== "polar";
   element<HTMLButtonElement>("stop-broadcast").disabled = true;
+  element<HTMLInputElement>("pilot-name").disabled = false;
   void schedulingGuard(false);
 }
 
@@ -1407,7 +1657,7 @@ function renderBeaconSources(state: FlightReceiverSnapshot) {
       button.append(label, action);
       button.addEventListener("click", async () => {
         adaptiveRange.startSession("");
-        remoteTrace.length = 0;
+        resetScopeHistory();
         await receiver.selectSource(source.streamId);
       });
       host.append(button);
@@ -1494,7 +1744,7 @@ async function stopBeaconScan() {
     "beacon-detail",
     "Scan the public room for another Ground Control station.",
   );
-  remoteTrace.length = 0;
+  resetScopeHistory();
   adaptiveRange.startSession("");
 }
 
@@ -1506,7 +1756,7 @@ async function selectSource(mode: SourceMode) {
   sourceMode = mode;
   localStorage.setItem(SOURCE_KEY, mode);
   adaptiveRange.startSession("");
-  remoteTrace.length = 0;
+  resetScopeHistory();
   if (mode === "beacon") {
     await stopBroadcast();
   } else {
@@ -1654,6 +1904,7 @@ function setupActions() {
       const requested = (event.target as HTMLInputElement).checked;
       if (requested && physicalConnected) await disconnectPolar();
       simulated = requested;
+      resetScopeHistory();
       simulationSessionId = requested ? sessionId("simulation") : "";
       adaptiveRange.startSession(
         requested ? simulationSessionId : polarSessionId,
@@ -1672,6 +1923,7 @@ function setupActions() {
           "Use a worn Polar H10 in desktop Chrome or Edge, or a compatible Android Chromium browser.",
         );
       }
+      syncPolarAttention();
     },
   );
   for (const id of ["sim-bpm", "sim-excite", "sim-breath"])
@@ -1730,7 +1982,7 @@ receiver.addEventListener("beaconconfig", ((event: CustomEvent) => {
   const state = event.detail as FlightReceiverSnapshot;
   if (sourceMode === "beacon" && state.beacon.config) {
     adaptiveRange.startSession("remote-" + state.beacon.config.sessionId);
-    remoteTrace.length = 0;
+    resetScopeHistory();
   }
   updateBeaconState(state, "Derived-metric configuration validated.");
 }) as EventListener);
@@ -1785,7 +2037,9 @@ addEventListener("beforeunload", () => {
 
 setupAccordion();
 renderMappings();
+setupPilotNameField();
 setupActions();
+setupScopeMetricSelector();
 const disposeTextFit = installPretextFit();
 syncSourcePanels();
 showView(

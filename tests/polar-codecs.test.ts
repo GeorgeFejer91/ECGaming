@@ -112,5 +112,49 @@ describe("Polar browser signal layer", () => {
     expect(snapshot.values.breathing_volume).toBeGreaterThanOrEqual(0);
     expect(snapshot.values.breathing_volume).toBeLessThanOrEqual(1);
     expect(snapshot.values.breathing_signal_ready).toBe(1);
+    expect(snapshot.values.acc_breathing_magnitude).toEqual(
+      expect.any(Number),
+    );
+    expect(snapshot.values.breathing_axis_range).toBeGreaterThan(0);
+    expect(snapshot.derivativePerSecond).toEqual(expect.any(Number));
+    expect(snapshot.presentationPoints.length).toBeGreaterThan(0);
+    expect(snapshot.presentationPoints.at(-1)?.volume01).toBe(
+      snapshot.values.breathing_volume,
+    );
+    expect(
+      BigInt(snapshot.presentationPoints.at(-1)?.sourceTimestampNs ?? "0"),
+    ).toBeGreaterThan(
+      BigInt(snapshot.presentationPoints[0]?.sourceTimestampNs ?? "0"),
+    );
+  });
+
+  it("fails breathing readiness closed across a source-time ACC gap", () => {
+    const processor = new PolarBreathingProcessor({
+      calibrationWindowSeconds: 1,
+      staleTimeoutSeconds: 0.5,
+    });
+    const samplesFor = (offset: number) =>
+      Array.from({ length: 40 }, (_, index) => {
+        const phase = ((offset + index) / 200) * Math.PI;
+        return {
+          xMg: Math.round(Math.sin(phase) * 55),
+          yMg: 1000,
+          zMg: Math.round(Math.cos(phase) * 35),
+        };
+      });
+    let snapshot;
+    for (let frame = 0; frame < 8; frame += 1) {
+      snapshot = processor.pushTimed(
+        samplesFor(frame * 40),
+        String(BigInt((frame + 1) * 40) * 5_000_000n),
+      );
+    }
+    expect(snapshot?.ready).toBe(true);
+
+    snapshot = processor.pushTimed(samplesFor(8 * 40), "3000000000");
+    expect(snapshot?.lost).toBe(true);
+    expect(snapshot?.ready).toBe(false);
+    expect(snapshot?.values.breathing_signal_ready).toBe(0);
+    expect(snapshot?.diagnostics.forwardGaps).toBe(1);
   });
 });

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>ECG signal power</title>
+  <g stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path d="M7 37h13l4-6 6 14 7-28 6 20h14"/>
+    <path opacity=".42" d="M17 17a24 24 0 0 1 30 0M13 49a28 28 0 0 0 38 0"/>
+  </g>
+  <circle cx="56" cy="37" r="4.5" stroke="#f4b33a" stroke-width="3"/>
+  <circle cx="56" cy="37" r="1.5" fill="#f4b33a"/>
+</svg>

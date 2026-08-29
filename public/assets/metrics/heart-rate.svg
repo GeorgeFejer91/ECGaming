@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Heart rate and heartbeat</title>
+  <path d="M32 53C18 44 10 36 10 24c0-7 5-12 12-12 4.7 0 8 2.6 10 6 2-3.4 5.3-6 10-6 7 0 12 5 12 12 0 12-8 20-22 29Z" stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+  <path d="M7 34h13l4-7 6 15 6-23 6 15h15" stroke="#f4b33a" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+</svg>

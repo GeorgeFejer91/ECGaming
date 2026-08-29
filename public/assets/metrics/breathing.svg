@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Breathing waveform</title>
+  <g stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path d="M29 9v18c-4-9-8-13-12-13-5 0-8 8-9 17-1 11 2 22 10 22 7 0 11-7 11-17"/>
+    <path d="M35 9v18c4-9 8-13 12-13 5 0 8 8 9 17 1 11-2 22-10 22-7 0-11-7-11-17"/>
+  </g>
+  <path d="M10 36c7-7 14-7 22 0s15 7 22 0" stroke="#f4b33a" stroke-linecap="round" stroke-width="3"/>
+</svg>

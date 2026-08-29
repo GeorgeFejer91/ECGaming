@@ -100,6 +100,13 @@ export const formatSourceLabel = (id: string) => {
     .padStart(8, "0");
   return `Tower ${compact.slice(0, 4)} ${compact.slice(4)}`;
 };
+export const sanitizePilotName = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N} ._'’\-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32);
 export const isFlightSource = (id: unknown): id is string =>
   typeof id === "string" && id.startsWith(FLIGHT_SOURCE_PREFIX);
 export const forceTurnEnabled = (locationObject: Location = location) => {
@@ -123,10 +130,13 @@ const sdkFactory = (forceTurn: boolean): Sdk => {
 };
 const sourceItem = (value: any): RemoteSource => {
   const streamId = String(value?.streamID ?? value?.streamId ?? "");
+  const pilotName = sanitizePilotName(
+    value?.label ?? value?.pilotName ?? value?.meta?.pilotName,
+  );
   return {
     streamId,
     uuid: String(value?.UUID ?? value?.uuid ?? ""),
-    label: formatSourceLabel(streamId),
+    label: pilotName || formatSourceLabel(streamId),
   };
 };
 
@@ -134,6 +144,7 @@ function createConfig(
   sourceId: string,
   mappings: FlightMappings,
   sessionId = randomHex(8),
+  pilotName = "",
 ): FlightConfigV1 {
   return {
     kind: "ecgaming-flight-config",
@@ -142,12 +153,14 @@ function createConfig(
     sourceId,
     sessionId,
     createdAt: new Date().toISOString(),
+    ...(pilotName ? { pilotName } : {}),
     mappings: structuredClone(mappings),
   };
 }
 function createBeaconConfig(
   sourceId: string,
   sessionId: string,
+  pilotName = "",
 ): SignalBeaconConfigV1 {
   return {
     kind: "ecgaming-signal-config",
@@ -155,6 +168,7 @@ function createBeaconConfig(
     schemaVersion: 1,
     sourceId,
     sessionId,
+    ...(pilotName ? { pilotName } : {}),
     sessionToken: randomUint32(),
     metricOrder: [...SIGNAL_BEACON_METRICS],
     rawEcgIncluded: false,
@@ -176,7 +190,13 @@ function parseConfig(value: unknown): FlightConfigV1 | undefined {
     candidate.protocol === "ecgflightv1" &&
     candidate.schemaVersion === 1 &&
     isFlightSource(candidate.sourceId)
-    ? { ...candidate, mappings: sanitizeMappings(candidate.mappings) }
+    ? {
+        ...candidate,
+        ...(sanitizePilotName(candidate.pilotName)
+          ? { pilotName: sanitizePilotName(candidate.pilotName) }
+          : { pilotName: undefined }),
+        mappings: sanitizeMappings(candidate.mappings),
+      }
     : undefined;
 }
 
@@ -213,7 +233,13 @@ function parseBeaconConfig(value: unknown): SignalBeaconConfigV1 | undefined {
     candidate.sessionToken > 0 &&
     candidate.rawEcgIncluded === false &&
     acceptedMetricOrder
-    ? { ...candidate, metricOrder: [...acceptedMetricOrder] }
+    ? {
+        ...candidate,
+        ...(sanitizePilotName(candidate.pilotName)
+          ? { pilotName: sanitizePilotName(candidate.pilotName) }
+          : { pilotName: undefined }),
+        metricOrder: [...acceptedMetricOrder],
+      }
     : undefined;
 }
 
@@ -308,6 +334,7 @@ export type SignalBeaconOffer = Omit<
 export class FlightBroadcaster extends RemoteBase {
   private phase: BroadcasterSnapshot["phase"] = "idle";
   private streamId = "";
+  private sourceLabel = "";
   private config?: FlightConfigV1;
   private beaconConfig?: SignalBeaconConfigV1;
   private channels = new Map<string, RTCDataChannel>();
@@ -346,7 +373,7 @@ export class FlightBroadcaster extends RemoteBase {
       phase: this.phase,
       streamId: this.streamId,
       sessionId: this.config?.sessionId ?? "",
-      sourceLabel: this.streamId ? formatSourceLabel(this.streamId) : "",
+      sourceLabel: this.streamId ? this.sourceLabel : "",
       listenerCount: this.channels.size,
       beaconListenerCount: this.beaconChannels.size,
       route,
@@ -362,14 +389,28 @@ export class FlightBroadcaster extends RemoteBase {
   private emit(extra: Partial<BroadcasterSnapshot> = {}) {
     this.dispatchEvent(detailEvent("statechange", this.snapshot(extra)));
   }
-  async start(mappings: FlightMappings): Promise<BroadcasterSnapshot> {
+  async start(
+    mappings: FlightMappings,
+    pilotName = "",
+  ): Promise<BroadcasterSnapshot> {
     if (this.phase !== "idle" && this.phase !== "error") return this.snapshot();
     await this.stop();
     this.phase = "connecting";
     this.streamId = generateFlightSourceId();
+    this.sourceLabel =
+      sanitizePilotName(pilotName) || formatSourceLabel(this.streamId);
     const sessionId = randomHex(8);
-    this.config = createConfig(this.streamId, mappings, sessionId);
-    this.beaconConfig = createBeaconConfig(this.streamId, sessionId);
+    this.config = createConfig(
+      this.streamId,
+      mappings,
+      sessionId,
+      this.sourceLabel,
+    );
+    this.beaconConfig = createBeaconConfig(
+      this.streamId,
+      sessionId,
+      this.sourceLabel,
+    );
     this.emit({ message: "Connecting to the public flight room…" });
     try {
       this.sdk = this.makeSdk();
@@ -403,11 +444,12 @@ export class FlightBroadcaster extends RemoteBase {
       await this.sdk.joinRoom({ room: FLIGHT_ROOM, password: false });
       await this.sdk.announce({
         streamID: this.streamId,
-        label: formatSourceLabel(this.streamId),
+        label: this.sourceLabel,
         meta: {
           protocol: "ecgflightv1",
           schemaVersion: 1,
           signalProtocol: "ecgsignalv1",
+          pilotName: this.sourceLabel,
         },
       });
       this.phase = "broadcasting";
@@ -749,6 +791,7 @@ export class FlightBroadcaster extends RemoteBase {
     this.latest = undefined;
     this.lastSent = undefined;
     this.streamId = "";
+    this.sourceLabel = "";
     this.config = undefined;
     this.beaconConfig = undefined;
     this.sequence = 0;
@@ -811,7 +854,8 @@ export class FlightReceiver extends RemoteBase {
       ),
       selectedStreamId: this.selectedStreamId,
       sourceLabel: this.selectedStreamId
-        ? formatSourceLabel(this.selectedStreamId)
+        ? (this.sources.get(this.selectedStreamId)?.label ??
+          formatSourceLabel(this.selectedStreamId))
         : "",
       latest: this.latest ? { ...this.latest } : undefined,
       config: this.config ? structuredClone(this.config) : undefined,
@@ -859,6 +903,8 @@ export class FlightReceiver extends RemoteBase {
     const old = this.sources.get(source.streamId);
     if (old) {
       if (source.uuid) old.uuid = source.uuid;
+      if (source.label !== formatSourceLabel(source.streamId))
+        old.label = source.label;
     } else this.sources.set(source.streamId, source);
     this.scheduleAuto();
     this.emit();
@@ -1014,6 +1060,11 @@ export class FlightReceiver extends RemoteBase {
       )
         return false;
       this.config = config;
+      const pilotName = sanitizePilotName(config.pilotName);
+      if (pilotName) {
+        const source = this.sources.get(config.sourceId);
+        if (source) source.label = pilotName;
+      }
       this.selectedUuid = detail.uuid ?? this.selectedUuid;
       if (this.phase === "connecting") this.phase = "ready";
       this.dispatchEvent(detailEvent("config", this.snapshot()));
@@ -1033,6 +1084,11 @@ export class FlightReceiver extends RemoteBase {
           this.beaconConfig.sessionToken !== beaconConfig.sessionToken),
     );
     this.beaconConfig = beaconConfig;
+    const pilotName = sanitizePilotName(beaconConfig.pilotName);
+    if (pilotName) {
+      const source = this.sources.get(beaconConfig.sourceId);
+      if (source) source.label = pilotName;
+    }
     if (beaconSessionChanged) {
       this.latestBeacon = undefined;
       this.lastBeaconSequence = undefined;

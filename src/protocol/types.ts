@@ -54,6 +54,8 @@ export interface FlightConfigV1 {
   sourceId: string;
   sessionId: string;
   createdAt: string;
+  /** User-entered public label shown during beacon discovery. */
+  pilotName?: string;
   mappings: FlightMappings;
 }
 
@@ -78,6 +80,8 @@ export interface SignalBeaconConfigV1 {
   schemaVersion: 1;
   sourceId: string;
   sessionId: string;
+  /** User-entered public label shown during beacon discovery. */
+  pilotName?: string;
   sessionToken: number;
   metricOrder: DerivedMetricId[];
   rawEcgIncluded: false;

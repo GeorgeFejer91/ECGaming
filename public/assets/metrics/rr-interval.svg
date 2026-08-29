@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>RR interval timing</title>
+  <path d="M6 43h8l4-5 4 9 5-25 5 21h8l3-5 4 9 5-25 5 21h3" stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+  <path d="M27 16V11m25 5v-5M29 12h21" stroke="#f4b33a" stroke-linecap="round" stroke-width="3"/>
+  <circle cx="27" cy="22" r="2.5" fill="#f4b33a"/>
+  <circle cx="52" cy="22" r="2.5" fill="#f4b33a"/>
+</svg>

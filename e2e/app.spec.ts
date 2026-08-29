@@ -207,6 +207,78 @@ test("Ground Control keeps exactly one aviation accordion open", async ({
   await expect(page.locator(".accordion-item.is-open")).toHaveCount(1);
 });
 
+test("Ground Control metric widgets focus the signal scope and persist the view", async ({
+  page,
+}) => {
+  await page.route("**/vendor/vdoninja/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
+  );
+  await page.goto("./ground-control/");
+
+  const widgets = page.locator("[data-scope-metric]");
+  const breathing = page.locator(
+    '[data-scope-metric="breathing_volume"]',
+  );
+  await expect(widgets).toHaveCount(6);
+  await breathing.click();
+  await expect(breathing).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#scope-metric-label")).toHaveText(
+    "ACC BREATHING",
+  );
+  await expect(page.locator("#scope-metric-icon")).toHaveAttribute(
+    "src",
+    /\/assets\/metrics\/breathing\.svg$/,
+  );
+  await expect(page.locator("#scope-metric-unit")).toHaveText("0–1");
+
+  await page.getByRole("button", { name: /Test Simulator/ }).click();
+  await page.locator("#sim-enabled").check();
+  await expect(page.locator("#widget-breathing_volume")).toHaveText("0.50");
+  await expect(page.locator("#scope-metric-value")).toHaveText("0.50");
+
+  await page.reload();
+  await expect(breathing).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#scope-metric-label")).toHaveText(
+    "ACC BREATHING",
+  );
+});
+
+test("Ground Control highlights Polar setup and requires a pilot name for broadcasting", async ({
+  page,
+}) => {
+  await page.route("**/vendor/vdoninja/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
+  );
+  await page.goto("./ground-control/");
+
+  const connectPolar = page.locator("#connect-polar");
+  await expect(connectPolar).toHaveClass(/needs-attention/);
+  await expect(page.locator("#polar-connect-nudge")).toBeVisible();
+
+  await page.getByRole("button", { name: /Broadcast Tower/ }).click();
+  const pilotName = page.getByLabel(/PILOT NAME/);
+  const pilotField = page.locator("#pilot-name-field");
+  await page.locator("#start-broadcast").click();
+  await expect(pilotField).toHaveClass(/needs-attention/);
+  await expect(pilotName).toHaveAttribute("aria-invalid", "true");
+  await expect(pilotName).toBeFocused();
+  await expect(page.locator("#pilot-name-help")).toContainText(
+    /Enter your pilot name/i,
+  );
+
+  await pilotName.fill("Captain George");
+  await expect(pilotField).not.toHaveClass(/needs-attention/);
+  await page.locator("#start-broadcast").click();
+  await expect(page.locator("#broadcast-source")).toHaveText(
+    "Captain George",
+  );
+  await expect(pilotName).toBeDisabled();
+
+  await page.reload();
+  await page.getByRole("button", { name: /Broadcast Tower/ }).click();
+  await expect(pilotName).toHaveValue("Captain George");
+});
+
 test("Ground Control and Cockpit are explicit views and preview does not launch", async ({
   page,
 }) => {

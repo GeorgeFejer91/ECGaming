@@ -1,6 +1,7 @@
 /*
  * Browser-safe Polar H10 ACC decoding and source-timed breathing waveform.
- * Adapted from GeorgeFejer91/Polar-Stream at commit 5300e2c (MIT).
+ * Adapted from GeorgeFejer91/Polar-Stream at commit
+ * 5300e2c2c9593f405f3b74b21b3330000e90b6f2 (MIT).
  * See THIRD_PARTY_NOTICES.md. This is an experimental respiratory-motion /
  * effort surrogate, not lung volume, airflow, or a clinical measurement.
  */
@@ -241,6 +242,7 @@ export class PolarBreathingProcessor {
 
   reset(settings = this.settings) {
     this.settings = settingsFrom(settings);
+    this.samplesSeen = 0;
     this.calibration = [];
     this.center = [0, 0, 0];
     this.axis = [1, 0, 0];
@@ -272,6 +274,11 @@ export class PolarBreathingProcessor {
       forwardGaps: 0,
       resets: 0,
     };
+  }
+
+  applySettings(settings) {
+    const next = settingsFrom(settings);
+    if (JSON.stringify(next) !== JSON.stringify(this.settings)) this.reset(next);
   }
 
   alpha(deltaSeconds, tauSeconds) {
@@ -453,17 +460,25 @@ export class PolarBreathingProcessor {
       return this.snapshot(newest, false);
     }
     let hadForwardGap = false;
-    if (this.lastSourceNs !== null && boundaryGap) {
-      this.lost = true;
-      hadForwardGap = true;
-      this.phase = 0;
-      this.activeSinceNs = null;
-      this.candidateSinceNs = null;
-      this.lastProjection = null;
-      this.derivative = 0;
-      this.diagnostics.forwardGaps += 1;
+    if (this.lastSourceNs !== null) {
+      const gap = Number(times[0] - this.lastSourceNs) / 1e9;
+      if (gap < -0.25) {
+        const resets = this.diagnostics.resets + 1;
+        this.reset(this.settings);
+        this.diagnostics.resets = resets;
+      } else if (boundaryGap) {
+        this.lost = true;
+        hadForwardGap = true;
+        this.phase = 0;
+        this.activeSinceNs = null;
+        this.candidateSinceNs = null;
+        this.lastProjection = null;
+        this.derivative = 0;
+        this.diagnostics.forwardGaps += 1;
+      }
     }
     const accepted = [];
+    const presentationPoints = [];
     for (let index = 0; index < samples.length; index += 1) {
       const timeNs = times[index];
       if (this.watermarkNs !== null && timeNs <= this.watermarkNs) {
@@ -516,6 +531,7 @@ export class PolarBreathingProcessor {
               (value, index) => value + (current[index] - value) * alpha,
             );
       this.lastProcessedNs = entry.timeNs;
+      this.samplesSeen += 1;
       if (!this.calibrated) {
         this.calibration.push({ timeNs: entry.timeNs, value: [...this.filtered] });
         const calibrationWindowNs = BigInt(
@@ -575,13 +591,17 @@ export class PolarBreathingProcessor {
           this.classifyDerivative(this.derivative, entry.timeNs);
         }
         if (!hadForwardGap) this.lastProjection = projection;
+        presentationPoints.push({
+          sourceTimestampNs: String(entry.timeNs),
+          volume01: this.lastVolume,
+        });
       }
     }
     this.diagnostics.accepted += accepted.length;
-    return this.snapshot(newest, true);
+    return this.snapshot(newest, true, presentationPoints);
   }
 
-  snapshot(timeNs, accepted) {
+  snapshot(timeNs, accepted, presentationPoints = []) {
     const threshold = Math.max(this.settings.minimumAxisRangeG * 0.1, 0.001);
     const motionRatio = this.motionDeltaEmaG / threshold;
     const motionScore = Math.max(
@@ -625,9 +645,17 @@ export class PolarBreathingProcessor {
       phase: ready ? this.phase : 0,
       volume01: this.lastVolume,
       magnitudeG: this.lastProjection ?? 0,
+      derivativePerSecond: this.derivative,
       sensorTimestampNs: String(timeNs),
+      presentationPoints: presentationPoints.slice(-512),
       values: {
+        acc_breathing_magnitude: this.calibrated
+          ? (this.lastProjection ?? 0)
+          : undefined,
         breathing_volume: this.calibrated ? this.lastVolume : undefined,
+        breathing_axis_range: this.calibrated
+          ? this.boundMax - this.boundMin
+          : undefined,
         breathing_signal_ready: ready ? 1 : 0,
         breathing_signal_confidence: confidence01,
         breathing_calibration: calibration01,
