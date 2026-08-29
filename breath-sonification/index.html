@@ -146,9 +146,29 @@
             </label>
           </div>
           <p class="microcopy">
-            The voice is generated—not looped—from shaped pink noise, a moving
-            source filter, and a flow-derived amplitude envelope.
+            Inhale opens the sound; exhale closes it. Width, mouth resonance,
+            spectral access, and lateral ambience follow lung expansion while
+            loudness remains tied to flow.
           </p>
+          <div
+            class="sonic-aperture"
+            id="sonic-aperture"
+            data-motion="closed"
+            data-openness="0.000"
+            role="meter"
+            aria-label="Sonic aperture"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-valuetext="closed, narrow, dry, focused"
+          >
+            <div class="sonic-aperture-heading">
+              <span>Sonic aperture</span>
+              <strong id="sonic-aperture-value">closed · 0%</strong>
+            </div>
+            <div class="sonic-aperture-track" aria-hidden="true"><i></i></div>
+            <p id="sonic-aperture-qualities">narrow · dry · focused</p>
+          </div>
         </article>
 
         <article class="panel sensor-panel">

@@ -8,6 +8,11 @@ import {
 } from "../breath-sonification/breath-model";
 import { lungSilhouettePath } from "../breath-sonification/lung-visual";
 import { PolarBreathLock } from "../breath-sonification/polar-breath-lock";
+import {
+  mapBreathSonicSpace,
+  sonicMotionForPhase,
+  sonicQualities,
+} from "../breath-sonification/breath-sonic-space";
 
 const timing: BreathTiming = {
   inhaleSeconds: 2,
@@ -147,5 +152,31 @@ describe("Breath Mirror physiology lock", () => {
       phaseValue: 0,
       confidence01: 0,
     });
+  });
+});
+
+describe("Breath Mirror sonic aperture", () => {
+  it("opens several spatial and timbral dimensions without mapping volume to gain", () => {
+    const closed = mapBreathSonicSpace(0, 0.72);
+    const open = mapBreathSonicSpace(1, 0.72);
+
+    expect(open.openness01).toBe(1);
+    expect(closed.openness01).toBe(0);
+    expect(open.cutoffMultiplier).toBeGreaterThan(closed.cutoffMultiplier);
+    expect(open.mouthResonanceHz).toBeGreaterThan(closed.mouthResonanceHz);
+    expect(open.spectralSpread).toBeGreaterThan(closed.spectralSpread);
+    expect(open.stereoWidth).toBeGreaterThan(closed.stereoWidth);
+    expect(open.diffusionMix).toBeGreaterThan(closed.diffusionMix);
+    expect(open.roughnessMultiplier).toBeLessThan(closed.roughnessMultiplier);
+    expect(open).not.toHaveProperty("gain");
+  });
+
+  it("describes inhale as opening and exhale as closing", () => {
+    expect(sonicMotionForPhase("inhale", 0.4)).toBe("opening");
+    expect(sonicMotionForPhase("exhale", 0.6)).toBe("closing");
+    expect(sonicMotionForPhase("inhale-hold", 0.9)).toBe("open");
+    expect(sonicMotionForPhase("exhale-hold", 0.1)).toBe("closed");
+    expect(sonicQualities(0.9)).toBe("broad · resonant · diffuse");
+    expect(sonicQualities(0.1)).toBe("narrow · dry · focused");
   });
 });

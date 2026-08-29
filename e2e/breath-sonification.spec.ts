@@ -17,6 +17,7 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
   await expect(
     page.getByRole("button", { name: "Lock to Polar H10" }),
   ).toBeVisible();
+  await expect(page.locator("#sonic-aperture")).toBeVisible();
 
   await page.getByRole("button", { name: /fast.*30 bpm/i }).click();
   await expect(page.locator("#bpm-value")).toHaveText("30.0");
@@ -29,6 +30,9 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
   await expect(page.getByLabel("Manual lab")).toBeChecked();
   await page.locator("#sensor-volume").fill("0.2");
   await page.waitForTimeout(220);
+  const contractedOpenness = Number(
+    await page.locator("#sonic-aperture").getAttribute("data-openness"),
+  );
   const contractedLung = await page
     .locator("#lung-silhouette")
     .getAttribute("d");
@@ -39,6 +43,14 @@ test("Breath Mirror changes pace and follows normalized physiology", async ({
     .not.toBe(contractedLung);
   await expect(page.locator("#lung-silhouette")).toHaveAttribute(
     "d", /M 147/,
+  );
+  await expect
+    .poll(async () =>
+      Number(await page.locator("#sonic-aperture").getAttribute("data-openness")),
+    )
+    .toBeGreaterThan(contractedOpenness);
+  await expect(page.locator("#sonic-aperture-qualities")).toHaveText(
+    "broad · resonant · diffuse",
   );
 
   await page.locator(".switch").click();

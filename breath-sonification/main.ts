@@ -8,6 +8,10 @@ import {
 } from "./breath-model";
 import { lungSilhouettePath } from "./lung-visual";
 import {
+  sonicMotionForPhase,
+  sonicQualities,
+} from "./breath-sonic-space";
+import {
   PolarBreathLock,
   type PolarLockFrame,
 } from "./polar-breath-lock";
@@ -76,6 +80,9 @@ const polarLockCopy = byId("polar-lock-copy");
 const polarPhase = byId("polar-phase");
 const polarCalibration = byId("polar-calibration");
 const polarConfidence = byId("polar-confidence");
+const sonicAperture = byId("sonic-aperture");
+const sonicApertureValue = byId("sonic-aperture-value");
+const sonicApertureQualities = byId("sonic-aperture-qualities");
 
 let playing = false;
 let rampFrame = 0;
@@ -168,6 +175,24 @@ function renderFrame(frame: SonifierFrame): void {
     "--phase-progress",
     frame.phase01.toFixed(4),
   );
+  document.documentElement.style.setProperty(
+    "--sound-openness",
+    frame.openness01.toFixed(4),
+  );
+  const sonicMotion = sonicMotionForPhase(frame.phase, frame.openness01);
+  const qualities = sonicQualities(frame.openness01);
+  sonicAperture.dataset.motion = sonicMotion;
+  sonicAperture.dataset.openness = frame.openness01.toFixed(3);
+  sonicAperture.setAttribute(
+    "aria-valuenow",
+    String(Math.round(frame.openness01 * 100)),
+  );
+  sonicAperture.setAttribute(
+    "aria-valuetext",
+    `${sonicMotion}, ${qualities.replaceAll(" · ", ", ")}`,
+  );
+  sonicApertureValue.textContent = `${sonicMotion} · ${Math.round(frame.openness01 * 100)}%`;
+  sonicApertureQualities.textContent = qualities;
   document.body.dataset.phase = frame.phase;
 }
 

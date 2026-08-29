@@ -25,6 +25,7 @@ export interface SonifierFrame {
   phase01: number;
   volume01: number;
   flow01: number;
+  openness01: number;
   source: "cycle" | "physiology";
   breathNumber: number;
 }

@@ -14,6 +14,8 @@ device.
 
 For the expanded comparison of procedural, granular, DDSP, neural, and
 text-to-audio approaches, see [GENERATIVE-AUDIO-RESEARCH.md](./GENERATIVE-AUDIO-RESEARCH.md).
+For the music-cognition and psychoacoustic basis of the inhale/open versus
+exhale/closed gesture, see [OPENNESS-MAPPING-RESEARCH.md](./OPENNESS-MAPPING-RESEARCH.md).
 
 ## What is implemented
 
@@ -24,6 +26,10 @@ text-to-audio approaches, see [GENERATIVE-AUDIO-RESEARCH.md](./GENERATIVE-AUDIO-
 - Pink-noise turbulence, inhale/exhale-specific source filtering, nonlinear
   flow envelopes, small stochastic variation, smooth start/stop, and output
   limiting.
+- A continuous sonic-aperture mapping: inhalation broadens stereo width, raises
+  the mouth-like resonance, opens spectral bandwidth, smooths constriction
+  noise, and adds subtle lateral ambience; exhalation reverses that gesture.
+  Loudness remains flow-derived rather than chest-volume-derived.
 - A physiology input contract with freshness and readiness gating:
   `volume01`, optional `flow01`, phase, confidence, and timestamp.
 - A direct **Lock to Polar H10** mode. It consumes the existing 200 Hz ACC
@@ -154,4 +160,5 @@ presented as a clinical signal.
 - `breath-model.ts`: testable timing and phase math.
 - `polar-breath-lock.ts`: fail-closed Polar readiness and freshness boundary.
 - `lung-visual.ts`: the single compound SVG silhouette morph.
+- `breath-sonic-space.ts`: testable closed/open perceptual parameter mapping.
 - `main.ts`, `index.html`, `styles.css`: interactive lab.

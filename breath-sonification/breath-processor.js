@@ -7,6 +7,29 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const mix = (left, right, amount) => left + (right - left) * amount;
 const smoothstep = (value) => value * value * (3 - 2 * value);
 
+// Allocation-free equivalent of mapBreathSonicSpace() in
+// breath-sonic-space.ts. Loudness is intentionally not part of this mapping:
+// flow remains the sole amplitude authority.
+const updateBreathSonicSpace = (target, volume01, naturalness01) => {
+  const openness01 = smoothstep(clamp(volume01, 0, 1));
+  const naturalness = clamp(naturalness01, 0, 1);
+  target.openness01 = openness01;
+  target.cutoffMultiplier = mix(0.72, 1.28, openness01);
+  target.mouthResonanceHz = mix(360, 860, openness01);
+  target.spectralSpread = mix(0.72, 1.16, openness01);
+  target.stereoWidth = mix(
+    0.055,
+    0.34 + naturalness * 0.28,
+    openness01,
+  );
+  target.diffusionMix = mix(
+    0.008,
+    0.085 + naturalness * 0.075,
+    openness01,
+  );
+  target.roughnessMultiplier = mix(1.12, 0.82, openness01);
+};
+
 const PHASES = ["inhale", "inhale-hold", "exhale", "exhale-hold"];
 const DURATION_KEYS = [
   "inhaleSeconds",
@@ -61,9 +84,18 @@ class BreathFilter {
     this.bandLow = 0;
     this.bandHigh = 0;
     this.roughness = 0;
+    this.formantLow = 0;
+    this.formantBand = 0;
   }
 
-  process(cutoffHz, bandLowHz, bandHighHz, naturalness01) {
+  process(
+    cutoffHz,
+    bandLowHz,
+    bandHighHz,
+    mouthResonanceHz,
+    naturalness01,
+    roughnessMultiplier,
+  ) {
     const source = this.noise.next();
     const lowCoefficient = 1 - Math.exp((-2 * Math.PI * cutoffHz) / sampleRate);
     const bandLowCoefficient =
@@ -82,11 +114,49 @@ class BreathFilter {
     this.roughness +=
       roughnessCoefficient * (this.noise.white() - this.roughness);
 
+    // A gentle noise-excited first-formant analogue. A more open mouth raises
+    // this resonance; damping keeps it breath-like rather than whistle-like.
+    const formantCoefficient = 2 * Math.sin(
+      (Math.PI * clamp(mouthResonanceHz, 220, 1400)) / sampleRate,
+    );
+    this.formantLow += formantCoefficient * this.formantBand;
+    const formantHigh =
+      source - this.formantLow - 0.74 * this.formantBand;
+    this.formantBand += formantCoefficient * formantHigh;
+
     const softAir = this.low2 - this.dc;
     const mouthBand = this.bandHigh - this.bandLow;
     const turbulence =
-      1 + naturalness01 * (0.075 * this.roughness + 0.025 * source);
-    return (softAir * 0.72 + mouthBand * 0.42) * turbulence;
+      1 +
+      naturalness01 *
+        roughnessMultiplier *
+        (0.075 * this.roughness + 0.025 * source);
+    return (
+      (softAir * 0.68 + mouthBand * 0.39 + this.formantBand * 0.16) *
+      turbulence
+    );
+  }
+}
+
+class DiffuseField {
+  constructor() {
+    this.left = new Float32Array(Math.max(1, Math.round(sampleRate * 0.083)));
+    this.right = new Float32Array(Math.max(1, Math.round(sampleRate * 0.109)));
+    this.leftIndex = 0;
+    this.rightIndex = 0;
+    this.outputLeft = 0;
+    this.outputRight = 0;
+  }
+
+  process(left, right, wet01) {
+    const wetLeft = this.left[this.leftIndex];
+    const wetRight = this.right[this.rightIndex];
+    this.left[this.leftIndex] = left + wetRight * 0.16;
+    this.right[this.rightIndex] = right + wetLeft * 0.14;
+    this.leftIndex = (this.leftIndex + 1) % this.left.length;
+    this.rightIndex = (this.rightIndex + 1) % this.right.length;
+    this.outputLeft = mix(left, wetLeft, wet01);
+    this.outputRight = mix(right, wetRight, wet01);
   }
 }
 
@@ -115,6 +185,16 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
       new BreathFilter(0x7f4a7c15),
       new BreathFilter(0x51ed270b),
     ];
+    this.diffuseField = new DiffuseField();
+    this.soundSpace = {
+      openness01: 0,
+      cutoffMultiplier: 0.72,
+      mouthResonanceHz: 360,
+      spectralSpread: 0.72,
+      stereoWidth: 0.055,
+      diffusionMix: 0.008,
+      roughnessMultiplier: 1.12,
+    };
     this.external = {
       ageSeconds: Infinity,
       blend: 0,
@@ -127,11 +207,18 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
       phaseTarget01: 0,
     };
     this.reportCountdown = 0;
+    this.cycle = {
+      phase: "inhale",
+      moving: true,
+      volume01: 0,
+      flow01: 0,
+    };
     this.lastFrame = {
       phase: "inhale",
       phase01: 0,
       volume01: 0,
       flow01: 0,
+      openness01: 0,
       source: "cycle",
       breathNumber: 0,
     };
@@ -269,7 +356,11 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
     } else {
       volume01 = 0;
     }
-    return { phase, moving, volume01, flow01 };
+    this.cycle.phase = phase;
+    this.cycle.moving = moving;
+    this.cycle.volume01 = volume01;
+    this.cycle.flow01 = flow01;
+    return this.cycle;
   }
 
   process(_inputs, outputs) {
@@ -304,26 +395,39 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
           : this.phaseIndex === 0;
       const brightness = this.currentTimbre.brightness01;
       const naturalness = this.currentTimbre.naturalness01;
-      const baseCutoff = isInhale
-        ? mix(900, 3300, brightness)
-        : mix(620, 1950, brightness);
-      const cutoff = baseCutoff * mix(0.72, 1.12, flow01);
-      const bandLow = Math.max(120, cutoff * (isInhale ? 0.18 : 0.22));
-      const bandHigh = cutoff * (isInhale ? 0.72 : 0.61);
+      updateBreathSonicSpace(this.soundSpace, volume01, naturalness);
+      const soundSpace = this.soundSpace;
+      const phaseColor = isInhale ? 1.06 : 0.92;
+      const baseCutoff = mix(820, 2580, brightness) * phaseColor;
+      const cutoff =
+        baseCutoff *
+        soundSpace.cutoffMultiplier *
+        mix(0.82, 1.12, flow01);
+      const bandLow = Math.max(
+        120,
+        cutoff * mix(0.26, 0.16, soundSpace.openness01),
+      );
+      const bandHigh =
+        cutoff *
+        mix(0.55, 0.78, soundSpace.openness01) *
+        soundSpace.spectralSpread;
       const left = this.filters[0].process(
         cutoff,
         bandLow,
         bandHigh,
+        soundSpace.mouthResonanceHz,
         naturalness,
+        soundSpace.roughnessMultiplier,
       );
       const right = this.filters[1].process(
         cutoff * 0.985,
         bandLow * 1.02,
         bandHigh * 0.97,
+        soundSpace.mouthResonanceHz * 1.018,
         naturalness,
+        soundSpace.roughnessMultiplier,
       );
       const center = (left + right) * 0.5;
-      const width = 0.08 + naturalness * 0.25;
       const inhaleGain = isInhale ? 1 : 0.74;
       const amplitude =
         Math.pow(flow01, 0.9) *
@@ -335,28 +439,36 @@ class ECGamingBreathProcessor extends AudioWorkletProcessor {
         (1 - Math.exp(-deltaSeconds / (this.active ? 0.025 : 0.045)));
       const lockGate = this.external.locked ? this.external.blend : 1;
       const gain = amplitude * this.activeGain * lockGate;
-      output[0][index] = Math.tanh(mix(center, left, width) * gain * 1.35);
+      this.diffuseField.process(
+        mix(center, left, soundSpace.stereoWidth),
+        mix(center, right, soundSpace.stereoWidth),
+        soundSpace.diffusionMix,
+      );
+      output[0][index] = Math.tanh(
+        this.diffuseField.outputLeft * gain * 1.35,
+      );
       if (output[1])
-        output[1][index] = Math.tanh(mix(center, right, width) * gain * 1.35);
+        output[1][index] = Math.tanh(
+          this.diffuseField.outputRight * gain * 1.35,
+        );
 
-      this.lastFrame = {
-        phase:
-          this.external.locked || this.external.blend > 0.5
-            ? this.external.phase === "hold"
-              ? volume01 > 0.5
-                ? "inhale-hold"
-                : "exhale-hold"
-              : this.external.phase
-            : cycle.phase,
-        phase01: this.phase01,
-        volume01,
-        flow01,
-        source:
-          this.external.locked || this.external.blend > 0.5
-            ? "physiology"
-            : "cycle",
-        breathNumber: this.breathNumber,
-      };
+      this.lastFrame.phase =
+        this.external.locked || this.external.blend > 0.5
+          ? this.external.phase === "hold"
+            ? volume01 > 0.5
+              ? "inhale-hold"
+              : "exhale-hold"
+            : this.external.phase
+          : cycle.phase;
+      this.lastFrame.phase01 = this.phase01;
+      this.lastFrame.volume01 = volume01;
+      this.lastFrame.flow01 = flow01;
+      this.lastFrame.openness01 = soundSpace.openness01;
+      this.lastFrame.source =
+        this.external.locked || this.external.blend > 0.5
+          ? "physiology"
+          : "cycle";
+      this.lastFrame.breathNumber = this.breathNumber;
     }
 
     this.reportCountdown -= sampleCount;
