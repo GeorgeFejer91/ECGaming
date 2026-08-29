@@ -527,8 +527,7 @@ a {
   z-index: 1;
   width: min(1280px, calc(100% - 3rem));
   margin: auto;
-  padding: 3.5rem 0 4rem;
-  border-top: 1px solid var(--line);
+  padding: clamp(2.75rem, 5vw, 4.5rem) 0 4rem;
 }
 .game-library-heading {
   display: grid;

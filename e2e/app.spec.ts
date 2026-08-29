@@ -58,24 +58,10 @@ window.VDONinjaSDK=class extends EventTarget {
   }
 }`;
 
-test("landing exposes phone, ground, and receiver workflows", async ({
-  page,
-}) => {
+test("landing opens directly on compact game choices", async ({ page }) => {
   await page.goto("./");
-  await expect(
-    page.getByRole("heading", { name: /your heartbeat/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /open ecg flight/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /open flight deck/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /play on this phone/i }),
-  ).toBeVisible();
-  await expect(page.locator(".tower-role-icon svg")).toBeVisible();
-  await expect(page.locator(".aircraft-role-icon svg")).toBeVisible();
+  await expect(page.locator(".hero-grid")).toHaveCount(0);
+  await expect(page.locator(".topbar + #games")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /pick a game.*know its source/i }),
   ).toBeVisible();
