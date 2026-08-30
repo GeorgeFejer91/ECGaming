@@ -7,12 +7,14 @@ import {
   autoConnectPolar,
   connectPolar,
   disconnectPolar,
+  getAudioDevices,
   getAudioStatus,
   getPolarStatus,
   setSoundControls,
   startAudio,
   stopAudio,
   type AudioStatus,
+  type AudioDeviceSummary,
   type BreathPreset,
   type BreathSource,
   type NativeError,
@@ -31,6 +33,7 @@ const elements = {
   startIcon: requireElement<HTMLElement>("start-icon"),
   startLabel: requireElement<HTMLElement>("start-label"),
   bufferSize: requireElement<HTMLSelectElement>("buffer-size"),
+  outputDevice: requireElement<HTMLSelectElement>("output-device"),
   notice: requireElement<HTMLElement>("notice"),
   engineDot: requireElement<HTMLElement>("engine-dot"),
   engineState: requireElement<HTMLElement>("engine-state"),
@@ -72,7 +75,7 @@ const elements = {
   outputValue: requireElement<HTMLOutputElement>("output-value"),
 };
 
-let selectedPreset: BreathPreset = "harmonic";
+let selectedPreset: BreathPreset = "aperture";
 let selectedSource: BreathSource = "polar";
 let running = false;
 let polarConnected = false;
@@ -163,7 +166,7 @@ function renderStatus(status: AudioStatus): void {
   elements.engineState.textContent = running ? "NATIVE ENGINE LIVE" : "ENGINE RESTING";
   elements.deviceName.textContent = status.deviceName ?? "native output not started";
   elements.startIcon.textContent = running ? "■" : "▶";
-  elements.startLabel.textContent = running ? "STOP BREATH" : "START NATIVE BREATH";
+  elements.startLabel.textContent = running ? "STOP FIELD" : "START MUSICAL FIELD";
   elements.startButton.classList.toggle("is-running", running);
   elements.bufferSize.disabled = running;
 
@@ -194,6 +197,28 @@ function renderStatus(status: AudioStatus): void {
     elements.notice.textContent = `${selectedPreset.toUpperCase()} · ${driver} · ${status.bufferMode ?? "system buffer"}`;
     elements.notice.classList.remove("is-error");
   }
+}
+
+function renderAudioDevices(
+  devices: AudioDeviceSummary[],
+  activeDeviceId: string | null,
+): void {
+  const previous = activeDeviceId ?? elements.outputDevice.value;
+  elements.outputDevice.replaceChildren();
+  if (devices.length === 0) {
+    elements.outputDevice.add(new Option("NO ACTIVE OUTPUTS", ""));
+    elements.outputDevice.disabled = true;
+    return;
+  }
+  for (const device of devices) {
+    const suffix = device.isDefault ? " · WINDOWS DEFAULT" : "";
+    elements.outputDevice.add(new Option(`${device.name}${suffix}`, device.id));
+  }
+  elements.outputDevice.disabled = false;
+  const selected = devices.find((device) => device.id === previous)
+    ?? devices.find((device) => device.isDefault)
+    ?? devices[0];
+  elements.outputDevice.value = selected.id;
 }
 
 function renderPolarStatus(status: PolarStatus): void {
@@ -296,7 +321,7 @@ async function toggleAudio(): Promise<void> {
     } else {
       const bufferFrames = Number.parseInt(elements.bufferSize.value, 10);
       await setSoundControls(currentControls());
-      renderStatus(await startAudio(bufferFrames));
+      renderStatus(await startAudio(bufferFrames, elements.outputDevice.value || null));
       await flushControls();
     }
   } catch (error) {
@@ -304,6 +329,24 @@ async function toggleAudio(): Promise<void> {
     elements.notice.classList.add("is-error");
   } finally {
     elements.startButton.disabled = false;
+  }
+}
+
+async function switchAudioOutput(): Promise<void> {
+  if (!running) return;
+  elements.outputDevice.disabled = true;
+  elements.notice.classList.remove("is-error");
+  try {
+    const bufferFrames = Number.parseInt(elements.bufferSize.value, 10);
+    renderStatus(await stopAudio());
+    await setSoundControls(currentControls());
+    renderStatus(await startAudio(bufferFrames, elements.outputDevice.value || null));
+    elements.notice.textContent = `Now playing through ${elements.outputDevice.selectedOptions[0]?.textContent ?? "selected output"}.`;
+  } catch (error) {
+    elements.notice.textContent = describeError(error);
+    elements.notice.classList.add("is-error");
+  } finally {
+    elements.outputDevice.disabled = false;
   }
 }
 
@@ -356,6 +399,7 @@ document.querySelectorAll<HTMLButtonElement>(".source-button").forEach((button) 
 });
 
 elements.startButton.addEventListener("click", () => void toggleAudio());
+elements.outputDevice.addEventListener("change", () => void switchAudioOutput());
 elements.polarConnect.addEventListener("click", () => void togglePolar());
 document.addEventListener("keydown", (event) => {
   if (event.code === "Space" && event.target === document.body) {
@@ -369,7 +413,12 @@ async function initialize(): Promise<void> {
   updateControlLabels();
   setSource("polar");
   try {
-    const [audio, polar] = await Promise.all([getAudioStatus(), getPolarStatus()]);
+    const [audio, polar, audioDevices] = await Promise.all([
+      getAudioStatus(),
+      getPolarStatus(),
+      getAudioDevices(),
+    ]);
+    renderAudioDevices(audioDevices, audio.deviceId);
     renderStatus(audio);
     renderPolarStatus(polar);
     if (

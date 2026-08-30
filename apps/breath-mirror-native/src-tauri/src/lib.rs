@@ -4,16 +4,17 @@ mod polar;
 
 use std::sync::Arc;
 
-use audio::{AudioService, AudioStatus, SoundControls, WireError};
+use audio::{AudioDeviceSummary, AudioService, AudioStatus, SoundControls, WireError};
 use physiology::SharedBreathSignal;
 use polar::{PolarService, PolarStatus};
 
 #[tauri::command]
 fn start_audio(
     buffer_frames: u32,
+    device_id: Option<String>,
     service: tauri::State<'_, AudioService>,
 ) -> Result<AudioStatus, WireError> {
-    service.start(buffer_frames)
+    service.start(buffer_frames, device_id.as_deref())
 }
 
 #[tauri::command]
@@ -32,6 +33,13 @@ fn set_sound_controls(
 #[tauri::command]
 fn audio_status(service: tauri::State<'_, AudioService>) -> AudioStatus {
     service.status()
+}
+
+#[tauri::command]
+fn audio_devices(
+    service: tauri::State<'_, AudioService>,
+) -> Result<Vec<AudioDeviceSummary>, WireError> {
+    service.devices()
 }
 
 #[tauri::command]
@@ -81,6 +89,7 @@ pub fn run() {
             stop_audio,
             set_sound_controls,
             audio_status,
+            audio_devices,
             polar_auto_connect,
             polar_connect,
             polar_disconnect,

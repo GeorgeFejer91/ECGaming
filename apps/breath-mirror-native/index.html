@@ -10,7 +10,7 @@
     <main class="app-shell">
       <header class="masthead">
         <div>
-          <p class="eyebrow">ECGAMES · NATIVE SONIFICATION STUDY</p>
+          <p class="eyebrow">ECGAMES · NATIVE MUSICAL BIOFEEDBACK</p>
           <h1>breath mirror</h1>
         </div>
         <div class="engine-state" aria-live="polite">
@@ -46,8 +46,14 @@
       <section class="transport-panel">
         <button id="start-button" class="start-button" type="button">
           <span id="start-icon">▶</span>
-          <span id="start-label">START NATIVE BREATH</span>
+          <span id="start-label">START MUSICAL FIELD</span>
         </button>
+        <label class="buffer-control" for="output-device">
+          <span>AUDIO OUTPUT</span>
+          <select id="output-device">
+            <option value="">SYSTEM DEFAULT</option>
+          </select>
+        </label>
         <label class="buffer-control" for="buffer-size">
           <span>BUFFER REQUEST</span>
           <select id="buffer-size">
@@ -57,7 +63,7 @@
             <option value="512">512 frames · safest</option>
           </select>
         </label>
-        <p id="notice" class="notice">Choose a sound character, then start the native engine.</p>
+        <p id="notice" class="notice">Headphones recommended · inhale widens the room · exhale gathers it inward.</p>
       </section>
 
       <section class="polar-link" aria-label="Polar H10 breath connector">
@@ -95,7 +101,7 @@
             <span>01</span>
             <div>
               <p>SOUND CHARACTER</p>
-              <h2>six kinds of air</h2>
+              <h2>seven sonic fields</h2>
             </div>
           </div>
           <div class="preset-list" role="radiogroup" aria-label="Breath sound character">
@@ -114,10 +120,14 @@
             <button class="preset-card" data-preset="embodied" role="radio" aria-checked="false" type="button">
               <span class="preset-index">E</span><span><strong>Embodied</strong><small>deep · textured · physical</small></span>
             </button>
-            <button class="preset-card is-selected" data-preset="harmonic" role="radio" aria-checked="true" type="button">
+            <button class="preset-card" data-preset="harmonic" role="radio" aria-checked="false" type="button">
               <span class="preset-index">F</span><span><strong>Harmonic</strong><small>consonant · electronic · phase-gliding</small></span>
             </button>
+            <button class="preset-card is-selected" data-preset="aperture" role="radio" aria-checked="true" type="button">
+              <span class="preset-index">G</span><span><strong>Aperture</strong><small>organic tones · widening room · headphone field</small></span>
+            </button>
           </div>
+          <p class="aperture-note"><strong>APERTURE MAP</strong><span>INHALE · spread voicing · lateral reflections · envelopment</span><span>EXHALE · close voicing · centered image · intimate room</span></p>
         </article>
 
         <article class="panel parameters-panel">

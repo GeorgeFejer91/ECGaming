@@ -6,7 +6,8 @@ export type BreathPreset =
   | "airy"
   | "dreamlike"
   | "embodied"
-  | "harmonic";
+  | "harmonic"
+  | "aperture";
 
 export type BreathSource = "guided" | "polar";
 
@@ -23,6 +24,7 @@ export interface SoundControls {
 
 export interface AudioStatus {
   running: boolean;
+  deviceId: string | null;
   deviceName: string | null;
   sampleRate: number | null;
   channels: number | null;
@@ -43,6 +45,12 @@ export interface AudioStatus {
   physiologyFresh: boolean;
   bufferMode: string | null;
   lastError: string | null;
+}
+
+export interface AudioDeviceSummary {
+  id: string;
+  name: string;
+  isDefault: boolean;
 }
 
 export interface NativeError {
@@ -79,8 +87,8 @@ export interface PolarStatus {
   algorithm: string;
 }
 
-export function startAudio(bufferFrames: number): Promise<AudioStatus> {
-  return invoke<AudioStatus>("start_audio", { bufferFrames });
+export function startAudio(bufferFrames: number, deviceId: string | null): Promise<AudioStatus> {
+  return invoke<AudioStatus>("start_audio", { bufferFrames, deviceId });
 }
 
 export function stopAudio(): Promise<AudioStatus> {
@@ -93,6 +101,10 @@ export function setSoundControls(controls: SoundControls): Promise<AudioStatus> 
 
 export function getAudioStatus(): Promise<AudioStatus> {
   return invoke<AudioStatus>("audio_status");
+}
+
+export function getAudioDevices(): Promise<AudioDeviceSummary[]> {
+  return invoke<AudioDeviceSummary[]>("audio_devices");
 }
 
 export function autoConnectPolar(): Promise<PolarStatus> {

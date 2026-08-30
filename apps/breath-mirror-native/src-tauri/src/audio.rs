@@ -37,12 +37,13 @@ impl BreathSource {
 #[serde(rename_all = "camelCase")]
 pub enum BreathPreset {
     Intimate,
-    #[default]
     Natural,
     Airy,
     Dreamlike,
     Embodied,
     Harmonic,
+    #[default]
+    Aperture,
 }
 
 impl BreathPreset {
@@ -54,6 +55,7 @@ impl BreathPreset {
             Self::Dreamlike => 3,
             Self::Embodied => 4,
             Self::Harmonic => 5,
+            Self::Aperture => 6,
         }
     }
 
@@ -64,6 +66,7 @@ impl BreathPreset {
             3 => Self::Dreamlike,
             4 => Self::Embodied,
             5 => Self::Harmonic,
+            6 => Self::Aperture,
             _ => Self::Natural,
         }
     }
@@ -85,7 +88,7 @@ pub struct SoundControls {
 impl Default for SoundControls {
     fn default() -> Self {
         Self {
-            preset: BreathPreset::Harmonic,
+            preset: BreathPreset::Aperture,
             source: BreathSource::Guided,
             breaths_per_minute: 9.0,
             inhale_share: 0.46,
@@ -144,6 +147,7 @@ impl WireError {
 #[serde(rename_all = "camelCase")]
 pub struct AudioStatus {
     running: bool,
+    device_id: Option<String>,
     device_name: Option<String>,
     sample_rate: Option<u32>,
     channels: Option<u16>,
@@ -164,6 +168,14 @@ pub struct AudioStatus {
     physiology_fresh: bool,
     buffer_mode: Option<String>,
     last_error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioDeviceSummary {
+    id: String,
+    name: String,
+    is_default: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -292,6 +304,7 @@ impl AudioMetrics {
 
 #[derive(Clone)]
 struct StreamMetadata {
+    device_id: String,
     device_name: String,
     sample_rate: u32,
     channels: u16,
@@ -329,7 +342,11 @@ impl AudioService {
         }
     }
 
-    pub fn start(&self, requested_buffer_frames: u32) -> Result<AudioStatus, WireError> {
+    pub fn start(
+        &self,
+        requested_buffer_frames: u32,
+        requested_device_id: Option<&str>,
+    ) -> Result<AudioStatus, WireError> {
         if !(32..=2048).contains(&requested_buffer_frames)
             || !requested_buffer_frames.is_power_of_two()
         {
@@ -349,13 +366,36 @@ impl AudioService {
         *lock_recover(&self.last_error) = None;
 
         let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .ok_or_else(|| WireError::audio("No default audio output device is available"))?;
-        let device_name = device
+        let requested_device_id = validate_requested_device_id(requested_device_id)?;
+        let device = match requested_device_id {
+            Some(requested_id) => host
+                .output_devices()
+                .map_err(|error| {
+                    WireError::audio(format!("Cannot enumerate output devices: {error}"))
+                })?
+                .find(|device| {
+                    device
+                        .id()
+                        .is_ok_and(|device_id| device_id.to_string() == requested_id)
+                })
+                .ok_or_else(|| {
+                    WireError::new(
+                        "AUDIO_DEVICE_NOT_FOUND",
+                        "The selected output is no longer available. Choose another active device.",
+                    )
+                })?,
+            None => host
+                .default_output_device()
+                .ok_or_else(|| WireError::audio("No default audio output device is available"))?,
+        };
+        let device_id = device
             .id()
-            .map(|id| format!("{id:?}"))
-            .unwrap_or_else(|_| "Default audio output".to_owned());
+            .map(|id| id.to_string())
+            .map_err(|error| WireError::audio(format!("Cannot identify output device: {error}")))?;
+        let device_name = device
+            .description()
+            .map(|description| description.name().to_owned())
+            .unwrap_or_else(|_| device.to_string());
         let supported = device.default_output_config().map_err(|error| {
             WireError::audio(format!("Cannot read output configuration: {error}"))
         })?;
@@ -411,6 +451,7 @@ impl AudioService {
         *running = Some(RunningStream {
             _stream: stream,
             metadata: StreamMetadata {
+                device_id,
                 device_name,
                 sample_rate: supported.sample_rate(),
                 channels: supported.channels(),
@@ -436,6 +477,37 @@ impl AudioService {
         Ok(self.status())
     }
 
+    pub fn devices(&self) -> Result<Vec<AudioDeviceSummary>, WireError> {
+        let host = cpal::default_host();
+        let default_id = host
+            .default_output_device()
+            .and_then(|device| device.id().ok())
+            .map(|id| id.to_string());
+        let mut devices = host
+            .output_devices()
+            .map_err(|error| WireError::audio(format!("Cannot enumerate outputs: {error}")))?
+            .filter_map(|device| {
+                let id = device.id().ok()?.to_string();
+                let name = device
+                    .description()
+                    .map(|description| description.name().to_owned())
+                    .unwrap_or_else(|_| device.to_string());
+                Some(AudioDeviceSummary {
+                    is_default: default_id.as_deref() == Some(id.as_str()),
+                    id,
+                    name,
+                })
+            })
+            .collect::<Vec<_>>();
+        devices.sort_by(|left, right| {
+            right
+                .is_default
+                .cmp(&left.is_default)
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        Ok(devices)
+    }
+
     pub fn status(&self) -> AudioStatus {
         let running = lock_recover(&self.stream);
         let metadata = running.as_ref().map(|value| value.metadata.clone());
@@ -454,6 +526,7 @@ impl AudioService {
 
         AudioStatus {
             running: metadata.is_some(),
+            device_id: metadata.as_ref().map(|value| value.device_id.clone()),
             device_name: metadata.as_ref().map(|value| value.device_name.clone()),
             sample_rate,
             channels: metadata.as_ref().map(|value| value.channels),
@@ -475,6 +548,16 @@ impl AudioService {
             buffer_mode: metadata.map(|value| value.buffer_mode),
             last_error: lock_recover(&self.last_error).clone(),
         }
+    }
+}
+
+fn validate_requested_device_id(device_id: Option<&str>) -> Result<Option<&str>, WireError> {
+    match device_id.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(value) if value.len() > 512 => Err(WireError::new(
+            "INVALID_AUDIO_DEVICE",
+            "Audio device identifier is too long",
+        )),
+        value => Ok(value),
     }
 }
 
@@ -721,6 +804,19 @@ impl Tone {
                 roughness: 0.03,
                 gain: 0.96,
             },
+            BreathPreset::Aperture => Self {
+                brown: 0.02,
+                pink: 0.06,
+                white: 0.01,
+                low_cutoff: 900.0,
+                high_cutoff: 6800.0,
+                formant: 1200.0,
+                formant_gain: 0.08,
+                width: 0.58,
+                diffusion: 0.18,
+                roughness: 0.01,
+                gain: 1.0,
+            },
         }
     }
 
@@ -764,6 +860,8 @@ struct StereoBreathSynth {
     polar_candidate_frames: u32,
     harmonics: HarmonicBank,
     harmonic_mix: f32,
+    aperture: ApertureInstrument,
+    aperture_mix: f32,
 }
 
 impl StereoBreathSynth {
@@ -789,6 +887,8 @@ impl StereoBreathSynth {
             polar_candidate_frames: 0,
             harmonics: HarmonicBank::default(),
             harmonic_mix: 0.0,
+            aperture: ApertureInstrument::new(sample_rate),
+            aperture_mix: 0.0,
         }
     }
 
@@ -862,10 +962,31 @@ impl StereoBreathSynth {
         let harmonic = self
             .harmonics
             .tick(phase, volume, force, brightness, self.sample_rate);
-        let air_gain = 1.0 - self.harmonic_mix * 0.68;
+        let aperture_target = if matches!(target.preset, BreathPreset::Aperture) {
+            1.0
+        } else {
+            0.0
+        };
+        self.aperture_mix += (aperture_target - self.aperture_mix) * harmonic_smoothing;
+        let physiology_active = matches!(target.source, BreathSource::Guided)
+            || (physiology.connected && physiology.ready && physiology.fresh);
+        let aperture = self.aperture.tick(
+            phase,
+            volume,
+            force,
+            brightness,
+            self.smoothed.naturalness,
+            physiology_active,
+            self.sample_rate,
+        );
+        let air_gain = (1.0 - self.harmonic_mix * 0.68 - self.aperture_mix * 0.95).max(0.0);
         let stereo = [
-            stereo[0] * air_gain + harmonic[0] * self.harmonic_mix,
-            stereo[1] * air_gain + harmonic[1] * self.harmonic_mix,
+            stereo[0] * air_gain
+                + harmonic[0] * self.harmonic_mix
+                + aperture[0] * self.aperture_mix,
+            stereo[1] * air_gain
+                + harmonic[1] * self.harmonic_mix
+                + aperture[1] * self.aperture_mix,
         ];
         self.startup_gain = (self.startup_gain + 1.0 / (self.sample_rate * 0.035)).min(1.0);
         let gain = self.smoothed.output_gain * self.tone.gain * self.startup_gain;
@@ -1046,6 +1167,272 @@ impl HarmonicBank {
         let normalization = self.amplitude * 0.38;
         [left * normalization, right * normalization]
     }
+}
+
+/// Musical breath sonification built around an aperture metaphor rather than a
+/// literal breath imitation. A stable mono root prevents increased reverberant
+/// energy from reading only as source distance. Lung volume crossfades a close
+/// voicing into a register-spread voicing while upper partials enter an
+/// independently delayed lateral field.
+struct ApertureInstrument {
+    phases: [f32; 8],
+    modulation_phases: [f32; 8],
+    openness: f32,
+    amplitude: f32,
+    orbit_phase: f32,
+    binaural: BinauralMicroDelay,
+    room: SpatialRoom,
+}
+
+impl ApertureInstrument {
+    fn new(sample_rate: f32) -> Self {
+        Self {
+            phases: [0.0; 8],
+            modulation_phases: [0.0, 0.7, 1.4, 2.1, 2.8, 3.5, 4.2, 4.9],
+            openness: 0.0,
+            amplitude: 0.0,
+            orbit_phase: 0.0,
+            binaural: BinauralMicroDelay::new(sample_rate),
+            room: SpatialRoom::new(sample_rate),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn tick(
+        &mut self,
+        phase: BreathPhase,
+        volume: f32,
+        force: f32,
+        brightness: f32,
+        naturalness: f32,
+        active: bool,
+        sample_rate: f32,
+    ) -> [f32; 2] {
+        const BASE_HZ: f32 = 98.0;
+        const RATIOS: [f32; 8] = [
+            1.0,
+            9.0 / 8.0,
+            5.0 / 4.0,
+            3.0 / 2.0,
+            2.0,
+            9.0 / 4.0,
+            5.0 / 2.0,
+            3.0,
+        ];
+        // The closed field contains adjacent scale degrees in one register.
+        // The open field moves energy to octave, ninth, tenth, and twelfth.
+        const CLOSED: [f32; 8] = [0.0, 0.32, 0.27, 0.23, 0.06, 0.0, 0.0, 0.0];
+        const OPEN: [f32; 8] = [0.0, 0.015, 0.025, 0.13, 0.26, 0.22, 0.18, 0.15];
+        const PAN: [f32; 8] = [0.0, -0.16, 0.14, -0.2, 0.42, -0.54, 0.68, -0.78];
+        const ORBIT: [f32; 8] = [0.0, 0.2, -0.23, 0.31, -0.37, 0.43, -0.49, 0.56];
+        const MODULATION_HZ: [f32; 8] = [0.031, 0.047, 0.059, 0.071, 0.089, 0.107, 0.131, 0.151];
+
+        let openness_target = smoothstep(volume);
+        let openness_seconds = match phase {
+            BreathPhase::Inhale => 0.1,
+            BreathPhase::Exhale => 0.16,
+            BreathPhase::Still => 0.22,
+        };
+        let openness_smoothing = 1.0 - (-1.0 / (sample_rate * openness_seconds)).exp();
+        self.openness += (openness_target - self.openness) * openness_smoothing;
+
+        // A live musical floor makes the room itself audible between peak-flow
+        // moments. It still fades fully when Polar data is stale or unready.
+        let activity = if active { 1.0 } else { 0.0 };
+        let amplitude_target = activity * (0.22 + force.clamp(0.0, 1.2).sqrt() * 0.36);
+        let amplitude_seconds = if amplitude_target > self.amplitude {
+            0.09
+        } else {
+            0.28
+        };
+        let amplitude_smoothing = 1.0 - (-1.0 / (sample_rate * amplitude_seconds)).exp();
+        self.amplitude += (amplitude_target - self.amplitude) * amplitude_smoothing;
+
+        self.orbit_phase = (self.orbit_phase + TAU * 0.043 / sample_rate) % TAU;
+        let orbit = self.orbit_phase.sin();
+        let width = 0.1 + self.openness * 0.88;
+        let upper_presence = 0.56 + brightness.clamp(0.0, 1.0) * 0.72;
+        let organic_depth = naturalness.clamp(0.0, 1.0) * 0.18;
+        let mut oscillators = [0.0; 8];
+
+        for index in 0..RATIOS.len() {
+            self.phases[index] =
+                (self.phases[index] + TAU * BASE_HZ * RATIOS[index] / sample_rate) % TAU;
+            self.modulation_phases[index] = (self.modulation_phases[index]
+                + TAU * MODULATION_HZ[index] * (0.8 + naturalness * 0.4) / sample_rate)
+                % TAU;
+            let harmonic_colour = brightness.clamp(0.0, 1.0);
+            let phase_value = self.phases[index];
+            let timbre = phase_value.sin()
+                + (phase_value * 2.0).sin() * harmonic_colour * 0.1
+                + (phase_value * 3.0).sin() * harmonic_colour * 0.035;
+            let organic = 1.0 + self.modulation_phases[index].sin() * organic_depth;
+            oscillators[index] = timbre * organic;
+        }
+
+        // Root and a quiet fifth stay direct and centered at every aperture.
+        let center = (oscillators[0] * 0.58 + oscillators[3] * 0.12) * self.amplitude;
+        let mut field_left = 0.0;
+        let mut field_right = 0.0;
+        for index in 1..RATIOS.len() {
+            let mut weight = CLOSED[index] + (OPEN[index] - CLOSED[index]) * self.openness;
+            if index >= 4 {
+                weight *= upper_presence;
+            }
+            let pan = (PAN[index] * width + ORBIT[index] * orbit * self.openness * 0.28)
+                .clamp(-0.95, 0.95);
+            let left_gain = ((1.0 - pan) * 0.5).sqrt();
+            let right_gain = ((1.0 + pan) * 0.5).sqrt();
+            field_left += oscillators[index] * weight * left_gain;
+            field_right += oscillators[index] * weight * right_gain;
+        }
+        let field_gain = self.amplitude * 0.42;
+        let field = self.binaural.process(
+            field_left * field_gain,
+            field_right * field_gain,
+            self.openness,
+            orbit,
+        );
+        self.room.process(center, field, self.openness)
+    }
+}
+
+/// Sub-millisecond interaural time and level differences are applied only to
+/// the upper musical field. The low anchor remains mono and phase compatible.
+struct BinauralMicroDelay {
+    left: Vec<f32>,
+    right: Vec<f32>,
+    write_index: usize,
+    sample_rate: f32,
+}
+
+impl BinauralMicroDelay {
+    fn new(sample_rate: f32) -> Self {
+        let length = (sample_rate * 0.0012).ceil().max(8.0) as usize;
+        Self {
+            left: vec![0.0; length],
+            right: vec![0.0; length],
+            write_index: 0,
+            sample_rate,
+        }
+    }
+
+    fn process(&mut self, left: f32, right: f32, openness: f32, orbit: f32) -> [f32; 2] {
+        self.left[self.write_index] = left;
+        self.right[self.write_index] = right;
+        let delay_span = self.sample_rate * 0.000_55 * openness;
+        let left_delay = delay_span * orbit.max(0.0);
+        let right_delay = delay_span * (-orbit).max(0.0);
+        let mut delayed_left = Self::read_fractional(&self.left, self.write_index, left_delay);
+        let mut delayed_right = Self::read_fractional(&self.right, self.write_index, right_delay);
+        let far_ear = 1.0 - 0.08 * openness * orbit.abs();
+        if orbit > 0.0 {
+            delayed_left *= far_ear;
+        } else {
+            delayed_right *= far_ear;
+        }
+        self.write_index = (self.write_index + 1) % self.left.len();
+        [delayed_left, delayed_right]
+    }
+
+    fn read_fractional(buffer: &[f32], write_index: usize, delay: f32) -> f32 {
+        let delay = delay.clamp(0.0, (buffer.len() - 2) as f32);
+        let whole = delay.floor() as usize;
+        let fraction = delay - whole as f32;
+        let newest = (write_index + buffer.len() - whole) % buffer.len();
+        let older = (newest + buffer.len() - 1) % buffer.len();
+        buffer[newest] + (buffer[older] - buffer[newest]) * fraction
+    }
+}
+
+/// Two fixed room scales are crossfaded rather than changing delay lengths in
+/// place. This avoids Doppler-like pitch bends while the sensed chest volume
+/// changes. Early cross-channel taps communicate width; later taps and modest
+/// feedback communicate envelopment.
+struct SpatialRoom {
+    left: Vec<f32>,
+    right: Vec<f32>,
+    write_index: usize,
+    close_early: [usize; 2],
+    open_early: [usize; 2],
+    close_late: [usize; 2],
+    open_late: [usize; 2],
+}
+
+impl SpatialRoom {
+    fn new(sample_rate: f32) -> Self {
+        let length = (sample_rate * 0.19).ceil().max(32.0) as usize;
+        let offset = |seconds: f32| (sample_rate * seconds).round() as usize;
+        Self {
+            left: vec![0.0; length],
+            right: vec![0.0; length],
+            write_index: 0,
+            close_early: [offset(0.007), offset(0.011)],
+            open_early: [offset(0.019), offset(0.029)],
+            close_late: [offset(0.047), offset(0.061)],
+            open_late: [offset(0.119), offset(0.151)],
+        }
+    }
+
+    fn process(&mut self, center: f32, field: [f32; 2], openness: f32) -> [f32; 2] {
+        let openness = openness.clamp(0.0, 1.0);
+        let early_left = mix(
+            self.read_right(self.close_early[0]),
+            self.read_right(self.open_early[0]),
+            openness,
+        );
+        let early_right = mix(
+            self.read_left(self.close_early[1]),
+            self.read_left(self.open_early[1]),
+            openness,
+        );
+        let late_left = mix(
+            self.read_right(self.close_late[0]),
+            self.read_right(self.open_late[0]),
+            openness,
+        );
+        let late_right = mix(
+            self.read_left(self.close_late[1]),
+            self.read_left(self.open_late[1]),
+            openness,
+        );
+
+        let feedback = 0.08 + openness * 0.16;
+        self.left[self.write_index] = field[0] + late_right * feedback;
+        self.right[self.write_index] = field[1] + late_left * feedback;
+        self.write_index = (self.write_index + 1) % self.left.len();
+
+        let field_mid = (field[0] + field[1]) * 0.5;
+        let field_side = (field[0] - field[1]) * 0.5 * (0.12 + openness * 0.88);
+        let early_gain = 0.08 + openness * 0.23;
+        let late_gain = 0.025 + openness * 0.25;
+        [
+            center * 0.82
+                + (field_mid + field_side) * 0.54
+                + early_left * early_gain
+                + late_left * late_gain,
+            center * 0.82
+                + (field_mid - field_side) * 0.54
+                + early_right * early_gain
+                + late_right * late_gain,
+        ]
+    }
+
+    fn read_left(&self, offset: usize) -> f32 {
+        let index = (self.write_index + self.left.len() - offset.min(self.left.len() - 1))
+            % self.left.len();
+        self.left[index]
+    }
+
+    fn read_right(&self, offset: usize) -> f32 {
+        let index = (self.write_index + self.right.len() - offset.min(self.right.len() - 1))
+            % self.right.len();
+        self.right[index]
+    }
+}
+
+fn mix(left: f32, right: f32, amount: f32) -> f32 {
+    left + (right - left) * amount
 }
 
 fn smoothstep(value: f32) -> f32 {
@@ -1243,6 +1630,18 @@ mod tests {
     }
 
     #[test]
+    fn validates_requested_audio_device_identifier() {
+        assert_eq!(validate_requested_device_id(None).unwrap(), None);
+        assert_eq!(validate_requested_device_id(Some("  ")).unwrap(), None);
+        assert_eq!(
+            validate_requested_device_id(Some("wasapi:{endpoint}")).unwrap(),
+            Some("wasapi:{endpoint}")
+        );
+        let oversized = "x".repeat(513);
+        assert!(validate_requested_device_id(Some(&oversized)).is_err());
+    }
+
+    #[test]
     fn all_presets_render_finite_audible_audio() {
         for preset in [
             BreathPreset::Intimate,
@@ -1251,9 +1650,36 @@ mod tests {
             BreathPreset::Dreamlike,
             BreathPreset::Embodied,
             BreathPreset::Harmonic,
+            BreathPreset::Aperture,
         ] {
             assert!(render_rms(preset) > 0.001, "{preset:?} was silent");
         }
+    }
+
+    #[test]
+    fn aperture_expansion_increases_stereo_side_energy() {
+        fn side_ratio(volume: f32, phase: BreathPhase) -> f32 {
+            let mut aperture = ApertureInstrument::new(48_000.0);
+            let mut mid_energy = 0.0;
+            let mut side_energy = 0.0;
+            for frame_index in 0..96_000 {
+                let frame = aperture.tick(phase, volume, 0.62, 0.56, 0.28, true, 48_000.0);
+                if frame_index >= 24_000 {
+                    let mid = (frame[0] + frame[1]) * 0.5;
+                    let side = (frame[0] - frame[1]) * 0.5;
+                    mid_energy += mid * mid;
+                    side_energy += side * side;
+                }
+            }
+            (side_energy / mid_energy.max(f32::EPSILON)).sqrt()
+        }
+
+        let contracted = side_ratio(0.0, BreathPhase::Exhale);
+        let expanded = side_ratio(1.0, BreathPhase::Inhale);
+        assert!(
+            expanded > contracted * 2.0,
+            "expanded side ratio {expanded} should exceed contracted ratio {contracted}"
+        );
     }
 
     #[test]
