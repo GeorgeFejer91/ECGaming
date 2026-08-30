@@ -5,10 +5,14 @@ export type BreathPreset =
   | "natural"
   | "airy"
   | "dreamlike"
-  | "embodied";
+  | "embodied"
+  | "harmonic";
+
+export type BreathSource = "guided" | "polar";
 
 export interface SoundControls {
   preset: BreathPreset;
+  source: BreathSource;
   breathsPerMinute: number;
   inhaleShare: number;
   intensity: number;
@@ -33,6 +37,10 @@ export interface AudioStatus {
   lungVolume: number;
   flow: number;
   preset: BreathPreset;
+  source: BreathSource;
+  physiologyConnected: boolean;
+  physiologyReady: boolean;
+  physiologyFresh: boolean;
   bufferMode: string | null;
   lastError: string | null;
 }
@@ -40,6 +48,35 @@ export interface AudioStatus {
 export interface NativeError {
   code: string;
   message: string;
+}
+
+export interface PolarDevice {
+  id: string;
+  name: string;
+  rssi: number | null;
+}
+
+export interface PolarStatus {
+  state: "idle" | "scanning" | "detected" | "connecting" | "calibrating" | "locked" | "error";
+  message: string;
+  devices: PolarDevice[];
+  connectedDevice: string | null;
+  batteryPercent: number | null;
+  connected: boolean;
+  locked: boolean;
+  accFrames: number;
+  accSamples: number;
+  ecgSamples: number;
+  estimatedAccHz: number | null;
+  heartRate: number | null;
+  calibrationProgress: number;
+  confidence: number;
+  phase: "hold" | "inhale" | "exhale";
+  lungVolume: number;
+  signedFlow: number;
+  freshnessMs: number | null;
+  errorCount: number;
+  algorithm: string;
 }
 
 export function startAudio(bufferFrames: number): Promise<AudioStatus> {
@@ -56,4 +93,20 @@ export function setSoundControls(controls: SoundControls): Promise<AudioStatus> 
 
 export function getAudioStatus(): Promise<AudioStatus> {
   return invoke<AudioStatus>("audio_status");
+}
+
+export function autoConnectPolar(): Promise<PolarStatus> {
+  return invoke<PolarStatus>("polar_auto_connect");
+}
+
+export function connectPolar(deviceId: string): Promise<PolarStatus> {
+  return invoke<PolarStatus>("polar_connect", { deviceId });
+}
+
+export function disconnectPolar(): Promise<PolarStatus> {
+  return invoke<PolarStatus>("polar_disconnect");
+}
+
+export function getPolarStatus(): Promise<PolarStatus> {
+  return invoke<PolarStatus>("polar_status");
 }

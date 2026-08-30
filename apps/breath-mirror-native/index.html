@@ -60,20 +60,49 @@
         <p id="notice" class="notice">Choose a sound character, then start the native engine.</p>
       </section>
 
+      <section class="polar-link" aria-label="Polar H10 breath connector">
+        <div class="polar-title">
+          <span>00 · PHYSIOLOGICAL INPUT</span>
+          <h2>polar breath lock</h2>
+        </div>
+        <div class="source-switch" role="radiogroup" aria-label="Breath timing source">
+          <button class="source-button" data-source="guided" role="radio" aria-checked="false" type="button">GUIDED</button>
+          <button class="source-button is-selected" data-source="polar" role="radio" aria-checked="true" type="button">POLAR LOCK</button>
+        </div>
+        <div class="polar-action">
+          <select id="polar-device" aria-label="Detected Polar H10">
+            <option value="">AUTO-DETECT WORN H10</option>
+          </select>
+          <button id="polar-connect" type="button">CONNECT + CALIBRATE</button>
+        </div>
+        <div class="polar-state">
+          <span id="polar-dot" class="status-dot"></span>
+          <div><strong id="polar-state">SCANNING</strong><small id="polar-message">Listening for the H10 you are wearing…</small></div>
+        </div>
+        <dl class="polar-metrics">
+          <div><dt>ACC</dt><dd id="polar-acc">—</dd></div>
+          <div><dt>ECG</dt><dd id="polar-ecg">—</dd></div>
+          <div><dt>CALIBRATION</dt><dd id="polar-calibration">0%</dd></div>
+          <div><dt>CONFIDENCE</dt><dd id="polar-confidence">0%</dd></div>
+          <div><dt>HEART</dt><dd id="polar-heart">—</dd></div>
+          <div><dt>FRESHNESS</dt><dd id="polar-freshness">—</dd></div>
+        </dl>
+      </section>
+
       <section class="control-grid">
         <article class="panel preset-panel">
           <div class="section-heading">
             <span>01</span>
             <div>
               <p>SOUND CHARACTER</p>
-              <h2>five kinds of air</h2>
+              <h2>six kinds of air</h2>
             </div>
           </div>
           <div class="preset-list" role="radiogroup" aria-label="Breath sound character">
             <button class="preset-card" data-preset="intimate" role="radio" aria-checked="false" type="button">
               <span class="preset-index">A</span><span><strong>Intimate</strong><small>close · warm · narrow</small></span>
             </button>
-            <button class="preset-card is-selected" data-preset="natural" role="radio" aria-checked="true" type="button">
+            <button class="preset-card" data-preset="natural" role="radio" aria-checked="false" type="button">
               <span class="preset-index">B</span><span><strong>Natural</strong><small>balanced · mouth-shaped · alive</small></span>
             </button>
             <button class="preset-card" data-preset="airy" role="radio" aria-checked="false" type="button">
@@ -85,6 +114,9 @@
             <button class="preset-card" data-preset="embodied" role="radio" aria-checked="false" type="button">
               <span class="preset-index">E</span><span><strong>Embodied</strong><small>deep · textured · physical</small></span>
             </button>
+            <button class="preset-card is-selected" data-preset="harmonic" role="radio" aria-checked="true" type="button">
+              <span class="preset-index">F</span><span><strong>Harmonic</strong><small>consonant · electronic · phase-gliding</small></span>
+            </button>
           </div>
         </article>
 
@@ -92,8 +124,8 @@
           <div class="section-heading">
             <span>02</span>
             <div>
-              <p>GUIDED PHYSIOLOGY</p>
-              <h2>shape the cycle</h2>
+              <p>SOUND RESPONSE</p>
+              <h2>shape the breath</h2>
             </div>
           </div>
           <div class="slider-stack">
@@ -110,16 +142,16 @@
               <input id="intensity" type="range" min="0" max="100" step="1" value="58" />
             </label>
             <label class="range-row">
-              <span><strong>Brightness</strong><output id="brightness-value">52%</output></span>
-              <input id="brightness" type="range" min="0" max="100" step="1" value="52" />
+              <span><strong>Brightness</strong><output id="brightness-value">56%</output></span>
+              <input id="brightness" type="range" min="0" max="100" step="1" value="56" />
             </label>
             <label class="range-row">
-              <span><strong>Organic drift</strong><output id="naturalness-value">62%</output></span>
-              <input id="naturalness" type="range" min="0" max="100" step="1" value="62" />
+              <span><strong>Organic drift</strong><output id="naturalness-value">28%</output></span>
+              <input id="naturalness" type="range" min="0" max="100" step="1" value="28" />
             </label>
             <label class="range-row">
-              <span><strong>Output</strong><output id="output-value">38%</output></span>
-              <input id="output" type="range" min="0" max="80" step="1" value="38" />
+              <span><strong>Output</strong><output id="output-value">36%</output></span>
+              <input id="output" type="range" min="0" max="80" step="1" value="36" />
             </label>
           </div>
         </article>
@@ -146,7 +178,7 @@
 
       <footer>
         <span>NATIVE CPAL AUDIO · NO WEB AUDIO BUFFER</span>
-        <span>POLAR PHASE INPUT · NEXT ADAPTER</span>
+        <span>POLAR STREAM TIMED-PCA-V1 · NATIVE PHASE LOCK</span>
       </footer>
     </main>
     <script type="module" src="/src/main.ts"></script>

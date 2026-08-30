@@ -7,6 +7,32 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, FromSample, I24, SampleFormat, SizedSample, Stream, StreamConfig, U24};
 use serde::{Deserialize, Serialize};
 
+use crate::physiology::{BreathSignalSnapshot, SharedBreathSignal, SignalPhase};
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum BreathSource {
+    #[default]
+    Guided,
+    Polar,
+}
+
+impl BreathSource {
+    fn to_index(self) -> u8 {
+        match self {
+            Self::Guided => 0,
+            Self::Polar => 1,
+        }
+    }
+
+    fn from_index(index: u8) -> Self {
+        match index {
+            1 => Self::Polar,
+            _ => Self::Guided,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum BreathPreset {
@@ -16,6 +42,7 @@ pub enum BreathPreset {
     Airy,
     Dreamlike,
     Embodied,
+    Harmonic,
 }
 
 impl BreathPreset {
@@ -26,6 +53,7 @@ impl BreathPreset {
             Self::Airy => 2,
             Self::Dreamlike => 3,
             Self::Embodied => 4,
+            Self::Harmonic => 5,
         }
     }
 
@@ -35,6 +63,7 @@ impl BreathPreset {
             2 => Self::Airy,
             3 => Self::Dreamlike,
             4 => Self::Embodied,
+            5 => Self::Harmonic,
             _ => Self::Natural,
         }
     }
@@ -44,6 +73,7 @@ impl BreathPreset {
 #[serde(rename_all = "camelCase")]
 pub struct SoundControls {
     pub preset: BreathPreset,
+    pub source: BreathSource,
     pub breaths_per_minute: f32,
     pub inhale_share: f32,
     pub intensity: f32,
@@ -55,7 +85,8 @@ pub struct SoundControls {
 impl Default for SoundControls {
     fn default() -> Self {
         Self {
-            preset: BreathPreset::Natural,
+            preset: BreathPreset::Harmonic,
+            source: BreathSource::Guided,
             breaths_per_minute: 9.0,
             inhale_share: 0.46,
             intensity: 0.58,
@@ -97,7 +128,7 @@ pub struct WireError {
 }
 
 impl WireError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -127,6 +158,10 @@ pub struct AudioStatus {
     lung_volume: f32,
     flow: f32,
     preset: BreathPreset,
+    source: BreathSource,
+    physiology_connected: bool,
+    physiology_ready: bool,
+    physiology_fresh: bool,
     buffer_mode: Option<String>,
     last_error: Option<String>,
 }
@@ -134,6 +169,7 @@ pub struct AudioStatus {
 #[derive(Clone, Copy)]
 struct ControlSnapshot {
     preset: BreathPreset,
+    source: BreathSource,
     breaths_per_minute: f32,
     inhale_share: f32,
     intensity: f32,
@@ -146,6 +182,7 @@ impl From<SoundControls> for ControlSnapshot {
     fn from(value: SoundControls) -> Self {
         Self {
             preset: value.preset,
+            source: value.source,
             breaths_per_minute: value.breaths_per_minute,
             inhale_share: value.inhale_share,
             intensity: value.intensity,
@@ -175,6 +212,7 @@ impl AtomicF32 {
 
 struct SharedControls {
     preset: AtomicU8,
+    source: AtomicU8,
     breaths_per_minute: AtomicF32,
     inhale_share: AtomicF32,
     intensity: AtomicF32,
@@ -188,6 +226,7 @@ impl Default for SharedControls {
         let controls = SoundControls::default();
         Self {
             preset: AtomicU8::new(controls.preset.to_index()),
+            source: AtomicU8::new(controls.source.to_index()),
             breaths_per_minute: AtomicF32::new(controls.breaths_per_minute),
             inhale_share: AtomicF32::new(controls.inhale_share),
             intensity: AtomicF32::new(controls.intensity),
@@ -206,6 +245,8 @@ impl SharedControls {
         self.brightness.store(controls.brightness);
         self.naturalness.store(controls.naturalness);
         self.output_gain.store(controls.output_gain);
+        self.source
+            .store(controls.source.to_index(), Ordering::Release);
         self.preset
             .store(controls.preset.to_index(), Ordering::Release);
     }
@@ -213,6 +254,7 @@ impl SharedControls {
     fn load(&self) -> ControlSnapshot {
         ControlSnapshot {
             preset: BreathPreset::from_index(self.preset.load(Ordering::Acquire)),
+            source: BreathSource::from_index(self.source.load(Ordering::Acquire)),
             breaths_per_minute: self.breaths_per_minute.load(),
             inhale_share: self.inhale_share.load(),
             intensity: self.intensity.load(),
@@ -267,20 +309,26 @@ pub struct AudioService {
     controls: Arc<SharedControls>,
     metrics: Arc<AudioMetrics>,
     last_error: Arc<Mutex<Option<String>>>,
+    breath_signal: Arc<SharedBreathSignal>,
 }
 
 impl Default for AudioService {
     fn default() -> Self {
+        Self::new(Arc::new(SharedBreathSignal::default()))
+    }
+}
+
+impl AudioService {
+    pub fn new(breath_signal: Arc<SharedBreathSignal>) -> Self {
         Self {
             stream: Mutex::new(None),
             controls: Arc::new(SharedControls::default()),
             metrics: Arc::new(AudioMetrics::default()),
             last_error: Arc::new(Mutex::new(None)),
+            breath_signal,
         }
     }
-}
 
-impl AudioService {
     pub fn start(&self, requested_buffer_frames: u32) -> Result<AudioStatus, WireError> {
         if !(32..=2048).contains(&requested_buffer_frames)
             || !requested_buffer_frames.is_power_of_two()
@@ -328,6 +376,7 @@ impl AudioService {
             Arc::clone(&self.controls),
             Arc::clone(&self.metrics),
             Arc::clone(&self.last_error),
+            Arc::clone(&self.breath_signal),
         );
 
         let (stream, buffer_mode) = match stream_result {
@@ -341,6 +390,7 @@ impl AudioService {
                     Arc::clone(&self.controls),
                     Arc::clone(&self.metrics),
                     Arc::clone(&self.last_error),
+                    Arc::clone(&self.breath_signal),
                 )
                 .map_err(|default_error| {
                     WireError::audio(format!(
@@ -400,6 +450,7 @@ impl AudioService {
             2 => "exhale",
             _ => "still",
         };
+        let physiology = self.breath_signal.snapshot();
 
         AudioStatus {
             running: metadata.is_some(),
@@ -417,6 +468,10 @@ impl AudioService {
             lung_volume: self.metrics.lung_volume.load(),
             flow: self.metrics.flow.load(),
             preset: self.controls.load().preset,
+            source: self.controls.load().source,
+            physiology_connected: physiology.connected,
+            physiology_ready: physiology.ready,
+            physiology_fresh: physiology.fresh,
             buffer_mode: metadata.map(|value| value.buffer_mode),
             last_error: lock_recover(&self.last_error).clone(),
         }
@@ -436,20 +491,45 @@ fn build_stream_for_format(
     controls: Arc<SharedControls>,
     metrics: Arc<AudioMetrics>,
     last_error: Arc<Mutex<Option<String>>>,
+    breath_signal: Arc<SharedBreathSignal>,
 ) -> Result<Stream, cpal::Error> {
     match sample_format {
-        SampleFormat::I8 => build_stream::<i8>(device, config, controls, metrics, last_error),
-        SampleFormat::I16 => build_stream::<i16>(device, config, controls, metrics, last_error),
-        SampleFormat::I24 => build_stream::<I24>(device, config, controls, metrics, last_error),
-        SampleFormat::I32 => build_stream::<i32>(device, config, controls, metrics, last_error),
-        SampleFormat::I64 => build_stream::<i64>(device, config, controls, metrics, last_error),
-        SampleFormat::U8 => build_stream::<u8>(device, config, controls, metrics, last_error),
-        SampleFormat::U16 => build_stream::<u16>(device, config, controls, metrics, last_error),
-        SampleFormat::U24 => build_stream::<U24>(device, config, controls, metrics, last_error),
-        SampleFormat::U32 => build_stream::<u32>(device, config, controls, metrics, last_error),
-        SampleFormat::U64 => build_stream::<u64>(device, config, controls, metrics, last_error),
-        SampleFormat::F32 => build_stream::<f32>(device, config, controls, metrics, last_error),
-        SampleFormat::F64 => build_stream::<f64>(device, config, controls, metrics, last_error),
+        SampleFormat::I8 => {
+            build_stream::<i8>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::I16 => {
+            build_stream::<i16>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::I24 => {
+            build_stream::<I24>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::I32 => {
+            build_stream::<i32>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::I64 => {
+            build_stream::<i64>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::U8 => {
+            build_stream::<u8>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::U16 => {
+            build_stream::<u16>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::U24 => {
+            build_stream::<U24>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::U32 => {
+            build_stream::<u32>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::U64 => {
+            build_stream::<u64>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::F32 => {
+            build_stream::<f32>(device, config, controls, metrics, last_error, breath_signal)
+        }
+        SampleFormat::F64 => {
+            build_stream::<f64>(device, config, controls, metrics, last_error, breath_signal)
+        }
         _ => Err(cpal::Error::with_message(
             cpal::ErrorKind::UnsupportedOperation,
             "Breath Mirror does not support the output sample format",
@@ -463,6 +543,7 @@ fn build_stream<T>(
     controls: Arc<SharedControls>,
     metrics: Arc<AudioMetrics>,
     last_error: Arc<Mutex<Option<String>>>,
+    breath_signal: Arc<SharedBreathSignal>,
 ) -> Result<Stream, cpal::Error>
 where
     T: SizedSample + FromSample<f32>,
@@ -473,6 +554,7 @@ where
     let callback_metrics = Arc::clone(&metrics);
     let error_metrics = metrics;
     let callback_controls = controls;
+    let callback_breath_signal = breath_signal;
     let callback_error = Arc::clone(&last_error);
 
     device.build_output_stream(
@@ -480,10 +562,11 @@ where
         move |output: &mut [T], _| {
             let started = Instant::now();
             let controls = callback_controls.load();
+            let physiology = callback_breath_signal.snapshot();
             let mut peak = 0.0_f32;
 
             for frame in output.chunks_mut(channels) {
-                let [left, right] = synth.tick(controls);
+                let [left, right] = synth.tick(controls, physiology);
                 peak = peak.max(left.abs()).max(right.abs());
                 for (channel, sample) in frame.iter_mut().enumerate() {
                     let value = match channel {
@@ -524,7 +607,7 @@ where
     )
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum BreathPhase {
     #[default]
     Still,
@@ -625,6 +708,19 @@ impl Tone {
                 roughness: 0.35,
                 gain: 1.08,
             },
+            BreathPreset::Harmonic => Self {
+                brown: 0.05,
+                pink: 0.22,
+                white: 0.03,
+                low_cutoff: 720.0,
+                high_cutoff: 5200.0,
+                formant: 980.0,
+                formant_gain: 0.18,
+                width: 0.72,
+                diffusion: 0.36,
+                roughness: 0.03,
+                gain: 0.96,
+            },
         }
     }
 
@@ -661,6 +757,13 @@ struct StereoBreathSynth {
     phase: BreathPhase,
     lung_volume: f32,
     flow: f32,
+    polar_volume: f32,
+    polar_signed_flow: f32,
+    polar_phase: BreathPhase,
+    polar_candidate_phase: BreathPhase,
+    polar_candidate_frames: u32,
+    harmonics: HarmonicBank,
+    harmonic_mix: f32,
 }
 
 impl StereoBreathSynth {
@@ -679,10 +782,17 @@ impl StereoBreathSynth {
             phase: BreathPhase::Still,
             lung_volume: 0.0,
             flow: 0.0,
+            polar_volume: 0.0,
+            polar_signed_flow: 0.0,
+            polar_phase: BreathPhase::Still,
+            polar_candidate_phase: BreathPhase::Still,
+            polar_candidate_frames: 0,
+            harmonics: HarmonicBank::default(),
+            harmonic_mix: 0.0,
         }
     }
 
-    fn tick(&mut self, target: ControlSnapshot) -> [f32; 2] {
+    fn tick(&mut self, target: ControlSnapshot, physiology: BreathSignalSnapshot) -> [f32; 2] {
         let smoothing = 1.0 - (-1.0 / (self.sample_rate * 0.035)).exp();
         self.smoothed.breaths_per_minute +=
             (target.breaths_per_minute - self.smoothed.breaths_per_minute) * smoothing;
@@ -698,29 +808,9 @@ impl StereoBreathSynth {
             .tone
             .lerp(Tone::for_preset(target.preset), tone_smoothing);
 
-        self.cycle_position = (self.cycle_position
-            + self.smoothed.breaths_per_minute / (60.0 * self.sample_rate))
-            .fract();
-        let inhale_share = self.smoothed.inhale_share.clamp(0.3, 0.7);
-        let (phase, phase_position, volume, flow, direction) = if self.cycle_position < inhale_share
-        {
-            let position = self.cycle_position / inhale_share;
-            (
-                BreathPhase::Inhale,
-                position,
-                smoothstep(position),
-                (PI * position).sin().max(0.0).powf(0.72),
-                1.0,
-            )
-        } else {
-            let position = (self.cycle_position - inhale_share) / (1.0 - inhale_share);
-            (
-                BreathPhase::Exhale,
-                position,
-                1.0 - smoothstep(position),
-                (PI * position).sin().max(0.0).powf(0.78) * 0.86,
-                -1.0,
-            )
+        let (phase, phase_position, volume, flow, direction) = match target.source {
+            BreathSource::Guided => self.guided_envelope(),
+            BreathSource::Polar => self.polar_envelope(physiology),
         };
         self.phase = phase;
         self.lung_volume = volume;
@@ -762,9 +852,199 @@ impl StereoBreathSynth {
         let stereo = self
             .delay
             .process(mid + side, mid - side, self.tone.diffusion);
+        let harmonic_target = if matches!(target.preset, BreathPreset::Harmonic) {
+            1.0
+        } else {
+            0.0
+        };
+        let harmonic_smoothing = 1.0 - (-1.0 / (self.sample_rate * 0.24)).exp();
+        self.harmonic_mix += (harmonic_target - self.harmonic_mix) * harmonic_smoothing;
+        let harmonic = self
+            .harmonics
+            .tick(phase, volume, force, brightness, self.sample_rate);
+        let air_gain = 1.0 - self.harmonic_mix * 0.68;
+        let stereo = [
+            stereo[0] * air_gain + harmonic[0] * self.harmonic_mix,
+            stereo[1] * air_gain + harmonic[1] * self.harmonic_mix,
+        ];
         self.startup_gain = (self.startup_gain + 1.0 / (self.sample_rate * 0.035)).min(1.0);
         let gain = self.smoothed.output_gain * self.tone.gain * self.startup_gain;
         [soft_clip(stereo[0] * gain), soft_clip(stereo[1] * gain)]
+    }
+
+    fn guided_envelope(&mut self) -> (BreathPhase, f32, f32, f32, f32) {
+        self.cycle_position = (self.cycle_position
+            + self.smoothed.breaths_per_minute / (60.0 * self.sample_rate))
+            .fract();
+        let inhale_share = self.smoothed.inhale_share.clamp(0.3, 0.7);
+        if self.cycle_position < inhale_share {
+            let position = self.cycle_position / inhale_share;
+            (
+                BreathPhase::Inhale,
+                position,
+                smoothstep(position),
+                (PI * position).sin().max(0.0).powf(0.72),
+                1.0,
+            )
+        } else {
+            let position = (self.cycle_position - inhale_share) / (1.0 - inhale_share);
+            (
+                BreathPhase::Exhale,
+                position,
+                1.0 - smoothstep(position),
+                (PI * position).sin().max(0.0).powf(0.78) * 0.86,
+                -1.0,
+            )
+        }
+    }
+
+    fn polar_envelope(
+        &mut self,
+        physiology: BreathSignalSnapshot,
+    ) -> (BreathPhase, f32, f32, f32, f32) {
+        // Missing, stale, or uncalibrated sensor data intentionally fades to
+        // silence. Polar mode must never masquerade a guided oscillator as a
+        // live physiological lock.
+        let active = physiology.connected && physiology.ready && physiology.fresh;
+        let volume_target = if active {
+            physiology.volume_01
+        } else {
+            self.polar_volume
+        };
+        let flow_target = if active {
+            physiology.signed_flow * (0.35 + physiology.confidence_01 * 0.65)
+        } else {
+            0.0
+        };
+        let volume_smoothing = 1.0 - (-1.0 / (self.sample_rate * 0.08)).exp();
+        let flow_smoothing = 1.0 - (-1.0 / (self.sample_rate * 0.14)).exp();
+        self.polar_volume += (volume_target - self.polar_volume) * volume_smoothing;
+        self.polar_signed_flow += (flow_target - self.polar_signed_flow) * flow_smoothing;
+
+        let derivative_direction = if self.polar_signed_flow > 0.012 {
+            BreathPhase::Inhale
+        } else if self.polar_signed_flow < -0.012 {
+            BreathPhase::Exhale
+        } else {
+            BreathPhase::Still
+        };
+        let requested_phase = if active {
+            match physiology.phase {
+                SignalPhase::Inhale => BreathPhase::Inhale,
+                SignalPhase::Exhale => BreathPhase::Exhale,
+                SignalPhase::Hold if derivative_direction != BreathPhase::Still => {
+                    derivative_direction
+                }
+                SignalPhase::Hold => self.polar_phase,
+            }
+        } else {
+            BreathPhase::Still
+        };
+        let phase = self.stabilize_polar_phase(requested_phase, active);
+        let direction = match phase {
+            BreathPhase::Inhale => 1.0,
+            BreathPhase::Exhale => -1.0,
+            BreathPhase::Still => self.polar_signed_flow.signum(),
+        };
+        let flow = self.polar_signed_flow.abs().clamp(0.0, 1.0);
+        let phase_position = match phase {
+            BreathPhase::Inhale => self.polar_volume,
+            BreathPhase::Exhale => 1.0 - self.polar_volume,
+            BreathPhase::Still => 0.5,
+        };
+        (phase, phase_position, self.polar_volume, flow, direction)
+    }
+
+    fn stabilize_polar_phase(&mut self, requested: BreathPhase, active: bool) -> BreathPhase {
+        if !active {
+            self.polar_phase = BreathPhase::Still;
+            self.polar_candidate_phase = BreathPhase::Still;
+            self.polar_candidate_frames = 0;
+            return BreathPhase::Still;
+        }
+
+        if requested == BreathPhase::Still || requested == self.polar_phase {
+            self.polar_candidate_phase = self.polar_phase;
+            self.polar_candidate_frames = 0;
+            return self.polar_phase;
+        }
+
+        if requested != self.polar_candidate_phase {
+            self.polar_candidate_phase = requested;
+            self.polar_candidate_frames = 1;
+        } else {
+            self.polar_candidate_frames = self.polar_candidate_frames.saturating_add(1);
+        }
+
+        let confirmation_frames = (self.sample_rate * 0.28).round() as u32;
+        if self.polar_candidate_frames >= confirmation_frames.max(1) {
+            self.polar_phase = requested;
+            self.polar_candidate_phase = requested;
+            self.polar_candidate_frames = 0;
+        }
+        self.polar_phase
+    }
+}
+
+/// A fixed just-intonation pitch lattice. Breath changes the weights, not the
+/// frequencies, so the result remains consonant even when the physiological
+/// derivative is noisy. The air layer supplies immediacy while this bank glides
+/// between a compact exhale voicing and an open inhale voicing.
+#[derive(Default)]
+struct HarmonicBank {
+    phases: [f32; 6],
+    openness: f32,
+    amplitude: f32,
+}
+
+impl HarmonicBank {
+    fn tick(
+        &mut self,
+        phase: BreathPhase,
+        volume: f32,
+        force: f32,
+        brightness: f32,
+        sample_rate: f32,
+    ) -> [f32; 2] {
+        const BASE_HZ: f32 = 110.0;
+        const RATIOS: [f32; 6] = [1.0, 6.0 / 5.0, 3.0 / 2.0, 2.0, 9.0 / 4.0, 3.0];
+        const CLOSED: [f32; 6] = [0.82, 0.36, 0.48, 0.2, 0.03, 0.05];
+        const OPEN: [f32; 6] = [0.18, 0.04, 0.42, 0.58, 0.34, 0.24];
+        const PAN: [f32; 6] = [-0.55, 0.38, -0.2, 0.18, -0.42, 0.52];
+
+        let openness_target = match phase {
+            BreathPhase::Inhale => (0.55 + volume * 0.45).clamp(0.0, 1.0),
+            BreathPhase::Exhale => (volume * 0.34).clamp(0.0, 1.0),
+            BreathPhase::Still => self.openness,
+        };
+        let openness_smoothing = 1.0 - (-1.0 / (sample_rate * 0.48)).exp();
+        self.openness += (openness_target - self.openness) * openness_smoothing;
+
+        let amplitude_target = force.clamp(0.0, 1.2).sqrt() * 0.34;
+        let amplitude_seconds = if amplitude_target > self.amplitude {
+            0.08
+        } else {
+            0.24
+        };
+        let amplitude_smoothing = 1.0 - (-1.0 / (sample_rate * amplitude_seconds)).exp();
+        self.amplitude += (amplitude_target - self.amplitude) * amplitude_smoothing;
+
+        let mut left = 0.0;
+        let mut right = 0.0;
+        let upper_presence = 0.72 + brightness.clamp(0.0, 1.0) * 0.46;
+        for index in 0..RATIOS.len() {
+            self.phases[index] =
+                (self.phases[index] + TAU * BASE_HZ * RATIOS[index] / sample_rate) % TAU;
+            let mut weight = CLOSED[index] + (OPEN[index] - CLOSED[index]) * self.openness;
+            if index >= 3 {
+                weight *= upper_presence;
+            }
+            let oscillator = self.phases[index].sin() * weight;
+            left += oscillator * (1.0 - PAN[index] * 0.28);
+            right += oscillator * (1.0 + PAN[index] * 0.28);
+        }
+        let normalization = self.amplitude * 0.38;
+        [left * normalization, right * normalization]
     }
 }
 
@@ -933,7 +1213,7 @@ mod tests {
         let mut energy = 0.0;
         let frames = 96_000;
         for _ in 0..frames {
-            let frame = synth.tick(controls);
+            let frame = synth.tick(controls, BreathSignalSnapshot::default());
             assert!(frame[0].is_finite() && frame[1].is_finite());
             assert!(frame[0].abs() <= 1.0 && frame[1].abs() <= 1.0);
             energy += frame[0] * frame[0] + frame[1] * frame[1];
@@ -970,6 +1250,7 @@ mod tests {
             BreathPreset::Airy,
             BreathPreset::Dreamlike,
             BreathPreset::Embodied,
+            BreathPreset::Harmonic,
         ] {
             assert!(render_rms(preset) > 0.001, "{preset:?} was silent");
         }
@@ -993,10 +1274,65 @@ mod tests {
         let mut inhaled = false;
         let mut exhaled = false;
         for _ in 0..2_100 {
-            synth.tick(controls);
+            synth.tick(controls, BreathSignalSnapshot::default());
             inhaled |= matches!(synth.phase, BreathPhase::Inhale);
             exhaled |= matches!(synth.phase, BreathPhase::Exhale);
         }
         assert!(inhaled && exhaled);
+    }
+
+    #[test]
+    fn polar_mode_does_not_fall_back_to_the_guided_cycle() {
+        let mut synth = StereoBreathSynth::new(1_000.0);
+        let controls: ControlSnapshot = SoundControls {
+            source: BreathSource::Polar,
+            output_gain: 0.5,
+            ..SoundControls::default()
+        }
+        .into();
+        let mut peak = 0.0_f32;
+        for _ in 0..2_000 {
+            let frame = synth.tick(controls, BreathSignalSnapshot::default());
+            peak = peak.max(frame[0].abs()).max(frame[1].abs());
+        }
+        assert!(peak < 0.000_01);
+        assert!(matches!(synth.phase, BreathPhase::Still));
+    }
+
+    #[test]
+    fn polar_phase_rejects_short_reversals() {
+        let mut synth = StereoBreathSynth::new(1_000.0);
+        let controls: ControlSnapshot = SoundControls {
+            preset: BreathPreset::Harmonic,
+            source: BreathSource::Polar,
+            output_gain: 0.5,
+            ..SoundControls::default()
+        }
+        .into();
+        let snapshot = |phase, signed_flow| BreathSignalSnapshot {
+            connected: true,
+            ready: true,
+            fresh: true,
+            volume_01: 0.5,
+            signed_flow,
+            confidence_01: 0.95,
+            phase,
+            age_millis: Some(10),
+        };
+
+        for _ in 0..350 {
+            synth.tick(controls, snapshot(SignalPhase::Inhale, 0.6));
+        }
+        assert_eq!(synth.phase, BreathPhase::Inhale);
+
+        for _ in 0..120 {
+            synth.tick(controls, snapshot(SignalPhase::Exhale, -0.6));
+        }
+        assert_eq!(synth.phase, BreathPhase::Inhale);
+
+        for _ in 0..350 {
+            synth.tick(controls, snapshot(SignalPhase::Exhale, -0.6));
+        }
+        assert_eq!(synth.phase, BreathPhase::Exhale);
     }
 }

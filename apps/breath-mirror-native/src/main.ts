@@ -4,13 +4,19 @@ import "@fontsource/cormorant-garamond/400.css";
 import "@fontsource/cormorant-garamond/400-italic.css";
 import "./style.css";
 import {
+  autoConnectPolar,
+  connectPolar,
+  disconnectPolar,
   getAudioStatus,
+  getPolarStatus,
   setSoundControls,
   startAudio,
   stopAudio,
   type AudioStatus,
   type BreathPreset,
+  type BreathSource,
   type NativeError,
+  type PolarStatus,
   type SoundControls,
 } from "./native";
 
@@ -40,6 +46,18 @@ const elements = {
   latency: requireElement<HTMLElement>("latency"),
   callbackLoad: requireElement<HTMLElement>("callback-load"),
   xruns: requireElement<HTMLElement>("xruns"),
+  polarConnect: requireElement<HTMLButtonElement>("polar-connect"),
+  polarDevice: requireElement<HTMLSelectElement>("polar-device"),
+  polarDot: requireElement<HTMLElement>("polar-dot"),
+  polarState: requireElement<HTMLElement>("polar-state"),
+  polarMessage: requireElement<HTMLElement>("polar-message"),
+  polarAcc: requireElement<HTMLElement>("polar-acc"),
+  polarEcg: requireElement<HTMLElement>("polar-ecg"),
+  polarCalibration: requireElement<HTMLElement>("polar-calibration"),
+  polarConfidence: requireElement<HTMLElement>("polar-confidence"),
+  polarHeart: requireElement<HTMLElement>("polar-heart"),
+  polarFreshness: requireElement<HTMLElement>("polar-freshness"),
+  parametersPanel: document.querySelector<HTMLElement>(".parameters-panel")!,
   pace: requireElement<HTMLInputElement>("pace"),
   paceValue: requireElement<HTMLOutputElement>("pace-value"),
   inhaleShare: requireElement<HTMLInputElement>("inhale-share"),
@@ -54,8 +72,13 @@ const elements = {
   outputValue: requireElement<HTMLOutputElement>("output-value"),
 };
 
-let selectedPreset: BreathPreset = "natural";
+let selectedPreset: BreathPreset = "harmonic";
+let selectedSource: BreathSource = "polar";
 let running = false;
+let polarConnected = false;
+let polarRequestInFlight = false;
+let polarAutoRetry = true;
+let lastPolarAttemptAt = 0;
 let controlsDirty = false;
 let controlRequestInFlight = false;
 let pollTimer: number | undefined;
@@ -67,6 +90,7 @@ function numberValue(input: HTMLInputElement): number {
 function currentControls(): SoundControls {
   return {
     preset: selectedPreset,
+    source: selectedSource,
     breathsPerMinute: numberValue(elements.pace),
     inhaleShare: numberValue(elements.inhaleShare) / 100,
     intensity: numberValue(elements.intensity) / 100,
@@ -86,7 +110,7 @@ function describeError(error: unknown): string {
 
 function updateControlLabels(): void {
   elements.paceValue.value = `${numberValue(elements.pace).toFixed(1)} bpm`;
-  elements.paceReadout.textContent = numberValue(elements.pace).toFixed(1);
+  elements.paceReadout.textContent = selectedSource === "polar" ? "LIVE" : numberValue(elements.pace).toFixed(1);
   elements.inhaleValue.value = `${Math.round(numberValue(elements.inhaleShare))}%`;
   elements.intensityValue.value = `${Math.round(numberValue(elements.intensity))}%`;
   elements.brightnessValue.value = `${Math.round(numberValue(elements.brightness))}%`;
@@ -121,6 +145,18 @@ function setPreset(preset: BreathPreset): void {
   void flushControls();
 }
 
+function setSource(source: BreathSource): void {
+  selectedSource = source;
+  document.querySelectorAll<HTMLButtonElement>(".source-button").forEach((button) => {
+    const selected = button.dataset.source === source;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
+  elements.parametersPanel.classList.toggle("is-polar", source === "polar");
+  updateControlLabels();
+  void flushControls();
+}
+
 function renderStatus(status: AudioStatus): void {
   running = status.running;
   elements.engineDot.classList.toggle("is-running", running);
@@ -150,8 +186,103 @@ function renderStatus(status: AudioStatus): void {
     elements.notice.textContent = status.lastError;
     elements.notice.classList.add("is-error");
   } else if (running) {
-    elements.notice.textContent = `${selectedPreset.toUpperCase()} · ${status.bufferMode ?? "system buffer"} · direct native synthesis`;
+    const driver = status.source === "polar"
+      ? status.physiologyReady && status.physiologyFresh
+        ? "live Polar phase + flow"
+        : "Polar selected · waiting for a fresh calibrated signal"
+      : "guided cycle";
+    elements.notice.textContent = `${selectedPreset.toUpperCase()} · ${driver} · ${status.bufferMode ?? "system buffer"}`;
     elements.notice.classList.remove("is-error");
+  }
+}
+
+function renderPolarStatus(status: PolarStatus): void {
+  polarConnected = status.connected;
+  elements.polarState.textContent = status.state.toUpperCase();
+  elements.polarMessage.textContent = status.message;
+  elements.polarDot.classList.toggle("is-polar-live", status.locked);
+  elements.polarDot.classList.toggle(
+    "is-polar-busy",
+    ["scanning", "detected", "connecting", "calibrating"].includes(status.state),
+  );
+  elements.polarCalibration.textContent = `${Math.round(status.calibrationProgress * 100)}%`;
+  elements.polarConfidence.textContent = `${Math.round(status.confidence * 100)}%`;
+  elements.polarHeart.textContent = status.heartRate ? `${status.heartRate} bpm` : "—";
+  elements.polarEcg.textContent = status.ecgSamples > 0 ? `${status.ecgSamples} smp` : "—";
+  elements.polarFreshness.textContent = status.freshnessMs === null ? "—" : `${status.freshnessMs} ms`;
+  elements.polarAcc.textContent = status.estimatedAccHz
+    ? `${status.estimatedAccHz.toFixed(1)} Hz`
+    : status.accSamples > 0
+      ? `${status.accSamples} samples`
+      : "—";
+  elements.polarConnect.textContent = status.connected ? "DISCONNECT POLAR" : "CONNECT + CALIBRATE";
+
+  const selectedId = elements.polarDevice.value;
+  const signature = status.devices.map((device) => `${device.id}:${device.name}`).join("|");
+  if (elements.polarDevice.dataset.signature !== signature) {
+    elements.polarDevice.replaceChildren();
+    const automatic = document.createElement("option");
+    automatic.value = "";
+    automatic.textContent = "AUTO-DETECT WORN H10";
+    elements.polarDevice.append(automatic);
+    for (const device of status.devices) {
+      const option = document.createElement("option");
+      option.value = device.id;
+      option.textContent = device.rssi === null ? device.name : `${device.name} · ${device.rssi} dBm`;
+      elements.polarDevice.append(option);
+    }
+    if (status.devices.some((device) => device.id === selectedId)) {
+      elements.polarDevice.value = selectedId;
+    } else if (status.devices.length === 1) {
+      elements.polarDevice.value = status.devices[0].id;
+    }
+    elements.polarDevice.dataset.signature = signature;
+  }
+
+  if (status.locked && selectedSource !== "polar") setSource("polar");
+}
+
+async function togglePolar(): Promise<void> {
+  if (polarRequestInFlight) return;
+  polarRequestInFlight = true;
+  elements.polarConnect.disabled = true;
+  try {
+    polarAutoRetry = !polarConnected;
+    lastPolarAttemptAt = Date.now();
+    const status = polarConnected
+      ? await disconnectPolar()
+      : elements.polarDevice.value
+        ? await connectPolar(elements.polarDevice.value)
+        : await autoConnectPolar();
+    renderPolarStatus(status);
+    if (status.connected || status.state === "connecting" || status.state === "calibrating") {
+      setSource("polar");
+    }
+  } catch (error) {
+    elements.polarState.textContent = "CONNECTION ERROR";
+    elements.polarMessage.textContent = describeError(error);
+    elements.polarDot.classList.remove("is-polar-live", "is-polar-busy");
+  } finally {
+    polarRequestInFlight = false;
+    elements.polarConnect.disabled = false;
+  }
+}
+
+async function beginPolarAutoConnect(): Promise<void> {
+  if (polarRequestInFlight || polarConnected || !polarAutoRetry) return;
+  polarRequestInFlight = true;
+  lastPolarAttemptAt = Date.now();
+  elements.polarConnect.disabled = true;
+  try {
+    renderPolarStatus(await autoConnectPolar());
+    setSource("polar");
+  } catch (error) {
+    elements.polarState.textContent = "H10 NOT FOUND";
+    elements.polarMessage.textContent = describeError(error);
+    elements.polarDot.classList.remove("is-polar-live", "is-polar-busy");
+  } finally {
+    polarRequestInFlight = false;
+    elements.polarConnect.disabled = false;
   }
 }
 
@@ -183,7 +314,17 @@ async function pollStatus(): Promise<void> {
     return;
   }
   try {
-    renderStatus(await getAudioStatus());
+    const [audio, polar] = await Promise.all([getAudioStatus(), getPolarStatus()]);
+    renderStatus(audio);
+    renderPolarStatus(polar);
+    if (
+      polarAutoRetry
+      && !polar.connected
+      && polar.state === "error"
+      && Date.now() - lastPolarAttemptAt >= 8_000
+    ) {
+      void beginPolarAutoConnect();
+    }
   } catch (error) {
     elements.engineState.textContent = "NATIVE BRIDGE UNAVAILABLE";
     elements.notice.textContent = `Launch with npm run native:dev. ${describeError(error)}`;
@@ -194,6 +335,10 @@ async function pollStatus(): Promise<void> {
 
 document.querySelectorAll<HTMLButtonElement>(".preset-card").forEach((card) => {
   card.addEventListener("click", () => setPreset(card.dataset.preset as BreathPreset));
+});
+
+document.querySelectorAll<HTMLButtonElement>(".source-button").forEach((button) => {
+  button.addEventListener("click", () => setSource(button.dataset.source as BreathSource));
 });
 
 [
@@ -211,6 +356,7 @@ document.querySelectorAll<HTMLButtonElement>(".preset-card").forEach((card) => {
 });
 
 elements.startButton.addEventListener("click", () => void toggleAudio());
+elements.polarConnect.addEventListener("click", () => void togglePolar());
 document.addEventListener("keydown", (event) => {
   if (event.code === "Space" && event.target === document.body) {
     event.preventDefault();
@@ -219,5 +365,23 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("visibilitychange", () => void pollStatus());
 
-updateControlLabels();
-void pollStatus();
+async function initialize(): Promise<void> {
+  updateControlLabels();
+  setSource("polar");
+  try {
+    const [audio, polar] = await Promise.all([getAudioStatus(), getPolarStatus()]);
+    renderStatus(audio);
+    renderPolarStatus(polar);
+    if (
+      !polar.connected
+      && !["scanning", "connecting", "calibrating"].includes(polar.state)
+    ) {
+      void beginPolarAutoConnect();
+    }
+  } catch {
+    // pollStatus owns bridge error rendering and retries after initialization.
+  }
+  void pollStatus();
+}
+
+void initialize();

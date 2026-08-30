@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Low-latency native breath sonification for ECGames"
 authors = ["ECGames"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [lib]
 name = "breath_mirror_native_lib"
@@ -15,8 +15,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 cpal = "0.18.2"
+polar-h10-input = { git = "https://github.com/GeorgeFejer91/Polar-Stream", rev = "5300e2c2c9593f405f3b74b21b3330000e90b6f2" }
+polar-h10-metrics = { git = "https://github.com/GeorgeFejer91/Polar-Stream", rev = "5300e2c2c9593f405f3b74b21b3330000e90b6f2" }
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2.11.5", features = [] }
+tokio = { version = "1", features = ["sync"] }
 
 [profile.release]
 codegen-units = 1
