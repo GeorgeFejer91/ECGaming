@@ -13,6 +13,12 @@
     "test:browser": "playwright test",
     "build": "npm run typecheck && vite build",
     "build:hosted": "npm run build && npm run prepare:supertux && npm run prepare:moth",
+    "native:web:dev": "vite --config apps/breath-mirror-native/vite.config.ts",
+    "native:web:build": "vite build --config apps/breath-mirror-native/vite.config.ts",
+    "native:typecheck": "tsc --project apps/breath-mirror-native/tsconfig.json --noEmit",
+    "native:dev": "tauri dev --config apps/breath-mirror-native/src-tauri/tauri.conf.json",
+    "native:build": "tauri build --config apps/breath-mirror-native/src-tauri/tauri.conf.json",
+    "native:test": "cargo test --manifest-path apps/breath-mirror-native/src-tauri/Cargo.toml",
     "prepare:supertux": "node scripts/prepare-supertux.mjs",
     "prepare:moth": "node scripts/prepare-moth.mjs",
     "preview": "vite preview --host 0.0.0.0"
@@ -22,10 +28,12 @@
     "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
+    "@tauri-apps/api": "^2.11.1",
     "three": "^0.185.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^26.4.0",
     "@types/three": "^0.185.4",
     "@types/webxr": "^0.5.24",

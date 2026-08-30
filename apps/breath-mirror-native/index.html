@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0c0b" />
+    <title>Breath Mirror</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">ECGAMES · NATIVE SONIFICATION STUDY</p>
+          <h1>breath mirror</h1>
+        </div>
+        <div class="engine-state" aria-live="polite">
+          <span id="engine-dot" class="status-dot"></span>
+          <div>
+            <span id="engine-state">ENGINE RESTING</span>
+            <small id="device-name">native output not started</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="mirror-stage" aria-label="Breath mirror">
+        <div class="phase-label phase-label--left">
+          <span>PHASE</span>
+          <strong id="phase-name">still</strong>
+        </div>
+        <div class="lung-field">
+          <div id="lung-halo" class="lung-halo"></div>
+          <svg class="lungs" viewBox="0 0 520 510" role="img" aria-label="A single-form lung silhouette expanding with the breath">
+            <path id="lung-shape" d="M258 42 C248 77 250 107 242 138 C231 180 207 179 181 155 C155 132 125 140 102 172 C72 214 54 284 54 355 C54 417 83 463 132 469 C178 475 218 446 238 402 C255 365 258 318 258 276 Z M262 42 C272 77 270 107 278 138 C289 180 313 179 339 155 C365 132 395 140 418 172 C448 214 466 284 466 355 C466 417 437 463 388 469 C342 475 302 446 282 402 C265 365 262 318 262 276 Z" />
+          </svg>
+          <div class="phase-readout">
+            <span id="pace-readout">9.0</span>
+            <small>BREATHS / MIN</small>
+          </div>
+        </div>
+        <div class="phase-label phase-label--right">
+          <span>FLOW</span>
+          <strong id="flow-readout">0%</strong>
+        </div>
+      </section>
+
+      <section class="transport-panel">
+        <button id="start-button" class="start-button" type="button">
+          <span id="start-icon">▶</span>
+          <span id="start-label">START NATIVE BREATH</span>
+        </button>
+        <label class="buffer-control" for="buffer-size">
+          <span>BUFFER REQUEST</span>
+          <select id="buffer-size">
+            <option value="64">64 frames · experimental</option>
+            <option value="128" selected>128 frames · responsive</option>
+            <option value="256">256 frames · stable</option>
+            <option value="512">512 frames · safest</option>
+          </select>
+        </label>
+        <p id="notice" class="notice">Choose a sound character, then start the native engine.</p>
+      </section>
+
+      <section class="control-grid">
+        <article class="panel preset-panel">
+          <div class="section-heading">
+            <span>01</span>
+            <div>
+              <p>SOUND CHARACTER</p>
+              <h2>five kinds of air</h2>
+            </div>
+          </div>
+          <div class="preset-list" role="radiogroup" aria-label="Breath sound character">
+            <button class="preset-card" data-preset="intimate" role="radio" aria-checked="false" type="button">
+              <span class="preset-index">A</span><span><strong>Intimate</strong><small>close · warm · narrow</small></span>
+            </button>
+            <button class="preset-card is-selected" data-preset="natural" role="radio" aria-checked="true" type="button">
+              <span class="preset-index">B</span><span><strong>Natural</strong><small>balanced · mouth-shaped · alive</small></span>
+            </button>
+            <button class="preset-card" data-preset="airy" role="radio" aria-checked="false" type="button">
+              <span class="preset-index">C</span><span><strong>Airy</strong><small>bright · open · delicate</small></span>
+            </button>
+            <button class="preset-card" data-preset="dreamlike" role="radio" aria-checked="false" type="button">
+              <span class="preset-index">D</span><span><strong>Dreamlike</strong><small>wide · diffused · floating</small></span>
+            </button>
+            <button class="preset-card" data-preset="embodied" role="radio" aria-checked="false" type="button">
+              <span class="preset-index">E</span><span><strong>Embodied</strong><small>deep · textured · physical</small></span>
+            </button>
+          </div>
+        </article>
+
+        <article class="panel parameters-panel">
+          <div class="section-heading">
+            <span>02</span>
+            <div>
+              <p>GUIDED PHYSIOLOGY</p>
+              <h2>shape the cycle</h2>
+            </div>
+          </div>
+          <div class="slider-stack">
+            <label class="range-row">
+              <span><strong>Pace</strong><output id="pace-value">9.0 bpm</output></span>
+              <input id="pace" type="range" min="4" max="30" step="0.1" value="9" />
+            </label>
+            <label class="range-row">
+              <span><strong>Inhale share</strong><output id="inhale-value">46%</output></span>
+              <input id="inhale-share" type="range" min="35" max="65" step="1" value="46" />
+            </label>
+            <label class="range-row">
+              <span><strong>Breath force</strong><output id="intensity-value">58%</output></span>
+              <input id="intensity" type="range" min="0" max="100" step="1" value="58" />
+            </label>
+            <label class="range-row">
+              <span><strong>Brightness</strong><output id="brightness-value">52%</output></span>
+              <input id="brightness" type="range" min="0" max="100" step="1" value="52" />
+            </label>
+            <label class="range-row">
+              <span><strong>Organic drift</strong><output id="naturalness-value">62%</output></span>
+              <input id="naturalness" type="range" min="0" max="100" step="1" value="62" />
+            </label>
+            <label class="range-row">
+              <span><strong>Output</strong><output id="output-value">38%</output></span>
+              <input id="output" type="range" min="0" max="80" step="1" value="38" />
+            </label>
+          </div>
+        </article>
+
+        <article class="panel diagnostics-panel">
+          <div class="section-heading">
+            <span>03</span>
+            <div>
+              <p>REALTIME HEALTH</p>
+              <h2>native callback</h2>
+            </div>
+          </div>
+          <dl class="diagnostic-grid">
+            <div><dt>SAMPLE RATE</dt><dd id="sample-rate">—</dd></div>
+            <div><dt>CHANNELS</dt><dd id="channels">—</dd></div>
+            <div><dt>CALLBACK SLICE</dt><dd id="callback-frames">—</dd></div>
+            <div><dt>SLICE TIME</dt><dd id="latency">—</dd></div>
+            <div><dt>CALLBACK LOAD</dt><dd id="callback-load">—</dd></div>
+            <div><dt>STREAM ERRORS</dt><dd id="xruns">0</dd></div>
+          </dl>
+          <p class="diagnostic-note">The slice time measures one software callback, not total speaker latency. Smaller buffers react faster; 256 frames is the stability reference.</p>
+        </article>
+      </section>
+
+      <footer>
+        <span>NATIVE CPAL AUDIO · NO WEB AUDIO BUFFER</span>
+        <span>POLAR PHASE INPUT · NEXT ADAPTER</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
