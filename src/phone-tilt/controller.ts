@@ -7,7 +7,6 @@ import { neutralControls, orientationAngles, SENSOR_STALE_MS, TiltCalibration, t
 import { PolarSourceWidget } from "../flight-session/polar-source";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const startButton = element<HTMLButtonElement>("enable-tilt"), touchButton = element<HTMLButtonElement>("connect-touch");
 const centreButton = element<HTMLButtonElement>("centre"), modeButton = element<HTMLButtonElement>("input-mode");
 const disconnectButton = element<HTMLButtonElement>("disconnect");
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
@@ -23,6 +22,7 @@ element("polar-status").append(polarSource.status);
 polarSource.button.addEventListener("pointerdown", event => event.stopPropagation());
 const calibration = new TiltCalibration();
 let mode: "tilt" | "touch" = "tilt";
+let touchStatus = "Drag to steer, or enable tilt.";
 let reading: OrientationReading | undefined;
 let readingAt = -Infinity;
 let centred = false;
@@ -36,10 +36,7 @@ const heldKeys = new Set<string>();
 const screenAngle = () => screen.orientation?.angle ?? (window as Window & { orientation?: number }).orientation ?? 0;
 const setInputStatus = (text: string) => { if (inputStatus.textContent !== text) inputStatus.textContent = text; };
 
-if (invitation && isSecureContext && window.top === window.self) {
-  startButton.disabled = touchButton.disabled = false;
-  connectionStatus.textContent = "Your flight screen is ready to pair.";
-} else if (!isSecureContext) connectionStatus.textContent = "Open the HTTPS controller link from your flight screen.";
+if (!isSecureContext) connectionStatus.textContent = "Open the HTTPS controller link from your flight screen.";
 else if (window.top !== window.self) connectionStatus.textContent = "Open this controller in its own browser tab.";
 
 function releaseInput() {
@@ -61,7 +58,7 @@ async function keepAwake() {
     if (!lock) { element("wake-status").textContent = "Keep the phone awake while flying."; return; }
     if (!link.active || document.hidden || generation !== inputGeneration) { await lock.release(); return; }
     wakeLock = lock;
-    element("wake-status").textContent = "Screen kept awake while this page is open.";
+    element("wake-status").textContent = "";
     lock.addEventListener("release", () => {
       if (wakeLock === lock) wakeLock = undefined;
       element("wake-status").textContent = "Keep the phone awake while flying.";
@@ -69,15 +66,15 @@ async function keepAwake() {
   } catch { element("wake-status").textContent = "Keep the phone awake while flying."; }
 }
 function renderMode() {
-  modeButton.textContent = mode === "tilt" ? "Use touch" : "Use tilt";
+  modeButton.textContent = mode === "tilt" ? "Use touch" : "Enable tilt";
   centreButton.hidden = mode === "touch";
   pad.dataset.touch = String(mode === "touch");
   pad.tabIndex = mode === "touch" ? 0 : -1;
   pad.setAttribute("aria-label", mode === "touch" ? "Airplane yoke: drag to steer and change speed, or use arrow keys. Release to centre." : "Airplane yoke responding to your tilt");
 }
-function useTouch() {
+function useTouch(message = "Drag to steer, or enable tilt.") {
   stopSensors(); mode = "touch"; renderMode();
-  setInputStatus("Drag on the yoke to steer. Release to centre. Arrow keys also work.");
+  touchStatus = message; setInputStatus(touchStatus);
 }
 
 async function enableTilt() {
@@ -102,21 +99,14 @@ async function enableTilt() {
   return true;
 }
 
-async function connect(tilt: boolean) {
+function connect() {
   if (!invitation || link.active) return;
-  startButton.disabled = touchButton.disabled = true;
-  try {
-    if (tilt) { if (!await enableTilt()) return; } else useTouch();
-    element("setup").hidden = true; element("controls").hidden = false; disconnectButton.hidden = false;
-    const connecting = link.start(invitation);
-    // Repeat complete current values at 30 Hz. Never extend an old sensor sample's life.
-    loop = setInterval(publishInput, 1000 / 30);
-    void keepAwake();
-    await connecting;
-  } catch (error) {
-    connectionStatus.textContent = error instanceof Error ? error.message : "Motion permission could not be requested. Use touch instead.";
-    stopSensors(); startButton.disabled = touchButton.disabled = false;
-  }
+  useTouch();
+  element("setup").hidden = true; element("controls").hidden = false; disconnectButton.hidden = false;
+  // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
+  loop = setInterval(publishInput, 1000 / 30);
+  void link.start(invitation);
+  void keepAwake();
 }
 
 function publishInput() {
@@ -129,7 +119,7 @@ function publishInput() {
     yoke.style.transform = "none"; confirmed.textContent = "Waiting for flight confirmation · controls released.";
     return;
   }
-  if (mode === "touch") setInputStatus("Drag on the yoke to steer. Release to centre. Arrow keys also work.");
+  if (mode === "touch") setInputStatus(touchStatus);
   if (mode === "tilt") {
     if (!reading || now - readingAt >= SENSOR_STALE_MS) {
       releaseInput(); centreButton.disabled = true;
@@ -145,8 +135,7 @@ function displayState(state: TiltState) {
   yoke.style.transform = `translateY(${-state.y * 4}px) rotate(${state.x * 2}deg)`;
   const steering = Math.abs(state.x) < .03 ? "Centred" : `${state.x < 0 ? "Left" : "Right"} ${Math.round(Math.abs(state.x) * 100)}%`;
   const speed = state.speedEnabled ? `Speed trim ${Math.round(state.y * 50)}%` : "Speed set by Ground Control";
-  const source = link.relay ? ` · ECG: ${link.relay.source === "ground" ? "Ground Control" : link.relay.source}` : state.flying ? "" : " · Waiting for flight";
-  confirmed.textContent = `${steering} · ${speed}${source}`;
+  confirmed.textContent = `${steering} · ${speed}`;
 }
 function endSession() {
   polarSource.stop();
@@ -160,8 +149,6 @@ function endSession() {
   setInputStatus("Create a new QR code on the flight screen to pair again.");
 }
 
-startButton.addEventListener("click", () => void connect(true));
-touchButton.addEventListener("click", () => void connect(false));
 disconnectButton.addEventListener("click", endSession);
 centreButton.addEventListener("click", () => {
   if (!reading || performance.now() - readingAt >= SENSOR_STALE_MS || !link.fresh) return;
@@ -175,7 +162,7 @@ modeButton.addEventListener("click", async () => {
   else {
     modeButton.disabled = true;
     try { await enableTilt(); }
-    catch (error) { useTouch(); setInputStatus(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); }
+    catch (error) { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); }
     finally { modeButton.disabled = !link.active; }
   }
 });
@@ -193,7 +180,7 @@ link.addEventListener("status", (event: Event) => {
     setInputStatus("Create a new QR code on the flight screen to pair again.");
   }
 });
-link.addEventListener("ready", () => { centreButton.disabled = !reading || !link.fresh; void keepAwake(); });
+link.addEventListener("ready", () => { modeButton.disabled = false; centreButton.disabled = !reading || !link.fresh; void keepAwake(); });
 link.addEventListener("state", (event: Event) => displayState((event as CustomEvent<TiltState>).detail));
 
 const moveTouch = (event: PointerEvent) => {
@@ -228,3 +215,5 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) { void wakeLock?.release(); wakeLock = undefined; }
   else { if (mode === "tilt") setInputStatus("Welcome back. Hold the phone comfortably and tap Centre."); void keepAwake(); }
 });
+
+if (invitation && isSecureContext && window.top === window.self) connect();

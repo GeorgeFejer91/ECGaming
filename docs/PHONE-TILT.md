@@ -2,10 +2,10 @@
 
 ## Connect and fly
 
-1. On **Ground Control**, click the dedicated SVG **Connect phone controller** widget.
-2. Scan the QR. Tap **Enable tilt & connect**, allow motion access, hold the phone/tablet sideways with the screen facing you, and tap **Centre**. **Use touch** supports dragging and arrow keys.
-3. To use the phone for ECG, tap **Connect Polar H10** on the yoke and choose **Phone controller** under **Flight session → ECG source** on Ground Control.
-4. For a third screen, click **Pair separate cockpit** and open or scan its link. This opens `/session-cockpit/`, using the same aircraft and WebXR game engine. Tap **Connect to Ground Control**, then **Start flight** once the selected physical H10 signal is ready.
+1. On **Ground Control**, click the dedicated SVG **Phone steering** widget.
+2. Scan the QR to connect automatically. Tap **Enable tilt**, allow motion access, hold the phone/tablet sideways with the screen facing you, and tap **Centre**. **Use touch** supports dragging and arrow keys.
+3. To use the phone for ECG, tap **Connect Polar H10** on the yoke and choose **Phone controller** under **Flight settings → ECG source** on Ground Control.
+4. For a third screen, click **Pair separate cockpit** and open or scan its link. This opens `/session-cockpit/`, using the same aircraft and WebXR game engine. It connects automatically. Tap **Start flight** once the selected physical H10 signal is ready.
 5. Any of these three roles can own the sensor. Ground Control uses its existing Polar connection; the session cockpit has **Polar H10 on this device → Connect Polar H10**. Select the intended source on Ground Control. Disconnect the old Bluetooth connection before transferring the same H10 if it cannot accept another connection.
 
 The tower owns mappings: excitement/excitometer, HR/RR/HRV, local ECG power, breathing, manual axes, adaptive ranges, reversal, smoothing, and heartbeat actions. The selected phone/cockpit applies this configuration to its local Polar Stream metrics and causal R-peak detector. The tower does not map these controls a second time. An unselected source may stay connected but cannot drive flight. The tower can also use its existing beacon as its current signal.
@@ -49,7 +49,7 @@ A paired source's physical flag is a trusted browser claim, not hardware attesta
 
 Each activation generates a random room and 192-bit secret. QR pixels are generated locally. The invitation uses only a URL fragment, validated and removed from phone/cockpit history, and is held in memory. QR/link material clears on pairing, stop, or expiry. Unpaired invitations expire after 10 minutes; sessions expire after two hours. Reconnection requires fresh QR material and mutual role-bound HMAC authentication. A second peer cannot replace a bound companion.
 
-Both endpoints require explicit activation. The pinned SDK loads locally only on activation. No audio/video tracks, camera or microphone are requested. Stop cancels producers, clears input and pairing material, fences callbacks, and then closes signaling asynchronously. Source disconnect/page exit releases H10 ownership; receiver leases also cover disappearance.
+The target starts from its pairing button; opening a valid HTTPS invitation automatically activates the phone or cockpit connection. Plain, invalid, and embedded links remain inert. The pinned SDK loads locally only when pairing starts. Motion and H10 permission requests still require their own button tap. No audio/video tracks, camera or microphone are requested. Stop cancels producers, clears input and pairing material, fences callbacks, and then closes signaling asynchronously. Source disconnect/page exit releases H10 ownership; receiver leases also cover disappearance.
 
 HTTPS and a visible controller page are required. Wake Lock is requested where supported. Motion permission is requested directly from the tap. iOS Safari can serve as a tilt controller but cannot connect H10 through Web Bluetooth: choose supported Android Chromium or desktop Chromium as the sensor source. Unsupported browsers explain the limitation while retaining touch/tilt control. The existing Polar hub prevents competing sensor ownership in same-origin tabs.
 

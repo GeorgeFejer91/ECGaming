@@ -24,6 +24,36 @@
 .flight-relay-panel select { width: 100%; min-height: 44px; margin-top: 8px; font: inherit; background: #fff; color: #243b39; border: 1px solid #8a9991; padding: 8px; }
 .flight-relay-panel button { min-height: 44px; font: inherit; padding: 8px 12px; margin: 4px 8px 4px 0; background: #263d3a; color: #fff7ec; border: 1px solid #8a9991; border-radius: 6px; cursor: pointer; }
 .phone-tilt-dialog :focus-visible, .phone-tilt-button:focus-visible { outline: 3px solid #8d3447; outline-offset: 3px; }
+/* The same SVG supplies the grips and arms on the phone and its pairing popup. */
+dialog.phone-tilt-dialog[open] { width: min(920px, calc(100vw - 16px)); max-height: none; padding: 8px 0; border: 0; background: transparent; color: #fff4e6; overflow: visible; }
+dialog.phone-tilt-dialog[open]::before { content: ""; position: absolute; inset: 0; background: url("./steering-yoke.svg") center / 100% 100% no-repeat; pointer-events: none; }
+.phone-yoke-console { position: relative; box-sizing: border-box; width: min(380px, calc(100% - 44px)); max-height: calc(100dvh - 40px); overflow: auto; margin: 0 auto; padding: 20px; border: 3px solid #d6c4ab; border-radius: 26px 26px 38px 38px; background: #344e45; }
+.phone-yoke-console > h2, .phone-yoke-console > p { text-align: center; }
+.phone-yoke-console > h2 { font-size: 22px; margin-bottom: 4px; }
+.phone-yoke-console > p { margin: 8px 0; }
+dialog.phone-tilt-dialog[open] a { color: #fff4e6; }
+dialog.phone-tilt-dialog[open] .phone-tilt-actions button,
+dialog.phone-tilt-dialog[open] .flight-relay-panel button,
+dialog.phone-tilt-dialog[open] .flight-relay-panel select { background: #fff7ec; color: #243b39; border-color: #b7c5bb; }
+.phone-yoke-console .phone-tilt-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.phone-yoke-console .phone-tilt-actions button { min-height: 44px; padding: 8px; font-size: 13px; }
+.phone-yoke-console .phone-tilt-actions > :only-child { grid-column: 1 / -1; }
+.phone-yoke-console .flight-relay-panel { margin-top: 16px; padding-top: 12px; }
+.phone-yoke-console summary { cursor: pointer; min-height: 32px; font-size: 15px; }
+.phone-yoke-console label, .phone-yoke-console p { font-size: 13px; }
+dialog.phone-tilt-dialog.cockpit-pairing-only[open] { width: min(440px, calc(100vw - 16px)); }
+dialog.phone-tilt-dialog.cockpit-pairing-only[open]::before { display: none; }
+dialog.phone-tilt-dialog.cockpit-pairing-only[open] > .phone-yoke-console { display: flex !important; flex-direction: column; width: calc(100% - 16px); }
+.cockpit-pairing-only .phone-yoke-console > :not(.flight-relay-panel):not(.phone-tilt-actions),
+.cockpit-pairing-only .flight-relay-panel > summary { display: none; }
+.cockpit-pairing-only .phone-only-option { display: none; }
+.cockpit-pairing-only .phone-yoke-console .phone-tilt-actions { order: 1; }
+@media (max-width: 560px) {
+  .phone-yoke-console { width: min(380px, max(248px, calc(100% - 100px))); padding: 14px; border-radius: 20px 20px 28px 28px; }
+}
+@media (max-height: 560px) {
+  .phone-yoke-console canvas { width: min(272px, calc(100dvh - 180px)) !important; }
+}
 @media (max-width: 900px) {
   .avionics-display > .phone-tilt-widget { margin-inline: 8px; max-width: calc(100% - 16px); }
 }

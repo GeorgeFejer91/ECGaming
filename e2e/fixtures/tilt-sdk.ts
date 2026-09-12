@@ -3,6 +3,8 @@ export function installTiltSdkFixture() {
   // Shared-context BroadcastChannel fixtures represent separate visible devices, not background tabs.
   // Tests can explicitly hide one device to exercise the application's visibility release.
   (window as any).testPageVisible = true;
+  (window as any).testSdkStarts = 0;
+  (window as any).motionPermissionRequests = 0;
   Object.defineProperty(document, "hidden", { configurable: true, get: () => !(window as any).testPageVisible });
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (window as any).testPageVisible ? "visible" : "hidden" });
   const emit = (target: EventTarget, name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail }));
@@ -24,7 +26,7 @@ export function installTiltSdkFixture() {
     bus?: BroadcastChannel;
     streamId = "";
     channels = new Map<string, Channel>();
-    async connect() {}
+    async connect() { (window as any).testSdkStarts++; }
     post(message: Record<string, unknown>) { this.bus?.postMessage({ ...message, from: this.role }); }
     async joinRoom({ room }: { room: string }) {
       this.bus = new BroadcastChannel(`tilt-test-${room}`);
@@ -59,7 +61,10 @@ export function installTiltSdkFixture() {
   (window as any).orientationSample = { beta: 0, gamma: -40 };
   (window as any).sendOrientation = true;
   Object.defineProperty(screen.orientation, "angle", { configurable: true, get: () => 90 });
-  Object.defineProperty(DeviceOrientationEvent, "requestPermission", { configurable: true, value: async () => "granted" });
+  Object.defineProperty(DeviceOrientationEvent, "requestPermission", { configurable: true, value: async () => {
+    (window as any).motionPermissionRequests++;
+    return (window as any).motionPermissionResult ?? "granted";
+  } });
   setInterval(() => {
     if ((window as any).sendOrientation)
       window.dispatchEvent(new DeviceOrientationEvent("deviceorientation", (window as any).orientationSample));

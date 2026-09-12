@@ -19,7 +19,7 @@ const game = createFlightScene(element("session-canvas"));
 const source = new PolarSourceWidget(element("session-polar"));
 const releaseSteering = installFlightSteering(element("session-flight"), game);
 const recovery = new CockpitRecoveryGate();
-const connect = element<HTMLButtonElement>("session-connect"), start = element<HTMLButtonElement>("session-start");
+const start = element<HTMLButtonElement>("session-start");
 const xr = element<HTMLButtonElement>("session-xr");
 let started = false, ready = false, aircraftReady = false, beat = -1, configKey = "";
 let loop: ReturnType<typeof setInterval> | undefined;
@@ -30,8 +30,6 @@ select.value = game.snapshot().aircraftId;
 select.addEventListener("change", () => { aircraftReady = false; select.disabled = true; void game.setAircraft(select.value as typeof AIRCRAFT_CATALOG[number]["id"]).then(() => { aircraftReady = true; }, () => { element("session-signal").textContent = "Aircraft could not load."; }).finally(() => { select.disabled = false; }); });
 element("session-flight-status").append(select);
 void game.setAircraft(game.snapshot().aircraftId).then(() => { aircraftReady = true; }, () => { element("session-link").textContent = "Aircraft could not load. Reload to retry."; });
-connect.disabled = !invitation || !isSecureContext || window.top !== window.self;
-if (invitation) element("session-link").textContent = "Ready to pair with your Ground Control.";
 
 async function keepAwake() {
   if (document.hidden || !link.active || wakeLock) return;
@@ -59,9 +57,9 @@ function tick() {
     if (gate.ready && frame.beatCounter !== beat && frame.beatAgeMs < 250 && relay?.mappings.beatAction !== "off") game.heartbeat();
     beat = frame.beatCounter;
   }
-  const text = !link.ready ? "Waiting for Ground Control." : !ready ? "Waiting for fresh, calibrated H10 controls from the selected source." :
+  const text = !link.ready ? "Connecting…" : !ready ? "Waiting for H10…" :
     gate.countdownSeconds ? `Signal recovered · resuming in ${gate.countdownSeconds}…` :
-    `${relay!.source.toUpperCase()} H10 · ${relay!.mappings.altitude.metric.replaceAll("_", " ")} · lift ${frame!.altitude.toFixed(2)} · ${Math.round(frame!.throttle * 100)}% speed`;
+    started ? "Flying" : "Ready to fly";
   const status = element("session-signal"); if (status.textContent !== text) status.textContent = text;
   status.dataset.ready = String(ready); status.dataset.source = relay?.source ?? "";
 }
@@ -72,12 +70,12 @@ function stop() {
   element("session-disconnect").hidden = true; start.disabled = true;
   element("session-signal").textContent = "Disconnected. Create a new cockpit QR code on Ground Control.";
 }
-connect.addEventListener("click", () => {
+function connect() {
   if (!invitation || link.active) return;
-  connect.disabled = true; element("session-entry").hidden = true;
+  element("session-entry").hidden = true;
   element("session-flight-status").hidden = element("session-sensor").hidden = element("session-disconnect").hidden = false;
-  void link.start(invitation); loop = setInterval(tick, 1000 / 30); void keepAwake();
-});
+  loop = setInterval(tick, 1000 / 30); void link.start(invitation); void keepAwake();
+}
 start.addEventListener("click", () => { tick(); if (!ready) return; started = true; game.restart(); start.hidden = true; });
 element("session-disconnect").addEventListener("click", stop);
 link.addEventListener("status", (event: Event) => {
@@ -88,3 +86,5 @@ void game.immersiveSupported().then(supported => { xr.hidden = !supported; }, ()
 xr.addEventListener("click", () => { void game.enterImmersive().catch(() => { element("session-link").textContent = "Immersive mode could not start."; }); });
 document.addEventListener("visibilitychange", () => { tick(); if (document.hidden) void wakeLock?.release(); else void keepAwake(); });
 window.addEventListener("pagehide", () => { stop(); releaseSteering(); game.dispose(); });
+
+if (invitation && isSecureContext && window.top === window.self) connect();

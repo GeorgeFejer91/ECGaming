@@ -10,6 +10,7 @@ export class PhoneTiltHost {
   private readonly hub = getFlightSessionHub();
   private readonly link = this.hub.phone;
   private readonly dialog = document.createElement("dialog");
+  private readonly console = document.createElement("div");
   private readonly canvas = document.createElement("canvas");
   private readonly anchor = document.createElement("a");
   private readonly status = document.createElement("p");
@@ -25,6 +26,7 @@ export class PhoneTiltHost {
   private monitor?: ReturnType<typeof setInterval>;
   private clearCockpitQr = () => {};
   private pairCockpit?: HTMLButtonElement;
+  private readonly relayPanel = document.createElement("details");
 
   constructor(host: HTMLElement, private flying: () => boolean) {
     const buttonStatus = decoratePhoneButton(this.button);
@@ -32,10 +34,15 @@ export class PhoneTiltHost {
     host.append(this.button);
     this.button.hidden = Boolean(this.hub.client);
     this.dialog.className = "phone-tilt-dialog";
+    this.console.className = "phone-yoke-console";
+    this.dialog.append(this.console);
+    this.relayPanel.className = "flight-relay-panel";
+    const settingsTitle = document.createElement("summary"); settingsTitle.textContent = "Flight settings";
+    this.relayPanel.append(settingsTitle);
     this.dialog.setAttribute("aria-label", "Phone tilt controller");
-    const title = document.createElement("h2"); title.textContent = "Use your phone to fly";
+    const title = document.createElement("h2"); title.textContent = "Phone steering";
     const copy = document.createElement("p");
-    copy.textContent = "Scan this code, tap Enable tilt, then hold your phone sideways and tap Centre. Left/right tilt steers the plane on this screen.";
+    copy.textContent = "Scan to fly.";
     this.canvas.setAttribute("aria-label", "Scan to pair your phone as a tilt controller");
     this.canvas.hidden = true;
     this.anchor.textContent = "Open controller"; this.anchor.target = "_blank"; this.anchor.rel = "noopener noreferrer"; this.anchor.hidden = true;
@@ -43,7 +50,7 @@ export class PhoneTiltHost {
     this.status.textContent = "Create a code to pair one phone.";
     this.speed.type = "checkbox"; this.speed.checked = true;
     const speedLabel = document.createElement("label"); speedLabel.append(this.speed, " Forward/back tilt adjusts speed");
-    const altitude = document.createElement("p"); altitude.textContent = "Heart and breathing controls still set your altitude.";
+    speedLabel.className = "phone-only-option";
     this.copyButton.type = "button"; this.copyButton.textContent = "Copy link"; this.copyButton.hidden = true;
     this.copyButton.addEventListener("click", () => {
       if (this.url) void navigator.clipboard?.writeText(this.url).then(() => { this.copyButton.textContent = "Copied"; }, () => { this.status.textContent = "Use the Open controller link."; });
@@ -55,10 +62,11 @@ export class PhoneTiltHost {
     const close = document.createElement("button"); close.type = "button"; close.textContent = "Back to flight";
     close.addEventListener("click", () => this.dialog.close());
     const actions = document.createElement("div"); actions.className = "phone-tilt-actions";
-    actions.append(this.copyButton, this.newButton, this.stopButton, close);
-    const note = document.createElement("p"); note.className = "phone-tilt-note";
-    note.textContent = "Keep all pages open and awake with Internet access. Private pairing uses VDO.Ninja connection services. Only flight controls and readiness travel between screens; raw ECG stays with the H10 browser. Stop phone control restores local steering.";
-    this.dialog.append(title, copy, this.canvas, this.status, this.anchor, speedLabel, altitude, actions, note);
+    actions.append(close);
+    const phoneActions = document.createElement("div"); phoneActions.className = "phone-tilt-actions phone-only-option";
+    phoneActions.append(this.copyButton, this.newButton, this.stopButton);
+    this.relayPanel.append(speedLabel, phoneActions);
+    this.console.append(title, copy, this.canvas, this.status, this.anchor, actions, this.relayPanel);
     if (this.hub.coordinator) this.buildRelayPanel();
     document.body.append(this.dialog);
     this.link.addEventListener("status", (event: Event) => {
@@ -71,12 +79,12 @@ export class PhoneTiltHost {
     });
     this.link.addEventListener("ready", () => {
       this.clearQr();
-      this.status.textContent = "Phone connected. Centre the phone, then return to flight.";
+      this.status.textContent = "Phone connected. Ready to steer.";
       buttonStatus.textContent = "Connected";
     });
     this.link.addEventListener("state", (event: Event) => {
       const state = (event as CustomEvent<TiltState>).detail;
-      if (this.link.ready) buttonStatus.textContent = state.active ? "Phone steering active" : "Connected · centre phone";
+      if (this.link.ready) buttonStatus.textContent = state.active ? "Steering" : "Connected";
     });
     window.addEventListener("pagehide", () => { this.stop(); this.clearCockpitQr(); this.hub.stop("cockpit"); }, { signal: this.abort.signal });
   }
@@ -91,6 +99,7 @@ export class PhoneTiltHost {
     if (this.hub.client || !this.pairCockpit) return;
     this.dialog.classList.add("cockpit-pairing-only");
     this.dialog.setAttribute("aria-label", "Remote cockpit");
+    this.relayPanel.open = true;
     if (!this.dialog.open) this.dialog.showModal();
     if (!this.hub.cockpit.active) this.pairCockpit.click();
   }
@@ -99,8 +108,7 @@ export class PhoneTiltHost {
     return this.hub.readTilt();
   }
   private buildRelayPanel() {
-    const section = document.createElement("section"); section.className = "flight-relay-panel";
-    const heading = document.createElement("h3"); heading.textContent = "Flight session";
+    const section = document.createElement("section"); section.className = "flight-source-options";
     const source = document.createElement("select"); source.id = "flight-session-source";
     for (const [value, label] of [["ground", "Ground Control · current signal"], ["phone", "Phone controller · Polar H10"], ["cockpit", "Separate cockpit · Polar H10"]]) {
       const option = document.createElement("option"); option.value = value; option.textContent = label; source.append(option);
@@ -111,8 +119,8 @@ export class PhoneTiltHost {
     const update = () => {
       const selected = this.hub.signal.source;
       const peer = selected === "ground" ? null : this.hub[selected];
-      info.textContent = selected === "ground" ? "Ground Control maps its current signal. Choose altitude, speed and traffic mappings on the tower." :
-        peer?.ready ? "Paired. Tap Connect Polar H10 on that device. Its browser computes the mappings selected on this tower." : "Waiting for the selected device to pair. Flight will wait for its fresh H10 controls.";
+      info.textContent = selected === "ground" ? "" :
+        peer?.ready ? "Connect Polar H10 on that device." : "Waiting for device…";
     };
     source.addEventListener("change", () => { this.hub.selectSource(source.value as SourceId); update(); });
     for (const link of [this.hub.phone, this.hub.cockpit]) link.addEventListener("status", update, { signal: this.abort.signal });
@@ -145,7 +153,7 @@ export class PhoneTiltHost {
       const detail = (event as CustomEvent).detail; status.textContent = detail.message;
       if (detail.ready || !detail.active) this.clearCockpitQr();
     }, { signal: this.abort.signal });
-    section.append(heading, label, source, info, pair, stop, canvas, anchor, status); this.dialog.append(section);
+    section.append(label, source, info, pair, stop, canvas, anchor, status); this.relayPanel.append(section);
   }
   private clearQr() {
     ++this.qrRequest; this.url = "";

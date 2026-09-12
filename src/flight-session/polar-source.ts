@@ -127,12 +127,12 @@ export class PolarSourceWidget {
   constructor(host: HTMLElement) {
     this.button.type = "button"; this.button.textContent = "Connect Polar H10"; this.button.className = "polar-source-button"; this.button.disabled = true;
     this.status.className = "polar-source-status"; this.status.setAttribute("role", "status");
-    this.status.textContent = "Optional: use this device for heart and breathing input.";
+    this.status.textContent = "";
     host.append(this.button, this.status);
     this.button.addEventListener("click", () => {
       if (this.ownsConnection) { this.stop(); return; }
       const support = polarWebBluetoothSupport();
-      if (!support.supported) { this.processor.status = "unsupported"; this.status.textContent = support.reason + " Use Ground Control or a supported Android/desktop browser as the ECG source."; return; }
+      if (!support.supported) { this.processor.status = "unsupported"; this.status.textContent = "H10 is unavailable in this browser. Connect it on another device."; return; }
       const generation = ++this.generation;
       this.processor.reset(); this.processor.status = "connecting"; this.ownsConnection = true;
       this.connecting = true; this.button.disabled = true;
@@ -147,13 +147,13 @@ export class PolarSourceWidget {
   configure(config: RelayState | null) {
     this.config = config ?? undefined; this.button.disabled = this.connecting || (!config && !this.ownsConnection);
     if (config) this.processor.configure(config);
-    else if (!this.ownsConnection) this.status.textContent = "For H10 input on this device, pair using Ground Control’s flight session.";
+    else if (!this.ownsConnection) this.status.textContent = "";
   }
   offer(now: number) {
     const offer = this.processor.offer(now);
     if (this.ownsConnection && this.processor.status !== "connecting" && this.processor.status !== "error") {
-      const copy = !this.config?.assignedSource ? "H10 connected. Select this device as ECG source in Ground Control." :
-        offer?.status === "live" ? `Sending ${this.config.mappings.altitude.metric.replaceAll("_", " ")} flight controls · raw ECG stays here.` : "H10 connected · waiting for fresh ECG and the selected signal to calibrate.";
+      const copy = !this.config?.assignedSource ? "H10 connected. Select this device in Flight settings." :
+        offer?.status === "live" ? "H10 ready" : "Calibrating H10…";
       if (this.status.textContent !== copy) this.status.textContent = copy;
     }
     return offer;

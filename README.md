@@ -52,15 +52,14 @@ When Direct Polar is selected, the avionics display is a real rolling ECG wavefo
 
 ## Controls and signal mapping
 
-**Phone / tablet tilt controller:** click the dedicated **Connect phone
-controller** widget in Ground Control, scan its QR code, and tap **Enable tilt &
-connect**. Hold the phone sideways with both hands and tap **Centre**. A scalable
+**Phone / tablet tilt controller:** click the dedicated **Phone steering** widget in Ground Control and scan its QR code.
+The phone connects automatically; tap **Enable tilt** for motion access. Hold the phone sideways with both hands and tap **Centre**. A scalable
 SVG flight yoke shows the correct top edge and hand positions. Tilt left/right
 to steer the airplane on the other screen; tip forward/back to trim speed.
 Ground Control can disable phone speed control. Heart/breathing still controls
 altitude. **Use touch** is available without motion sensors. The same pairing
 action is under **Flight options** in the standalone and mobile game views.
-For a shared flight session, pair from Ground Control: **Flight session → Pair
+For a shared flight session, pair from Ground Control: **Flight settings → Pair
 separate cockpit** opens a third browser, and **ECG source** selects Ground
 Control, phone, or cockpit. The yoke and session cockpit each have **Connect
 Polar H10**. The selected H10 browser computes the tower's mappings locally;
