@@ -20,6 +20,9 @@ test.beforeEach(async ({ context }) => {
 });
 
 test("dedicated SVG widget opens a yoke-shaped QR popup without Polar or flight clearance", async ({ page }, testInfo) => {
+  test.setTimeout(60_000); // Three viewport renders and screenshots, including software-rendered CI.
+  // Three WebGL-backed viewport captures need extra time on the CI runner.
+  test.setTimeout(60_000);
   await page.goto("./ground-control/");
   const widget = page.locator("#connect-phone-controller");
   await expect(widget).toBeVisible();
