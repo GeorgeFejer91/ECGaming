@@ -61,6 +61,8 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   expect(new URL(phone.url()).hash).toBe("");
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+  await phone.mouse.move(30, 195); await phone.mouse.down(); await phone.mouse.up();
+  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
   await phone.getByRole("button", { name: "Enable tilt" }).click();
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await expect(dialog.locator("canvas").first()).toBeHidden();

@@ -228,9 +228,7 @@ const moveTouch = (event: PointerEvent) => {
   };
 };
 pad.addEventListener("pointerdown", event => {
-  if (!link.fresh || pointerId !== undefined) return;
-  if (permissionPending) { event.preventDefault(); void requestTilt(); return; }
-  if (mode !== "touch") return;
+  if (!link.fresh || pointerId !== undefined || mode !== "touch") return;
   event.preventDefault(); heldKeys.clear(); pointerId = event.pointerId; pad.setPointerCapture(event.pointerId); moveTouch(event);
 });
 pad.addEventListener("pointermove", event => { if (event.pointerId === pointerId) moveTouch(event); });
