@@ -1,4 +1,4 @@
-/* Compact setup: source and aircraft, altitude metric, selected signal. */
+/* Compact setup: aircraft on the left, metric controls above the signal on the right. */
 body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .compact-ground [hidden] { display: none !important; }
 .compact-ground .unified-flight-shell { --unified-header-height: 124px; height: 100dvh; min-height: 0; }
@@ -19,9 +19,9 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .compact-ground .remote-connection-bar small { display: none; }
 .compact-ground .remote-connection-bar img { width: 32px; height: 26px; }
 .compact-ground .remote-connection-bar svg, .compact-ground .cardiac-aircraft-choices svg, .compact-ground #connect-polar svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: 280px 230px minmax(0, 1fr); height: calc(100dvh - 124px); min-height: 0; gap: 20px; padding: 12px 24px 24px; }
-.compact-ground .unified-flight-shell .control-panel { display: grid; grid-template-rows: auto minmax(120px, 1fr) auto; gap: 16px; height: 100%; min-height: 0; overflow: hidden; border: 0; background: none; }
-.compact-ground #polar-source-controls { padding: 12px; border: 1px solid var(--line); background: #0b1d2a; }
+.compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); height: calc(100dvh - 124px); min-height: 0; gap: 20px; padding: 12px 24px 24px; }
+.compact-ground .unified-flight-shell .control-panel { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(120px, 1fr) auto; gap: 16px; height: 100%; min-height: 0; overflow: hidden; border: 0; background: none; }
+.compact-ground #polar-source-controls { grid-column: 1; grid-row: 2; padding: 12px; border: 1px solid var(--line); background: #0b1d2a; }
 .compact-ground .status-card { min-height: 0; height: auto; padding: 0; border: 0; background: none; grid-template-columns: 1fr; }
 .compact-ground .status-orbit, .compact-ground #polar-detail { display: none; }
 .compact-ground .status-card-copy { display: block; min-height: 0; }
@@ -31,7 +31,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .compact-ground #connect-polar::before, .compact-ground #connect-polar::after { display: none; }
 .compact-ground #disconnect-polar { min-height: 32px; padding: 6px; font: 500 11px/1.2 Inter, sans-serif; letter-spacing: 0; }
 .compact-ground #disconnect-polar:disabled { display: none; }
-.compact-ground .aircraft-showcase { display: grid; grid-template-rows: auto minmax(40px, 1fr) 68px; gap: 8px; min-height: 0; padding: 0; background: none; border: 0; }
+.compact-ground .aircraft-showcase { grid-column: 1/-1; grid-row: 1; display: grid; grid-template-rows: auto minmax(40px, 1fr) 68px; gap: 8px; min-height: 0; padding: 0; background: none; border: 0; }
 .compact-ground .aircraft-showcase-header { padding: 0; font-size: 12px; }
 .compact-ground .aircraft-preview-frame { display: grid; grid-template-rows: minmax(0, 1fr) 32px; grid-template-columns: 1fr; background: #02080c; box-shadow: none; }
 .compact-ground .aircraft-preview-frame::before, .compact-ground .aircraft-nameplate::before, .compact-ground .aircraft-preview-reticle, .compact-ground .aircraft-carousel-controls, .compact-ground #ground-aircraft-tagline, .compact-ground #ground-aircraft-source-name, .compact-ground #ground-aircraft-status { display: none; }
@@ -41,28 +41,28 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .compact-ground .cardiac-aircraft-choices button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; color: #c9dce1; background: #0b1d2a; border: 1px solid var(--line); border-radius: 4px; font: 600 12px/1.3 Inter, sans-serif; cursor: pointer; }
 .compact-ground .cardiac-aircraft-choices button[aria-pressed=true] { color: var(--amber); border-color: var(--amber); }
 .compact-ground .cardiac-aircraft-choices button:disabled { opacity: .5; cursor: wait; }
-.compact-ground .flight-gate { display: flex; flex-direction: column; gap: 8px; height: auto; min-height: 0; padding: 12px; background: #0b1d2a; border: 1px solid var(--line); }
+.compact-ground .flight-gate { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 8px; height: auto; min-height: 0; padding: 12px; background: #0b1d2a; border: 1px solid var(--line); }
 .compact-ground .flight-gate-head { display: flex; padding: 0; min-height: 0; justify-content: space-between; gap: 8px; }
 .compact-ground .flight-gate-head > div { display: block; overflow: visible; }
 .compact-ground .flight-gate-head > div > span, .compact-ground .flight-gate-checks { display: none; }
 .compact-ground #flight-gate-title { font: 600 14px/1.3 Inter, sans-serif !important; }
 .compact-ground #flight-gate-state { padding: 4px; font-size: 10px !important; line-height: 1.2 !important; }
-.compact-ground #flight-gate-copy { position: static; clip: auto; clip-path: none; width: auto; height: auto; overflow: visible; margin: 0; min-height: 0; font: 400 11px/1.4 Inter, sans-serif !important; }
+.compact-ground #flight-gate-copy { white-space: normal; overflow-wrap: anywhere; position: static; clip: auto; clip-path: none; width: auto; height: auto; overflow: visible; margin: 0; min-height: 0; font: 400 11px/1.4 Inter, sans-serif !important; }
 .compact-ground .flight-gate-start { display: flex; justify-content: center; align-items: center; width: 100%; height: 44px; min-height: 44px; margin: 0; padding: 8px; box-shadow: none; }
 .compact-ground .flight-gate-start .action-widget, .compact-ground .flight-gate-start .action-button-copy small { display: none; }
 .compact-ground .flight-gate-start .action-button-copy { display: block; }
 .compact-ground .flight-gate-start .action-button-copy strong { font: 600 14px/1.25 Inter, sans-serif !important; letter-spacing: 0; text-transform: none; }
-.compact-ground .altitude-metric-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 16px; border: 1px solid var(--line); background: #081a24; }
+.compact-ground .altitude-metric-panel { flex: 0 0 auto; gap: 12px; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 16px; border: 1px solid var(--line); background: #081a24; }
 .compact-ground .altitude-metric-panel h2 { margin: 0; color: #eaf3f5; font: 600 16px/1.3 Inter, sans-serif; }
-.compact-ground .altitude-metric-panel > p { margin: 8px 0 16px; font: 400 12px/1.5 Inter, sans-serif; color: #9bb4bc; }
+.compact-ground .altitude-metric-panel > p { display: none; margin: 8px 0 16px; font: 400 12px/1.5 Inter, sans-serif; color: #9bb4bc; }
 .compact-ground .metric-widget-panel { display: flex; flex: 1; min-height: 0; margin: 0; }
 .compact-ground .metric-widget-heading { display: none; }
-.compact-ground .metric-widget-grid { flex: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: repeat(6, minmax(46px, 1fr)); gap: 8px; }
+.compact-ground .metric-widget-grid { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, 64px); gap: 8px; }
 .compact-ground .metric-widget-button { display: flex; align-items: center; justify-content: flex-start; min-height: 0; gap: 12px; padding: 10px; border-radius: 4px; }
 .compact-ground .metric-widget-button img { width: 34px; height: 34px; }
 .compact-ground .metric-widget-button strong { font: 600 13px/1.25 Inter, sans-serif; letter-spacing: 0; }
 .compact-ground .metric-widget-button small { font: 400 11px/1.2 Inter, sans-serif; letter-spacing: 0; margin-top: 5px; }
-.compact-ground .unified-flight-shell .avionics-display { display: flex; flex-direction: column; gap: 0; width: 100%; min-width: 0; min-height: 0; height: 100%; padding: 0; overflow: hidden; background: none; border: 0; }
+.compact-ground .unified-flight-shell .avionics-display { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; min-height: 0; height: 100%; padding: 0; overflow: hidden; background: none; border: 0; }
 .compact-ground .tower-grid, .compact-ground .tower-topline, .compact-ground .tower-footer, .compact-ground .instrument-caption, .compact-ground .avionics-metrics, .compact-ground .ecg-scanline { display: none; }
 .compact-ground .ecg-instrument { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 16px; background: #081a24; }
 .compact-ground .instrument-header { min-height: 24px; flex: 0 0 auto; padding: 0; }
@@ -84,7 +84,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .phone-tilt-dialog.cockpit-pairing-only .phone-tilt-actions > :not(:last-child) { display: none; }
 @media (max-width: 1100px) {
   .compact-ground .unified-header { padding-inline: 16px; }
-  .compact-ground .unified-flight-shell .control-workspace { grid-template-columns: 240px 190px minmax(0, 1fr); gap: 12px; padding: 12px 16px; }
+  .compact-ground .unified-flight-shell .control-workspace { grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); gap: 12px; padding: 12px 16px; }
   .compact-ground .metric-widget-button { gap: 8px; padding: 8px; }
   .compact-ground .metric-widget-button img { width: 28px; height: 28px; }
   .compact-ground .metric-widget-button strong { font-size: 12px; }
@@ -99,7 +99,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground .remote-connection-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; }
   .compact-ground .remote-connection-bar > button { padding: 6px; gap: 4px; font-size: 9px; }
   .compact-ground .remote-connection-bar svg, .compact-ground .remote-connection-bar img { width: 22px; height: 22px; }
-  .compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: 1fr; grid-template-rows: minmax(235px, 40%) 150px minmax(80px, 1fr); height: calc(100dvh - 112px); gap: 10px; padding: 8px 12px 12px; }
+  .compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: 1fr; grid-template-rows: minmax(235px, 40%) minmax(0, 1fr); height: calc(100dvh - 112px); gap: 10px; padding: 8px 12px 12px; }
   .compact-ground .unified-flight-shell .control-panel { order: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 80px minmax(0, 1fr); gap: 8px; }
   .compact-ground #polar-source-controls { grid-column: 1; grid-row: 1; padding: 8px; }
   .compact-ground .status-card-copy strong { font-size: 9px !important; }
@@ -122,7 +122,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground #flight-gate-copy { font-size: 10px !important; }
   .compact-ground .flight-gate-start { height: 36px; min-height: 36px; }
   .compact-ground .flight-gate-start .action-button-copy strong { font-size: 11px !important; }
-  .compact-ground .altitude-metric-panel { padding: 8px; gap: 8px; }
+  .compact-ground .altitude-metric-panel { flex: 0 0 150px; padding: 8px; gap: 8px; }
   .compact-ground .altitude-metric-panel h2 { font-size: 12px; }
   .compact-ground .altitude-metric-panel > p { display: none; }
   .compact-ground .metric-widget-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; }
@@ -130,7 +130,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground .metric-widget-button img { width: 22px; height: 22px; }
   .compact-ground .metric-widget-button strong { font-size: 9px; }
   .compact-ground .metric-widget-button small { font-size: 8px; margin-top: 3px; }
-  .compact-ground .unified-flight-shell .avionics-display { order: 2; }
+  .compact-ground .unified-flight-shell .avionics-display { order: 1; gap: 10px; }
   .compact-ground .ecg-instrument { padding: 8px; }
   .compact-ground .instrument-header h2 { font-size: 12px; }
   .compact-ground .instrument-header > strong { font-size: 8px; }

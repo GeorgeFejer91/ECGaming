@@ -9,7 +9,7 @@ const paths = {
 const icon = (name: keyof typeof paths) => '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+paths[name]+'</svg>';
 const el = (id: string) => document.getElementById(id)!;
 
-/** Reuse the actual inputs and handlers in the three-column setup screen. */
+/** Reuse the actual inputs and handlers in the aircraft and signal setup screen. */
 export function setupCompactGround(openRemoteCockpit: () => void) {
   document.body.classList.add("compact-ground");
   const internals = document.createElement("div");
@@ -77,6 +77,7 @@ export function setupCompactGround(openRemoteCockpit: () => void) {
   });
   const right = document.querySelector(".avionics-display")!;
   internals.append(document.querySelector(".beacon-instrument")!, document.querySelector(".command-console")!);
+  right.prepend(metrics);
   right.append(document.querySelector(".ecg-instrument")!);
   document.querySelector(".avionics-board")!.remove();
   el("ecg-instrument-title").textContent = "Selected signal";
