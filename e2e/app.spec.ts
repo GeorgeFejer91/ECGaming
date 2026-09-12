@@ -819,3 +819,22 @@ test("Flight receives mocked commands without requesting Bluetooth or media", as
   await expect(page.locator("#hud-excitement")).toHaveText("0.63");
   await expect(page.locator("#link-state")).toContainText("LINK LIVE");
 });
+
+
+test("fresh beacon clearance uses receipt time even when animation callbacks are delayed", async ({ page }) => {
+  await page.addInitScript(() => {
+    const schedule = requestAnimationFrame.bind(window);
+    // Emulate a busy renderer: receipt callbacks run after the frame timestamp.
+    window.requestAnimationFrame = callback => schedule(timestamp => callback(timestamp - 1000));
+  });
+  await page.route("**/vendor/vdoninja/**", route =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
+  await page.goto("./ground-control/");
+  await page.locator("#signal-source-beacon").check();
+  await page.locator("#scan-beacons").click();
+  await expect(page.locator("#beacon-radar-state")).toHaveText("BEACON LOCK");
+  await expect(page.locator("#flight-gate-state")).toHaveText("CLEARED");
+  await page.locator("#start-flight-from-ground").click();
+  await expect(page.locator("#ground-view")).toBeHidden();
+  await expect(page.locator("#cockpit-view")).toBeVisible();
+});

@@ -1641,7 +1641,10 @@ function syncLogButtons() {
   element<HTMLButtonElement>("cockpit-log-export").disabled = disabled;
 }
 
-function updateCommandLoop(now: number) {
+function updateCommandLoop() {
+  // RAF timestamps precede callback execution; a signal received meanwhile
+  // must not appear to come from the future and briefly revoke clearance.
+  const now = performance.now();
   const delta = Math.min(100, Math.max(0, now - lastFrameAt));
   lastFrameAt = now;
   simulatedSignals(now);
