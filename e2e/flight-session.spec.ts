@@ -30,7 +30,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 test("three browsers route only source-computed controls and switch source without mixing input", async ({ page, context }, testInfo) => {
-  test.setTimeout(120_000);
+  // Three rendered browsers and source handoffs exceed two minutes on software-rendered CI.
+  test.setTimeout(180_000);
   const errors: string[] = []; context.on("page", p => p.on("pageerror", error => errors.push(error.message)));
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("./ground-control/");

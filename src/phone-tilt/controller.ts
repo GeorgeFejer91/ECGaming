@@ -1,5 +1,5 @@
 import "./controller.css";
-import yokeUrl from "./steering-yoke.svg";
+import yokeUrl from "./yoke-surface.svg";
 import { installPretextFit } from "../ui/pretext-fit";
 import { readTiltInvitation } from "./invitation";
 import { TiltLink } from "./link";
@@ -9,6 +9,7 @@ import { PolarSourceWidget } from "../flight-session/polar-source";
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const centreButton = element<HTMLButtonElement>("centre"), modeButton = element<HTMLButtonElement>("input-mode");
 const disconnectButton = element<HTMLButtonElement>("disconnect");
+const fullscreenButton = element<HTMLButtonElement>("fullscreen");
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
 yoke.src = yokeUrl;
@@ -116,7 +117,7 @@ function publishInput() {
   link.sourceOffer = document.hidden || !link.fresh ? null : polarSource.offer(now);
   if (document.hidden || !link.fresh) {
     releaseInput(); setInputStatus(document.hidden ? "Return to this page to control the plane." : "Waiting for the flight screen. Controls are centred.");
-    yoke.style.transform = "none"; confirmed.textContent = "Waiting for flight confirmation · controls released.";
+    pad.dataset.steering = "centre"; confirmed.textContent = "Waiting for flight confirmation · controls released.";
     return;
   }
   if (mode === "touch") setInputStatus(touchStatus);
@@ -132,7 +133,7 @@ function publishInput() {
   link.send(input);
 }
 function displayState(state: TiltState) {
-  yoke.style.transform = `translateY(${-state.y * 4}px) rotate(${state.x * 2}deg)`;
+  pad.dataset.steering = Math.abs(state.x) < .03 ? "centre" : state.x < 0 ? "left" : "right";
   const steering = Math.abs(state.x) < .03 ? "Centred" : `${state.x < 0 ? "Left" : "Right"} ${Math.round(Math.abs(state.x) * 100)}%`;
   const speed = state.speedEnabled ? `Speed trim ${Math.round(state.y * 50)}%` : "Speed set by Ground Control";
   confirmed.textContent = `${steering} · ${speed}`;
@@ -144,12 +145,23 @@ function endSession() {
   loop = undefined; stopSensors(); link.stop(); invitation = undefined;
   void wakeLock?.release(); wakeLock = undefined;
   disconnectButton.hidden = true; centreButton.disabled = modeButton.disabled = true;
-  yoke.style.transform = "none";
+  pad.dataset.steering = "centre";
   confirmed.textContent = "Controls released.";
   setInputStatus("Create a new QR code on the flight screen to pair again.");
 }
 
 disconnectButton.addEventListener("click", endSession);
+fullscreenButton.hidden = !document.fullscreenEnabled;
+fullscreenButton.addEventListener("click", async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch { /* Keep the yoke usable when fullscreen is unavailable. */ }
+});
+document.addEventListener("fullscreenchange", () => {
+  const label = document.fullscreenElement ? "Exit full screen" : "Full screen";
+  fullscreenButton.setAttribute("aria-label", label); fullscreenButton.title = label;
+});
 centreButton.addEventListener("click", () => {
   if (!reading || performance.now() - readingAt >= SENSOR_STALE_MS || !link.fresh) return;
   centred = calibration.calibrate(reading, screenAngle(), performance.now());
@@ -176,7 +188,7 @@ link.addEventListener("status", (event: Event) => {
     clearInterval(loop); loop = undefined; stopSensors(); invitation = undefined;
     disconnectButton.hidden = true; modeButton.disabled = true;
     void wakeLock?.release(); wakeLock = undefined;
-    yoke.style.transform = "none"; confirmed.textContent = "Controls released.";
+    pad.dataset.steering = "centre"; confirmed.textContent = "Controls released.";
     setInputStatus("Create a new QR code on the flight screen to pair again.");
   }
 });

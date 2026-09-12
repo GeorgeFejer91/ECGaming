@@ -9,26 +9,28 @@
   </head>
   <body>
     <main class="controller">
-      <header><h1>Your flight yoke</h1><button id="disconnect" type="button" hidden>Disconnect</button></header>
-      <p id="connection-status" role="status">Scan the QR code on your flight screen to pair this phone.</p>
-      <p class="rotate-phone" role="note">↻ Turn your phone or tablet sideways. Hold one end in each hand.</p>
-      <section id="setup" aria-label="Pair your phone">
-        <p>Scan a fresh QR code on your flight screen.</p>
-      </section>
-      <section id="controls" aria-label="Flight controls" hidden>
-        <div class="controller-actions"><button id="centre" type="button" disabled>Centre</button><button id="input-mode" class="secondary" type="button" disabled>Enable tilt</button></div>
-        <p id="input-status" role="status">Hold the phone comfortably, then tap Centre.</p>
-        <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke">
-          <span class="yoke-top" data-fit-text data-fit-min="10" data-fit-max="16">↑ TOP · SCREEN FACING YOU</span>
-          <span class="yoke-guide left" data-fit-text data-fit-min="10" data-fit-max="15">Left hand · bank left</span><span class="yoke-guide right" data-fit-text data-fit-min="10" data-fit-max="15">Right hand · bank right</span>
-          <img id="steering-yoke" alt="Airplane steering yoke with two hand grips" width="720" height="320" draggable="false" />
+      <h1 class="sr-only">Flight yoke</h1>
+      <img id="steering-yoke" alt="Aircraft yoke surface with grips at both ends" width="1000" height="500" draggable="false" />
+      <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke"></div>
+      <span class="yoke-guide left">LEFT HAND</span>
+      <span class="yoke-guide right">RIGHT HAND</span>
+      <div class="yoke-hub">
+        <span class="yoke-top" data-fit-text data-fit-min="10" data-fit-max="16">↑ TOP</span>
+        <p id="connection-status" role="status">Scan a flight QR code.</p>
+        <p class="rotate-phone" role="note">↻ Hold your phone sideways</p>
+        <section id="setup" aria-label="Pair your phone">
+          <p>Scan a fresh QR code on your flight screen.</p>
+        </section>
+        <section id="controls" aria-label="Flight controls" hidden>
+          <div class="controller-actions"><button id="centre" type="button" disabled>Centre</button><button id="input-mode" type="button" disabled>Enable tilt</button></div>
           <div id="yoke-polar" class="yoke-polar"></div>
-        </div>
-        <p id="confirmed">Waiting for the flight screen.</p>
-        <div id="polar-status"></div>
-        <p id="wake-status" class="note"></p>
-      </section>
-      <footer><a href="../ground-control/">EC Gaming</a><span>Heart / breathing controls altitude</span></footer>
+          <div id="polar-status"></div>
+          <p id="input-status" role="status">Hold the phone comfortably, then tap Centre.</p>
+          <p id="confirmed">Waiting for the flight screen.</p>
+          <div class="yoke-utilities"><button id="fullscreen" type="button" aria-label="Full screen" title="Full screen" hidden>⛶</button><button id="disconnect" type="button" hidden>Disconnect</button></div>
+          <p id="wake-status" class="sr-only"></p>
+        </section>
+      </div>
     </main>
     <script type="module" src="/src/phone-tilt/controller.ts"></script>
   </body>

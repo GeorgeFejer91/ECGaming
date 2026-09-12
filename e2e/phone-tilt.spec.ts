@@ -120,6 +120,52 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   await expect(phone.locator("#input-mode")).toBeDisabled();
 });
 
+test("the phone is an edge-to-edge yoke with reachable controls on phones and tablets", async ({ page, context }, testInfo) => {
+  test.setTimeout(60_000);
+  await sceneHarness(page);
+  const anchor = page.getByRole("link", { name: "Open controller" });
+  await expect(anchor).toBeVisible();
+  const phone = await context.newPage();
+  await phone.goto((await anchor.getAttribute("href"))!);
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await phone.getByRole("button", { name: "Enable tilt" }).click();
+  await expect(phone.locator("#centre")).toBeEnabled();
+  await phone.locator("#centre").click();
+  for (const viewport of [{ width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1180, height: 820 }, { width: 320, height: 568 }]) {
+    await phone.setViewportSize(viewport);
+    for (const selector of ["#steering-yoke", "#tilt-pad"]) {
+      expect(await phone.locator(selector).boundingBox()).toEqual({ x: 0, y: 0, ...viewport });
+    }
+    const buttons = await phone.locator("#controls button:visible").evaluateAll(elements => elements.map(el => {
+      const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, height: r.height, width: r.width, fits: el.scrollWidth <= el.clientWidth };
+    }));
+    for (const bounds of buttons) {
+      expect(bounds.x).toBeGreaterThanOrEqual(viewport.width * .26);
+      expect(bounds.right).toBeLessThanOrEqual(viewport.width * .74);
+      expect(bounds.y).toBeGreaterThanOrEqual(0); expect(bounds.bottom).toBeLessThanOrEqual(viewport.height);
+      expect(bounds.height).toBeGreaterThanOrEqual(44); expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.fits).toBe(true);
+    }
+    expect(await phone.locator(".yoke-hub").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
+    if (viewport.width === 844 || viewport.width === 320) await phone.screenshot({ path: testInfo.outputPath(`full-surface-yoke-${viewport.width}.png`) });
+  }
+  await phone.setViewportSize({ width: 844, height: 390 });
+  await phone.getByRole("button", { name: "Use touch" }).click();
+  await phone.mouse.move(30, 195); await phone.mouse.down();
+  await expect(phone.locator("#confirmed")).toContainText("Left 100%");
+  // Steering feedback must not rotate the skin away from the physical screen edges.
+  expect(await phone.locator("#steering-yoke").boundingBox()).toEqual({ x: 0, y: 0, width: 844, height: 390 });
+  await phone.mouse.up(); await expect(phone.locator("#confirmed")).toContainText("Centred");
+  const mode = await phone.locator("#input-mode").boundingBox();
+  await phone.mouse.move(mode!.x + mode!.width / 2, mode!.y + mode!.height / 2); await phone.mouse.down();
+  expect(await phone.evaluate(() => (window as any).lastTestIntent.tilt.active)).toBe(false);
+  await phone.mouse.up();
+  await phone.getByRole("button", { name: "Full screen", exact: true }).click();
+  await expect.poll(() => phone.evaluate(() => !!document.fullscreenElement)).toBe(true);
+  await phone.getByRole("button", { name: "Exit full screen", exact: true }).click();
+  await expect.poll(() => phone.evaluate(() => !!document.fullscreenElement)).toBe(false);
+});
+
 test("invalid links stay inert and phone layouts fit portrait and landscape", async ({ page }) => {
   await page.goto("./controller/#room=bad&secret=bad");
   await expect(page.locator("#controls")).toBeHidden();
