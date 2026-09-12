@@ -22,6 +22,7 @@ export function setupCompactGround(openRemoteCockpit: () => void) {
   el("connect-polar").innerHTML = icon("heart")+'<span data-polar-label>Connect Polar H10</span>';
   el("connect-polar").classList.remove("needs-attention");
   el("flight-gate-title").textContent = "Flight";
+  document.querySelector(".aircraft-showcase-header > span")!.textContent = "Aircraft";
   el("ground-view-toggle").querySelector("strong")!.textContent = "Control tower";
   const remoteBar = document.createElement("div");
   remoteBar.className = "remote-connection-bar"; remoteBar.setAttribute("role", "group");

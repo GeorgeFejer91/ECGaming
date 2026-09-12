@@ -19,7 +19,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
 .compact-ground .remote-connection-bar small { display: none; }
 .compact-ground .remote-connection-bar img { width: 32px; height: 26px; }
 .compact-ground .remote-connection-bar svg, .compact-ground .cardiac-aircraft-choices svg, .compact-ground #connect-polar svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); height: calc(100dvh - 124px); min-height: 0; gap: 20px; padding: 12px 24px 24px; }
+.compact-ground .unified-flight-shell .control-workspace { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); height: calc(100dvh - 124px); min-height: 0; gap: 16px; padding: 12px 24px 24px; }
 .compact-ground .unified-flight-shell .control-panel { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(120px, 1fr) auto; gap: 16px; height: 100%; min-height: 0; overflow: hidden; border: 0; background: none; }
 .compact-ground #polar-source-controls { grid-column: 1; grid-row: 2; padding: 12px; border: 1px solid var(--line); background: #0b1d2a; }
 .compact-ground .status-card { min-height: 0; height: auto; padding: 0; border: 0; background: none; grid-template-columns: 1fr; }
@@ -170,4 +170,28 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground .unified-flight-shell #polar-source-controls { display: flex; flex-direction: column; justify-content: space-between; }
   .compact-ground .unified-flight-shell #polar-source-controls .button-row { flex-direction: column-reverse; }
   .compact-ground .flight-gate-start { margin-top: auto; }
+}
+
+/* Small consistency pass: stable controls, equal navigation widths and quieter labels. */
+.compact-ground .view-mode-switch { width: 320px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.compact-ground .view-mode-button { justify-content: center; }
+.compact-ground .remote-connection-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 480px; justify-self: center; }
+.compact-ground .aircraft-showcase-header, .compact-ground .aircraft-showcase-header strong { font: 600 13px/1.3 Inter, sans-serif; letter-spacing: 0; color: #c9dce1; }
+.compact-ground .aircraft-showcase::before, .compact-ground .aircraft-showcase::after { display: none; }
+.compact-ground .instrument-header h2, .compact-ground #flight-gate-title, .compact-ground #ground-aircraft-name, .compact-ground .status-card-copy strong { text-transform: none; }
+.compact-ground .metric-widget-button strong { color: #d4e4e8; }
+.compact-ground .metric-widget-button.is-selected { background: #17252b; }
+.compact-ground .control-workspace button, .compact-ground .unified-header button { transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+.compact-ground .control-workspace button:hover, .compact-ground .unified-header button:hover { transform: none; }
+.compact-ground .control-workspace button:focus-visible, .compact-ground .unified-header button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (min-width: 701px) {
+  .compact-ground .flight-gate-start .action-button-copy strong { font-size: 13px !important; }
+  .compact-ground #flight-gate-title, .compact-ground .status-card-copy strong { font-size: 13px !important; }
+}
+@media (max-width: 700px) {
+  .compact-ground .view-mode-switch { width: min(320px, calc(100vw - 16px)); }
+  .compact-ground .remote-connection-bar { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .compact-ground .control-workspace button, .compact-ground .unified-header button { transition: none; }
 }
