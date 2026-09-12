@@ -1,3 +1,4 @@
+import { enterPilot } from "./fixtures/pilot-entry";
 import { test, expect, type Page } from "@playwright/test";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
@@ -70,6 +71,7 @@ test("practice ECG pulses the paired steering wheel without Bluetooth and stops 
   const invitation = page.getByRole("link", { name: "Open controller" }); await expect(invitation).toBeVisible();
   const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
   await phone.goto((await invitation.getAttribute("href"))!);
+  await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await expect(phone.locator(".polar-source-button")).toHaveAttribute("data-heartbeat", "practice");
   await expect.poll(() => phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms === 100).length)).toBeGreaterThan(1);

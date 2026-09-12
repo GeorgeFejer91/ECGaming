@@ -1,3 +1,4 @@
+import { enterPilot } from "./fixtures/pilot-entry";
 import { test, expect, type Page } from "@playwright/test";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
@@ -41,6 +42,7 @@ test("three browsers route only source-computed controls and switch source witho
   const phoneLink = dialog.getByRole("link", { name: "Open controller" }); await expect(phoneLink).toBeVisible();
   const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
   await phone.goto((await phoneLink.getAttribute("href"))!);
+  await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await dialog.locator("summary").click();
   await dialog.locator("#flight-session-source").selectOption("phone");
@@ -82,7 +84,7 @@ test("three browsers route only source-computed controls and switch source witho
   }
   await phone.keyboard.up("ArrowRight");
   const packet = await phone.evaluate(() => (window as any).lastTestIntent);
-  expect(Object.keys(packet).sort()).toEqual(["signal", "tilt"]);
+  expect(Object.keys(packet).sort()).toEqual(["pilotName", "signal", "tilt"]);
   expect(JSON.stringify(packet)).not.toMatch(/microvolts|heart_rate|excitement_score|rr_interval/);
   await phone.screenshot({ path: testInfo.outputPath("phone-h10-yoke.png") });
   await cockpit.screenshot({ path: testInfo.outputPath("session-cockpit.png") });
@@ -138,6 +140,7 @@ test("the phone vibrates for local Polar RR notifications and stops on hide or d
   await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
+  await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await installSyntheticPolar(phone);
   await phone.evaluate(() => {
@@ -168,6 +171,7 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
   await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
+  await enterPilot(phone);
   await phone.setViewportSize({ width: 667, height: 280 });
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await phone.evaluate(() => Object.defineProperty(navigator, "bluetooth", { configurable: true, value: undefined }));

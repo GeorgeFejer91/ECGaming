@@ -9,6 +9,13 @@
   </head>
   <body>
     <main class="controller">
+      <form id="pilot-entry" class="pilot-entry" hidden>
+        <label for="controller-pilot-name">Pilot name</label>
+        <div class="pilot-entry-row">
+          <input id="controller-pilot-name" name="pilot" type="text" maxlength="32" autocomplete="given-name" enterkeyhint="go" placeholder="Your name" required />
+          <button type="submit" aria-label="Take control"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16h21M18 7l9 9-9 9" /></svg></button>
+        </div>
+      </form>
       <h1 class="sr-only">Flight yoke</h1>
       <img id="steering-yoke" alt="Aircraft yoke surface with grips at both ends" width="1000" height="500" draggable="false" />
       <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke"></div>

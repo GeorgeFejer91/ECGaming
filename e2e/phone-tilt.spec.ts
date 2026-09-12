@@ -1,3 +1,4 @@
+import { enterPilot } from "./fixtures/pilot-entry";
 import { expect, test, type Page } from "@playwright/test";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
@@ -58,9 +59,10 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   const phone = await context.newPage();
   await phone.setViewportSize({ width: 844, height: 390 });
   await phone.goto((await anchor.getAttribute("href"))!);
+  await enterPilot(phone);
   expect(new URL(phone.url()).hash).toBe("");
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
-  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await phone.evaluate(() => {
     (window as any).fullscreenRequests = 0;
     Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 1 });
@@ -68,8 +70,6 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   });
   await phone.mouse.move(30, 195); await phone.mouse.down(); await phone.mouse.up();
   expect(await phone.evaluate(() => (window as any).fullscreenRequests)).toBe(1);
-  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
-  await phone.getByRole("button", { name: "Enable tilt" }).click();
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await expect(dialog.locator("canvas").first()).toBeHidden();
   await expect(phone.getByRole("button", { name: "Centre", exact: true })).toBeEnabled();
@@ -112,9 +112,10 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   const phone = await context.newPage();
   await phone.setViewportSize({ width: 390, height: 844 });
   await phone.goto((await anchor.getAttribute("href"))!);
+  await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await expect(phone.locator("#steering-yoke")).toBeVisible();
-  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await phone.bringToFront();
   await expect(phone.locator("#confirmed")).toContainText("Centred");
   await phone.locator("#tilt-pad").focus();
@@ -128,6 +129,28 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   await expect(phone.locator("#centre")).toBeDisabled();
 });
 
+test("QR pairing runs during name entry and the submit gesture immediately opens the wheel", async ({ page, context }, testInfo) => {
+  await sceneHarness(page);
+  const invitation = page.getByRole("link", { name: "Open controller" }); await expect(invitation).toBeVisible();
+  const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
+  await phone.addInitScript(() => Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 1 }));
+  await phone.goto((await invitation.getAttribute("href"))!);
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await expect(phone.locator("#pilot-entry")).toBeVisible();
+  await expect(phone.locator("#controls")).toBeHidden();
+  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+  expect(await page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
+  await phone.screenshot({ path: testInfo.outputPath("pilot-entry-landscape.png") });
+  await enterPilot(phone, "  Zoë   Müller  ");
+  expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
+  expect(await phone.evaluate(() => (window as any).fullscreenRequests)).toBe(1);
+  await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+  await expect(page.getByRole("dialog", { name: "Phone tilt controller" })).toContainText("Zoë Müller · Ready to steer");
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent.pilotName)).toBe("Zoë Müller");
+  await phone.evaluate(() => { (window as any).orientationSample = { beta: -24, gamma: -40 }; });
+  await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
+});
+
 test("tilt starts and centres automatically, with a live local gyro and stale-input release", async ({ browser }, testInfo) => {
   const context = await browser.newContext();
   try {
@@ -137,6 +160,7 @@ test("tilt starts and centres automatically, with a live local gyro and stale-in
     const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
     const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
     await phone.goto((await anchor.getAttribute("href"))!);
+  await enterPilot(phone);
     await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
     await expect(phone.locator("#connection-status")).not.toHaveText("Connected");
     await phone.evaluate(() => { (window as any).orientationSample = { beta: -10, gamma: -40 }; });
@@ -181,6 +205,7 @@ test("a browser without motion readings shows the drag cue and keeps steering av
     const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
     const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
     await phone.goto((await anchor.getAttribute("href"))!);
+  await enterPilot(phone);
     await expect(phone.locator("#centre")).toHaveAttribute("data-state", "touch");
     await expect(phone.locator("#touch-cue")).toBeVisible();
     await phone.mouse.move(30, 195); await phone.mouse.down();
@@ -206,8 +231,8 @@ test("the phone is an edge-to-edge yoke with reachable controls on phones and ta
   await expect(anchor).toBeVisible();
   const phone = await context.newPage();
   await phone.goto((await anchor.getAttribute("href"))!);
+  await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
-  await phone.getByRole("button", { name: "Enable tilt" }).click();
   await expect(phone.locator("#centre")).toBeEnabled();
   await phone.locator("#centre").click();
   for (const viewport of [{ width: 667, height: 280 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1180, height: 820 }, { width: 320, height: 568 }]) {
@@ -268,9 +293,9 @@ test("denied motion access keeps the automatic connection and touch steering", a
   await sceneHarness(page);
   const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await anchor.getAttribute("href"))!);
-  await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await phone.evaluate(() => { (window as any).motionPermissionResult = "denied"; });
-  await phone.getByRole("button", { name: "Enable tilt" }).click();
+  await enterPilot(phone);
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await expect(phone.locator("#input-status")).toContainText("Motion permission was not granted");
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");

@@ -85,6 +85,7 @@ export class PhoneTiltHost {
     this.link.addEventListener("state", (event: Event) => {
       const state = (event as CustomEvent<TiltState>).detail;
       if (this.link.ready) buttonStatus.textContent = state.active ? "Steering" : "Connected";
+      if (this.link.ready && this.link.pilotName) this.status.textContent = `${this.link.pilotName} · Ready to steer`;
     });
     window.addEventListener("pagehide", () => { this.stop(); this.clearCockpitQr(); this.hub.stop("cockpit"); }, { signal: this.abort.signal });
   }

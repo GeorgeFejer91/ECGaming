@@ -4,10 +4,13 @@ import { readTiltInvitation } from "./invitation";
 import { TiltLink } from "./link";
 import { neutralControls, orientationAngles, SENSOR_STALE_MS, TiltCalibration, type OrientationReading, type TiltState } from "./controls";
 import { PolarSourceWidget } from "../flight-session/polar-source";
+import { cleanPilotName } from "./pilot-name";
 import { PracticeHeartbeat } from "./practice-heartbeat";
 import { PolarRrHaptics } from "./rr-haptics";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const pilotEntry = element<HTMLFormElement>("pilot-entry");
+let pilotEntered = false;
 const centreButton = element<HTMLButtonElement>("centre");
 const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
@@ -145,7 +148,7 @@ async function enableTilt(fromGesture = false) {
 function connect() {
   if (!invitation || link.active) return;
   void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
-  element("setup").hidden = true; element("controls").hidden = false;
+  element("setup").hidden = true; pilotEntry.hidden = false;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
   loop = setInterval(publishInput, 1000 / 30);
   void link.start(invitation);
@@ -153,12 +156,12 @@ function connect() {
 }
 
 function publishInput() {
-  practiceHeartbeatActive = practiceHeartbeat.update(link.relay, link.fresh, !document.hidden);
+  practiceHeartbeatActive = practiceHeartbeat.update(link.relay, link.fresh && pilotEntered, !document.hidden);
   renderAttitude();
   const now = performance.now();
   polarSource.configure(link.ready ? link.relay : null);
   link.sourceOffer = document.hidden || !link.fresh ? null : polarSource.offer(now);
-  if (document.hidden) {
+  if (document.hidden || !pilotEntered) {
     input = neutralControls(); link.send(input);
     return;
   }
@@ -195,6 +198,7 @@ function displayState(state: TiltState) {
   confirmed.textContent = `${steering} · ${speed}`;
 }
 function endSession() {
+  pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
   practiceHeartbeat.pause(); practiceHeartbeatActive = false;
   polarSource.stop();
   polarSource.configure(null);
@@ -225,6 +229,19 @@ async function requestTilt() {
   catch (error) { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); }
   finally { renderMode(); }
 }
+pilotEntry.addEventListener("submit", event => {
+  event.preventDefault();
+  if (!invitation || pilotEntered) return;
+  const field = element<HTMLInputElement>("controller-pilot-name");
+  const name = cleanPilotName(field.value);
+  if (!name) { field.value = ""; field.reportValidity(); return; }
+  link.pilotName = name; pilotEntered = true;
+  field.blur(); pilotEntry.hidden = true; element("controls").hidden = false;
+  void requestTilt();
+  if (navigator.maxTouchPoints > 0 && !document.fullscreenElement)
+    void document.documentElement.requestFullscreen?.().catch(() => {});
+  void keepAwake();
+});
 centreButton.addEventListener("click", () => {
   if (permissionPending || mode === "touch") void requestTilt();
   else centreTilt();
@@ -233,6 +250,7 @@ link.addEventListener("status", (event: Event) => {
   const status = (event as CustomEvent).detail;
   connectionStatus.textContent = status.message;
   if (!status.active && loop !== undefined) {
+    pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
     practiceHeartbeat.pause(); practiceHeartbeatActive = false;
     polarSource.stop();
     polarSource.configure(null);
@@ -256,7 +274,7 @@ const moveTouch = (event: PointerEvent) => {
   };
 };
 pad.addEventListener("pointerdown", event => {
-  if (!link.fresh || pointerId !== undefined || mode !== "touch") return;
+  if (!pilotEntered || !link.fresh || pointerId !== undefined || mode !== "touch") return;
   event.preventDefault(); heldKeys.clear(); pointerId = event.pointerId; pad.setPointerCapture(event.pointerId); moveTouch(event);
 });
 pad.addEventListener("pointermove", event => { if (event.pointerId === pointerId) moveTouch(event); });
@@ -264,7 +282,7 @@ for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
   pad.addEventListener(type, event => { if ((event as PointerEvent).pointerId === pointerId) releaseInput(); });
 for (const type of ["keydown", "keyup"]) pad.addEventListener(type, event => {
   const key = (event as KeyboardEvent).key;
-  if (!link.fresh || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
+  if (!pilotEntered || !link.fresh || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
   event.preventDefault();
   if (type === "keydown") heldKeys.add(key); else heldKeys.delete(key);
   input = { x: Number(heldKeys.has("ArrowRight")) - Number(heldKeys.has("ArrowLeft")), y: Number(heldKeys.has("ArrowUp")) - Number(heldKeys.has("ArrowDown")), active: heldKeys.size > 0 };
@@ -285,7 +303,7 @@ window.addEventListener("orientationchange", rotated);
 // Fullscreen needs a user gesture. Bubble after the gyro's motion-permission handler,
 // and avoid competing with the Polar device chooser in the heart button's gesture.
 document.addEventListener("click", event => {
-  if (!invitation || navigator.maxTouchPoints === 0 || (event.target as Element).closest(".yoke-polar") || document.fullscreenElement) return;
+  if (!pilotEntered || !invitation || navigator.maxTouchPoints === 0 || (event.target as Element).closest(".yoke-polar") || document.fullscreenElement) return;
   void document.documentElement.requestFullscreen?.().catch(() => {});
 });
 document.addEventListener("visibilitychange", () => {

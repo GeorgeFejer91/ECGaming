@@ -3,8 +3,9 @@ import { VdoNinjaTransport } from "../vendor/brsp/src/vdo-ninja-transport.js";
 import { TILT_SCOPE, TiltAuthority, type TiltControls, type TiltState, validControls, validTiltState } from "./controls";
 import type { TiltInvitation } from "./invitation";
 import { COMPANION_SCOPE, exactFields, validOffer, validRelay, type RelayState, type SourceOffer } from "../flight-session/contract";
+import { PILOT_LABEL_CAPABILITY, validPilotName } from "./pilot-name";
 
-const capabilities = ["latest-intent", "latest-state", "state-snapshot"];
+const capabilities = ["latest-intent", "latest-state", "state-snapshot", PILOT_LABEL_CAPABILITY];
 const dispatch = (target: EventTarget, type: string, detail: unknown) => target.dispatchEvent(new CustomEvent(type, { detail }));
 let sdkLoading: Promise<void> | undefined;
 export function loadTiltSdk(): Promise<void> {
@@ -32,6 +33,8 @@ export class TiltLink extends EventTarget {
   readonly authority = new TiltAuthority();
   relay: RelayState | null = null;
   sourceOffer: SourceOffer | null = null;
+  pilotName = "";
+  confirmedPilotName = "";
   getRelay?: () => RelayState | null;
   acceptSource?: (offer: SourceOffer) => void;
   private wireRevision = 0;
@@ -75,8 +78,11 @@ export class TiltLink extends EventTarget {
         getState: () => this.wireState(),
         applyIntent: ({ scope, controls }) => {
           if (!current()) throw new Error("Phone session has ended");
-          if (scope !== COMPANION_SCOPE || !exactFields(controls, ["tilt", "signal"]) || !validControls(controls.tilt) ||
+          const labelled = connection.negotiatedCapabilities.includes(PILOT_LABEL_CAPABILITY);
+          if (scope !== COMPANION_SCOPE || !exactFields(controls, labelled ? ["tilt", "signal", "pilotName"] : ["tilt", "signal"]) ||
+              (labelled && !validPilotName(controls.pilotName)) || !validControls(controls.tilt) ||
               (controls.signal !== null && !validOffer(controls.signal))) throw new Error("Invalid companion controls");
+          if (labelled) this.pilotName = controls.pilotName as string;
           this.authority.accept(TILT_SCOPE, controls.tilt, performance.now());
           if (controls.signal) this.acceptSource?.(controls.signal as SourceOffer);
           // The 30 Hz state publisher coalesces all peers' latest values.
@@ -98,12 +104,14 @@ export class TiltLink extends EventTarget {
       const receive = (e: CustomEvent) => {
         const wire = e.detail.state;
         if (!wire || typeof wire !== "object") { this.fail("Invalid flight state."); return; }
-        const { relay, ...tilt } = wire;
-        if (!validTiltState(tilt) || (relay !== null && !validRelay(relay)) || wire.revision !== e.detail.revision) {
+        const { relay, pilotName, ...tilt } = wire;
+        const labelled = connection.negotiatedCapabilities.includes(PILOT_LABEL_CAPABILITY);
+        if ((labelled ? !validPilotName(pilotName) : pilotName !== undefined) || !validTiltState(tilt) || (relay !== null && !validRelay(relay)) || wire.revision !== e.detail.revision) {
           this.fail("The flight screen sent incompatible controls. Pair again."); return;
         }
         if (e.detail.revision < this.lastRevision) return;
         this.state = tilt; this.relay = relay; this.lastRevision = e.detail.revision; this.lastStateAt = performance.now();
+        this.confirmedPilotName = pilotName ?? "";
         dispatch(this, "state", this.state);
       };
       listen(connection, "state", receive); listen(connection, "snapshot", receive);
@@ -113,13 +121,14 @@ export class TiltLink extends EventTarget {
         if (e.detail.phase === "selection-required") this.fail("More than one flight screen was found. Create a new QR code.");
       });
       // Poll the lease independently of game pause; game frames also check it before applying input.
-      let lastPublish = 0;
       this.tick = setInterval(() => {
         if (!current()) return;
         const now = performance.now();
         if (this.role === "target") {
           const state = this.authority.expire(now);
-          if (now - lastPublish >= 1000 / 30) { connection.publishState(); dispatch(this, "state", state); lastPublish = now; }
+          // This timer already caps the rate. A second elapsed-time gate skips cycles
+          // when browser timers round 33.33 ms down, adding avoidable confirmation lag.
+          connection.publishState(); dispatch(this, "state", state);
         }
         if ((this.authenticatingAt && !this.ready && now - this.authenticatingAt > 15_000) ||
             (this.role === "controller" && !this.ready && now - this.startedAt > 30_000))
@@ -135,11 +144,13 @@ export class TiltLink extends EventTarget {
   }
   send(controls: TiltControls) {
     if (!validControls(controls) || !this.ready) return false;
-    return this.connection!.publishIntent(COMPANION_SCOPE, { tilt: controls, signal: this.sourceOffer });
+    return this.connection!.publishIntent(COMPANION_SCOPE, { tilt: controls, signal: this.sourceOffer,
+      ...(this.connection!.negotiatedCapabilities.includes(PILOT_LABEL_CAPABILITY) ? { pilotName: this.pilotName } : {}) });
   }
   private wireState() {
     const tilt = this.authority.expire(performance.now());
-    const state = { ...tilt, revision: 0, relay: this.getRelay?.() ?? null };
+    const state = { ...tilt, revision: 0, relay: this.getRelay?.() ?? null,
+      ...(this.connection?.negotiatedCapabilities.includes(PILOT_LABEL_CAPABILITY) ? { pilotName: this.pilotName } : {}) };
     const serialized = JSON.stringify(state);
     if (serialized !== this.previousWire) { this.previousWire = serialized; this.wireRevision++; }
     return { ...state, revision: this.wireRevision };
@@ -152,6 +163,7 @@ export class TiltLink extends EventTarget {
     if (this.tick !== undefined) clearInterval(this.tick);
     this.tick = undefined; this.abort?.abort(); this.abort = undefined;
     this.authority.neutralize(); this.state = undefined; this.relay = null; this.sourceOffer = null; this.lastStateAt = -Infinity;
+    this.pilotName = this.confirmedPilotName = "";
     const connection = this.connection; this.connection = undefined;
     void connection?.close().catch(() => { /* Producers and input already stopped. */ });
     this.status("Disconnected");
