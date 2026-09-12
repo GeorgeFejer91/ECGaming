@@ -223,6 +223,7 @@ flightSession.coordinator = true;
 flightSession.addEventListener("sourcechange", () => {
   if (flightSession.signal.source !== "ground") void stopBroadcast();
   resetScopeHistory();
+  syncMappingAvailability();
 });
 const polar = getPolarBrowserHub();
 const detector = new CausalRPeakDetector(130);
@@ -482,6 +483,7 @@ function updateMappingsFromUi(resetMetricDefaults = false) {
 }
 
 function remoteIsLegacy() {
+  if (flightSession.signal.source !== "ground") return false;
   const state = receiver.snapshot();
   return Boolean(
     sourceMode === "beacon" &&
@@ -1486,6 +1488,14 @@ function updateAdaptiveUi(runtime: RuntimeState) {
     reset.disabled = true;
     return;
   }
+  if (flightSession.signal.source !== "ground") {
+    const source = flightSession.signal.source;
+    setText("adaptive-range-min", "SOURCE");
+    setText("adaptive-range-max", "SOURCE");
+    setText("adaptive-range-state", `${source.toUpperCase()} · ${runtime.normalizationReady ? "RANGE LIVE" : "CALIBRATING / SIGNAL HOLD"}`);
+    reset.disabled = !flightSession[source].ready;
+    return;
+  }
   const snapshot = adaptiveRange.snapshot(
     binding.metric as DerivedMetricId,
     normalization,
@@ -2071,6 +2081,7 @@ function setupActions() {
     },
   );
   element("reset-adaptive-range").addEventListener("click", () => {
+    if (flightSession.signal.source !== "ground") { flightSession.signal.recalibrate(); return; }
     const metric = mappings.altitude.metric;
     if (metric !== "manual")
       adaptiveRange.reset(metric as DerivedMetricId);

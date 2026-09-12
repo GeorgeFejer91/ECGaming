@@ -10,6 +10,8 @@
 
 The tower owns mappings: excitement/excitometer, HR/RR/HRV, local ECG power, breathing, manual axes, adaptive ranges, reversal, smoothing, and heartbeat actions. The selected phone/cockpit applies this configuration to its local Polar Stream metrics and causal R-peak detector. The tower does not map these controls a second time. An unselected source may stay connected but cannot drive flight. The tower can also use its existing beacon as its current signal.
 
+**Reset range** advances the configuration revision to reset adaptive calibration on the selected source and hold its old controls. Learned metric limits stay on that device; the tower shows source calibration status instead of a second local range.
+
 Left/right tilt steers. Tip the top edge away to add speed; pull it toward you to slow down. Forward/back tilt is a temporary ±0.5 throttle trim, clamped to 0…1, which the tower can disable. Physiology owns altitude and launch readiness. The SVG expands across the surface, with end grips, a top marker, and hand labels fitted using Pretext. Both landscape orientations work. Rotate or return from the background, then Centre again.
 
 Legacy standalone/mobile **Flight options** supply phone tilt. Create the full ECG-source session from Ground Control and use its **Pair separate cockpit** link. Existing public beacon/pilot workflows remain separate from private source control.

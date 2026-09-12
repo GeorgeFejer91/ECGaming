@@ -1,5 +1,10 @@
 /** Test-only two-page SDK adapter. Real browser BRSP/WebCrypto, deterministic transport. */
 export function installTiltSdkFixture() {
+  // Shared-context BroadcastChannel fixtures represent separate visible devices, not background tabs.
+  // Tests can explicitly hide one device to exercise the application's visibility release.
+  (window as any).testPageVisible = true;
+  Object.defineProperty(document, "hidden", { configurable: true, get: () => !(window as any).testPageVisible });
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (window as any).testPageVisible ? "visible" : "hidden" });
   const emit = (target: EventTarget, name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail }));
   class Channel extends EventTarget {
     readyState = "open";

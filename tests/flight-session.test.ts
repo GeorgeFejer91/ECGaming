@@ -44,6 +44,15 @@ describe("private flight session routing", () => {
     expect(a.accept("ground", offer(a, 2), 550)).toBe(true);
     expect(a.read(550)).not.toBeNull();
   });
+  it("forwards recalibration through a new configuration revision and holds old controls", () => {
+    const a = new RelayAuthority(); a.select("phone");
+    const old = offer(a); a.accept("phone", old, 0);
+    a.recalibrate();
+    expect(a.configRevision).toBe(old.configRevision + 1);
+    expect(a.read(10)).toBeNull();
+    expect(a.accept("phone", old, 10)).toBe(false);
+    expect(a.state("phone", 10).configRevision).toBe(a.configRevision);
+  });
   it("rejects raw ECG, arbitrary metrics, malformed and unbounded controls", () => {
     const a = new RelayAuthority();
     expect(validFrame({ ...frame(), microvolts: [1, 2] })).toBe(false);

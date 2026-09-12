@@ -67,6 +67,7 @@ export class RelayAuthority {
     this.source = source; this.sourceEpoch++; this.invalidate();
   }
   invalidate() { this.frame = null; this.sequence = -1; this.receivedAt = -Infinity; }
+  recalibrate() { this.configRevision++; this.invalidate(); }
   accept(source: SourceId, offer: SourceOffer, now: number) {
     if (!validOffer(offer) || !Number.isFinite(now)) throw new Error("Invalid signal control packet");
     if (source !== this.source || offer.sourceEpoch !== this.sourceEpoch || offer.configRevision !== this.configRevision) return false;

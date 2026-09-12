@@ -53,6 +53,8 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(cockpit.locator("#session-link")).toHaveText("Connected");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   await cockpit.getByRole("button", { name: "Start flight", exact: true }).click();
+  await phone.bringToFront();
+  await expect(phone.locator("#confirmed")).toContainText("Centred");
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
   await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x)).toBe(1);
   await phone.keyboard.up("ArrowRight");
@@ -67,10 +69,22 @@ test("three browsers route only source-computed controls and switch source witho
   await page.locator('[data-command="altitude"] [data-field="metric"]').selectOption("heart_rate");
   await expect(phone.locator(".polar-source-status")).toContainText("Sending heart rate");
   await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^\+0\.[234]/);
+  await page.locator("#adaptive-normalization").check();
+  await expect(page.locator("#adaptive-range-state")).toContainText("PHONE");
+  const revision = await phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision);
+  await page.locator("#reset-adaptive-range").click();
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision)).toBeGreaterThan(revision);
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
+  await page.locator("#adaptive-normalization").uncheck();
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   // A live network carrying repeated packets cannot hide loss of ECG samples at the source.
   await phone.evaluate(() => { (window as any).syntheticEcgRunning = false; });
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
   await phone.evaluate(() => { (window as any).syntheticEcgRunning = true; });
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
+  await phone.evaluate(() => { (window as any).testPageVisible = false; document.dispatchEvent(new Event("visibilitychange")); });
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
+  await phone.evaluate(() => { (window as any).testPageVisible = true; document.dispatchEvent(new Event("visibilitychange")); });
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   // Source selection invalidates the previous source even while that H10 remains connected.
   await page.locator("#connect-phone-controller").click();
