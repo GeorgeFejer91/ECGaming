@@ -71,14 +71,14 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.y)).toBeGreaterThan(.5);
   await expect(phone.locator("#steering-yoke")).toBeVisible();
-  await expect(phone.locator(".yoke-top")).toHaveAttribute("data-pretext-fit", "ready");
-  await phone.screenshot({ path: testInfo.outputPath("controller-landscape.png") });
-  const moved = await page.evaluate(() => {
+  await expect(phone.locator("#attitude-display")).toBeVisible();
+  await expect(phone.locator("#attitude-horizon")).not.toHaveAttribute("transform", "rotate(0.00 80 80) translate(0 0.00)");
+  await expect.poll(() => page.evaluate(() => {
     const game = (window as any).phoneFlight;
     game.horizontal = 0; game.horizontalVelocity = 0;
     game.updateInput(.1); return game.horizontal;
-  });
-  expect(moved).toBeGreaterThan(0);
+  })).toBeGreaterThan(0);
+  await phone.screenshot({ path: testInfo.outputPath("controller-landscape.png") });
   // A missing sensor stream must not be kept alive by the controller's transport heartbeat.
   await phone.evaluate(() => { (window as any).sendOrientation = false; });
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
@@ -117,7 +117,53 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   await dialog.locator("summary").click();
   await dialog.getByRole("button", { name: "Stop phone control" }).click();
   await expect(phone.locator("#connection-status")).toContainText("connection ended");
-  await expect(phone.locator("#input-mode")).toBeDisabled();
+  await expect(phone.locator("#centre")).toBeDisabled();
+});
+
+test("tilt starts and centres automatically, with a live local gyro and stale-input release", async ({ browser }, testInfo) => {
+  const context = await browser.newContext();
+  try {
+    await context.addInitScript(installTiltSdkFixture, { motionPermissionRequired: false });
+    await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* test transport */" }));
+    const page = await context.newPage(); await sceneHarness(page);
+    const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
+    const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
+    await phone.goto((await anchor.getAttribute("href"))!);
+    await expect(phone.locator("#connection-status")).toHaveText("Connected");
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(true);
+    expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: -24, gamma: -65 }; });
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", /^rotate\(-24\.00 80 80\) translate\(0 25\.00\)$/);
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
+    await phone.screenshot({ path: testInfo.outputPath("graphical-yoke-tilting.png") });
+    await phone.getByRole("button", { name: "Centre", exact: true }).click();
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(0.00 80 80) translate(0 0.00)");
+    await phone.evaluate(() => { (window as any).sendOrientation = false; });
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "centre");
+  } finally { await context.close(); }
+});
+
+test("a browser without motion readings shows the drag cue and keeps steering available", async ({ browser }) => {
+  const context = await browser.newContext();
+  try {
+    await context.addInitScript(installTiltSdkFixture, { motionPermissionRequired: false, motionReadings: false });
+    await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* test transport */" }));
+    const page = await context.newPage(); await sceneHarness(page);
+    const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
+    const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
+    await phone.goto((await anchor.getAttribute("href"))!);
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "touch");
+    await expect(phone.locator("#touch-cue")).toBeVisible();
+    await phone.mouse.move(30, 195); await phone.mouse.down();
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(-1);
+    await phone.mouse.up();
+    await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(1);
+    await phone.keyboard.up("ArrowRight");
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
+  } finally { await context.close(); }
 });
 
 test("the phone is an edge-to-edge yoke with reachable controls on phones and tablets", async ({ page, context }, testInfo) => {
@@ -150,20 +196,26 @@ test("the phone is an edge-to-edge yoke with reachable controls on phones and ta
     if (viewport.width === 844 || viewport.width === 320) await phone.screenshot({ path: testInfo.outputPath(`full-surface-yoke-${viewport.width}.png`) });
   }
   await phone.setViewportSize({ width: 844, height: 390 });
-  await phone.getByRole("button", { name: "Use touch" }).click();
-  await phone.mouse.move(30, 195); await phone.mouse.down();
+  await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowLeft");
   await expect(phone.locator("#confirmed")).toContainText("Left 100%");
   // Steering feedback must not rotate the skin away from the physical screen edges.
   expect(await phone.locator("#steering-yoke").boundingBox()).toEqual({ x: 0, y: 0, width: 844, height: 390 });
-  await phone.mouse.up(); await expect(phone.locator("#confirmed")).toContainText("Centred");
-  const mode = await phone.locator("#input-mode").boundingBox();
+  await phone.keyboard.up("ArrowLeft"); await expect(phone.locator("#confirmed")).toContainText("Centred");
+  const mode = await phone.locator("#centre").boundingBox();
   await phone.mouse.move(mode!.x + mode!.width / 2, mode!.y + mode!.height / 2); await phone.mouse.down();
-  expect(await phone.evaluate(() => (window as any).lastTestIntent.tilt.active)).toBe(false);
+  expect(await phone.evaluate(() => (window as any).lastTestIntent.tilt)).toMatchObject({ x: 0, y: 0 });
   await phone.mouse.up();
-  await phone.getByRole("button", { name: "Full screen", exact: true }).click();
-  await expect.poll(() => phone.evaluate(() => !!document.fullscreenElement)).toBe(true);
-  await phone.getByRole("button", { name: "Exit full screen", exact: true }).click();
-  await expect.poll(() => phone.evaluate(() => !!document.fullscreenElement)).toBe(false);
+  const visibleWords = await phone.evaluate(() => {
+    const result: string[] = [], walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.textContent?.trim() || node.parentElement?.closest(".sr-only, [hidden], script")) continue;
+      const range = document.createRange(); range.selectNode(node); const rect = range.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) result.push(node.textContent.trim());
+    }
+    return result;
+  });
+  expect(visibleWords).toEqual([]);
 });
 
 test("invalid links stay inert and phone layouts fit portrait and landscape", async ({ page }) => {

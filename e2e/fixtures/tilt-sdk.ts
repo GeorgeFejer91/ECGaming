@@ -1,5 +1,5 @@
 /** Test-only two-page SDK adapter. Real browser BRSP/WebCrypto, deterministic transport. */
-export function installTiltSdkFixture() {
+export function installTiltSdkFixture(options: { motionPermissionRequired?: boolean; motionReadings?: boolean } = {}) {
   // Shared-context BroadcastChannel fixtures represent separate visible devices, not background tabs.
   // Tests can explicitly hide one device to exercise the application's visibility release.
   (window as any).testPageVisible = true;
@@ -59,14 +59,18 @@ export function installTiltSdkFixture() {
   Object.defineProperty(window, "VDONinjaSDK", { configurable: true, writable: true, value: SDK });
   if (typeof DeviceOrientationEvent === "undefined") return; // Initial about:blank has no secure motion API.
   (window as any).orientationSample = { beta: 0, gamma: -40 };
-  (window as any).sendOrientation = true;
+  (window as any).sendOrientation = options.motionReadings !== false;
   Object.defineProperty(screen.orientation, "angle", { configurable: true, get: () => 90 });
-  Object.defineProperty(DeviceOrientationEvent, "requestPermission", { configurable: true, value: async () => {
+  const permissionRequired = options.motionPermissionRequired !== false;
+  let permissionGranted = !permissionRequired;
+  Object.defineProperty(DeviceOrientationEvent, "requestPermission", { configurable: true, value: permissionRequired ? async () => {
     (window as any).motionPermissionRequests++;
-    return (window as any).motionPermissionResult ?? "granted";
-  } });
+    const result = (window as any).motionPermissionResult ?? "granted";
+    permissionGranted = result === "granted";
+    return result;
+  } : undefined });
   setInterval(() => {
-    if ((window as any).sendOrientation)
+    if ((window as any).sendOrientation && permissionGranted)
       window.dispatchEvent(new DeviceOrientationEvent("deviceorientation", (window as any).orientationSample));
   }, 16);
 }

@@ -12,22 +12,42 @@
       <h1 class="sr-only">Flight yoke</h1>
       <img id="steering-yoke" alt="Aircraft yoke surface with grips at both ends" width="1000" height="500" draggable="false" />
       <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke"></div>
-      <span class="yoke-guide left">LEFT HAND</span>
-      <span class="yoke-guide right">RIGHT HAND</span>
       <div class="yoke-hub">
-        <span class="yoke-top" data-fit-text data-fit-min="10" data-fit-max="16">↑ TOP</span>
-        <p id="connection-status" role="status">Scan a flight QR code.</p>
-        <p class="rotate-phone" role="note">↻ Hold your phone sideways</p>
-        <section id="setup" aria-label="Pair your phone">
-          <p>Scan a fresh QR code on your flight screen.</p>
-        </section>
+        <p id="connection-status" class="sr-only" role="status">Scan a flight QR code.</p>
+        <section id="setup" class="sr-only" aria-label="Pair your phone"><p>Scan a fresh QR code on your flight screen.</p></section>
         <section id="controls" aria-label="Flight controls" hidden>
-          <div class="controller-actions"><button id="centre" type="button" disabled>Centre</button><button id="input-mode" type="button" disabled>Enable tilt</button></div>
+          <button id="centre" class="attitude" type="button" aria-label="Centre" aria-describedby="input-status" disabled>
+            <svg id="attitude-display" viewBox="0 0 160 160" aria-hidden="true">
+              <defs><clipPath id="horizon-window"><circle cx="80" cy="80" r="58" /></clipPath></defs>
+              <circle cx="80" cy="80" r="77" fill="#132825" stroke="#8a9991" stroke-width="2" />
+              <g clip-path="url(#horizon-window)">
+                <g id="attitude-horizon">
+                  <path d="M-100-100H260V80H-100Z" fill="#426f80" />
+                  <path d="M-100 80H260V260H-100Z" fill="#947659" />
+                  <path d="M-100 80H260M60 58h40M68 47h24M60 36h40M60 102h40M68 113h24M60 124h40" fill="none" stroke="#f5e8d5" stroke-width="2" />
+                </g>
+              </g>
+              <circle cx="80" cy="80" r="59" fill="none" stroke="#d6c4ab" stroke-width="2" />
+              <path d="M80 6v10M43 16l5 9M16 43l9 5M117 16l-5 9M144 43l-9 5" stroke="#d6c4ab" stroke-width="3" />
+              <path d="m80 25-5-8h10Z" fill="#db766d" />
+              <path d="M37 80h26l8 9 9-9 9 9 8-9h26" fill="none" stroke="#ffe0a0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+              <circle id="attitude-light" cx="80" cy="148" r="4" fill="#8a9991" />
+              <g id="tilt-gesture" fill="none" stroke="#fff4df" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M73 92V67a5 5 0 0 1 10 0v15l4-3 5 3 5-1 7 9-5 23H79L65 97a5 5 0 0 1 8-5Z" fill="#263d3a" />
+                <path d="M63 62a18 18 0 0 1 31 0M59 51l-4-4M79 45v-6M99 51l4-4" />
+              </g>
+              <g id="rotate-cue" fill="none" stroke="#fff4df" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="43" y="65" width="74" height="40" rx="6" fill="#263d3a" /><path d="M107 77v16M50 49a42 42 0 0 1 63 1l7 10m-14-5 14 5 2-15" />
+              </g>
+              <g id="touch-cue" fill="none" stroke="#fff4df" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M51 80h58M80 51v58m-22-36-7 7 7 7m44-14 7 7-7 7M73 58l7-7 7 7m-14 44 7 7 7-7" />
+              </g>
+            </svg>
+          </button>
           <div id="yoke-polar" class="yoke-polar"></div>
-          <div id="polar-status"></div>
-          <p id="input-status" role="status">Hold the phone comfortably, then tap Centre.</p>
-          <p id="confirmed">Waiting for the flight screen.</p>
-          <div class="yoke-utilities"><button id="fullscreen" type="button" aria-label="Full screen" title="Full screen" hidden>⛶</button><button id="disconnect" type="button" hidden>Disconnect</button></div>
+          <div id="polar-status" class="sr-only"></div>
+          <p id="input-status" class="sr-only" role="status">Hold the phone steady.</p>
+          <p id="confirmed" class="sr-only">Waiting for the flight screen.</p>
           <p id="wake-status" class="sr-only"></p>
         </section>
       </div>

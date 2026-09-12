@@ -1,19 +1,16 @@
 import "./controller.css";
 import yokeUrl from "./yoke-surface.svg";
-import { installPretextFit } from "../ui/pretext-fit";
 import { readTiltInvitation } from "./invitation";
 import { TiltLink } from "./link";
 import { neutralControls, orientationAngles, SENSOR_STALE_MS, TiltCalibration, type OrientationReading, type TiltState } from "./controls";
 import { PolarSourceWidget } from "../flight-session/polar-source";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const centreButton = element<HTMLButtonElement>("centre"), modeButton = element<HTMLButtonElement>("input-mode");
-const disconnectButton = element<HTMLButtonElement>("disconnect");
-const fullscreenButton = element<HTMLButtonElement>("fullscreen");
+const centreButton = element<HTMLButtonElement>("centre");
+const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
 yoke.src = yokeUrl;
-const disposeTextFit = installPretextFit();
 let invitation = readTiltInvitation(location.hash);
 // The fragment is bearer pairing material. Keep it out of history and all subsequent navigation.
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -26,7 +23,11 @@ let mode: "tilt" | "touch" = "tilt";
 let touchStatus = "Drag to steer, or enable tilt.";
 let reading: OrientationReading | undefined;
 let readingAt = -Infinity;
+let listeningAt = -Infinity;
 let centred = false;
+let permissionPending = false;
+let autoCentrePending = false;
+let gyroCentre: ReturnType<typeof orientationAngles>;
 let input = neutralControls();
 let sensorAbort: AbortController | undefined;
 let loop: ReturnType<typeof setInterval> | undefined;
@@ -40,7 +41,8 @@ const setInputStatus = (text: string) => { if (inputStatus.textContent !== text)
 if (!isSecureContext) connectionStatus.textContent = "Open the HTTPS controller link from your flight screen.";
 else if (window.top !== window.self) connectionStatus.textContent = "Open this controller in its own browser tab.";
 
-function releaseInput() {
+function releaseInput(clearAutoCentre = true) {
+  if (clearAutoCentre) autoCentrePending = false;
   input = neutralControls(); centred = false; calibration.reset(); heldKeys.clear();
   const id = pointerId; pointerId = undefined;
   if (id !== undefined && pad.hasPointerCapture(id)) pad.releasePointerCapture(id);
@@ -48,6 +50,8 @@ function releaseInput() {
 }
 function stopSensors() {
   ++inputGeneration; sensorAbort?.abort(); sensorAbort = undefined;
+  permissionPending = false;
+  gyroCentre = undefined;
   reading = undefined; readingAt = -Infinity;
   releaseInput(); centreButton.disabled = true;
 }
@@ -67,43 +71,64 @@ async function keepAwake() {
   } catch { element("wake-status").textContent = "Keep the phone awake while flying."; }
 }
 function renderMode() {
-  modeButton.textContent = mode === "tilt" ? "Use touch" : "Enable tilt";
-  centreButton.hidden = mode === "touch";
+  centreButton.setAttribute("aria-label", permissionPending || mode === "touch" ? "Enable tilt" : "Centre");
+  centreButton.disabled = !link.fresh;
   pad.dataset.touch = String(mode === "touch");
-  pad.tabIndex = mode === "touch" ? 0 : -1;
-  pad.setAttribute("aria-label", mode === "touch" ? "Airplane yoke: drag to steer and change speed, or use arrow keys. Release to centre." : "Airplane yoke responding to your tilt");
+  pad.tabIndex = 0;
+  pad.setAttribute("aria-label", "Airplane yoke: tilt or drag to steer. Arrow keys also steer; release to centre.");
+  renderAttitude();
+}
+function renderAttitude() {
+  const fresh = reading && performance.now() - readingAt < SENSOR_STALE_MS;
+  const angles = fresh ? orientationAngles(reading!, screenAngle()) : undefined;
+  const origin = gyroCentre ?? angles;
+  const manual = mode === "touch" || pointerId !== undefined || heldKeys.size > 0;
+  const wrap = (value: number) => ((value + 180) % 360 + 360) % 360 - 180;
+  const bank = manual ? input.x * 28 : angles && origin ? wrap(angles.bank - origin.bank) : 0;
+  const pitch = manual ? input.y * 28 : angles && origin ? wrap(origin.pitch - angles.pitch) : 0;
+  horizon.setAttribute("transform", `rotate(${(-bank).toFixed(2)} 80 80) translate(0 ${Math.max(-45, Math.min(45, pitch)).toFixed(2)})`);
+  centreButton.dataset.state = !link.fresh ? "offline" : permissionPending ? "permission" : mode === "touch" ? "touch" : (centred && fresh) || manual ? "live" : "centre";
+  centreButton.disabled = !link.fresh;
+  polarSource.button.dataset.state = polarSource.processor.status;
+  polarSource.button.dataset.connected = String(polarSource.button.textContent === "Disconnect H10");
 }
 function useTouch(message = "Drag to steer, or enable tilt.") {
   stopSensors(); mode = "touch"; renderMode();
   touchStatus = message; setInputStatus(touchStatus);
 }
 
-async function enableTilt() {
-  stopSensors(); mode = "tilt"; renderMode();
+async function enableTilt(fromGesture = false) {
+  stopSensors(); mode = "tilt";
   const generation = inputGeneration;
   const orientation = window.DeviceOrientationEvent as typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
   if (!orientation) throw new Error("Tilt is unavailable in this browser. Use touch instead.");
-  // Called directly by the tap handler, before networking or another awaited operation.
-  if (typeof orientation.requestPermission === "function") {
+  permissionPending = typeof orientation.requestPermission === "function" && !fromGesture;
+  autoCentrePending = true; renderMode();
+  // Subscribe immediately; only browsers requiring a gesture show the permission action.
+  if (fromGesture && typeof orientation.requestPermission === "function") {
     const permission = await orientation.requestPermission();
     if (permission !== "granted") throw new Error("Motion permission was not granted. Enable it in browser settings or use touch.");
   }
   if (generation !== inputGeneration) return false;
+  autoCentrePending = true;
   sensorAbort = new AbortController();
+  listeningAt = performance.now();
   window.addEventListener("deviceorientation", (event) => {
     const next = { beta: event.beta, gamma: event.gamma };
     if (!orientationAngles(next, screenAngle())) return;
     reading = next; readingAt = performance.now();
+    if (permissionPending) { permissionPending = false; renderMode(); }
     centreButton.disabled = !link.fresh;
+    renderAttitude();
   }, { signal: sensorAbort.signal });
-  setInputStatus("Hold the phone comfortably, then tap Centre.");
+  setInputStatus(permissionPending ? "Tap Enable tilt to fly." : "Hold the phone steady…");
   return true;
 }
 
 function connect() {
   if (!invitation || link.active) return;
-  useTouch();
-  element("setup").hidden = true; element("controls").hidden = false; disconnectButton.hidden = false;
+  void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
+  element("setup").hidden = true; element("controls").hidden = false;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
   loop = setInterval(publishInput, 1000 / 30);
   void link.start(invitation);
@@ -111,20 +136,26 @@ function connect() {
 }
 
 function publishInput() {
+  renderAttitude();
   if (!link.ready) return;
   const now = performance.now();
   polarSource.configure(link.relay);
   link.sourceOffer = document.hidden || !link.fresh ? null : polarSource.offer(now);
   if (document.hidden || !link.fresh) {
-    releaseInput(); setInputStatus(document.hidden ? "Return to this page to control the plane." : "Waiting for the flight screen. Controls are centred.");
+    releaseInput(document.hidden); setInputStatus(document.hidden ? "Return to this page to control the plane." : "Waiting for the flight screen. Controls are centred.");
     pad.dataset.steering = "centre"; confirmed.textContent = "Waiting for flight confirmation · controls released.";
     return;
   }
   if (mode === "touch") setInputStatus(touchStatus);
-  if (mode === "tilt") {
-    if (!reading || now - readingAt >= SENSOR_STALE_MS) {
-      releaseInput(); centreButton.disabled = true;
-      setInputStatus("Waiting for motion readings. Move the phone, then tap Centre, or use touch.");
+  if (mode === "tilt" && pointerId === undefined && heldKeys.size === 0) {
+    if (permissionPending) {
+      releaseInput(false); setInputStatus("Tap Enable tilt to fly.");
+    } else if (!reading || now - readingAt >= SENSOR_STALE_MS) {
+      releaseInput(false); centreButton.disabled = true;
+      if (!reading && now - listeningAt > 2500) useTouch("Drag the yoke to steer. Tap the instrument to try tilt again.");
+      else setInputStatus("Waiting for motion readings. Move the phone, then tap Centre, or use touch.");
+    } else if (autoCentrePending) {
+      centreTilt();
     } else if (centred) {
       input = calibration.read(reading, screenAngle(), now);
       if (!input.active) { centred = false; setInputStatus("Phone rotated. Hold it comfortably and tap Centre again."); }
@@ -144,39 +175,32 @@ function endSession() {
   if (loop !== undefined) clearInterval(loop);
   loop = undefined; stopSensors(); link.stop(); invitation = undefined;
   void wakeLock?.release(); wakeLock = undefined;
-  disconnectButton.hidden = true; centreButton.disabled = modeButton.disabled = true;
+  centreButton.disabled = true;
   pad.dataset.steering = "centre";
   confirmed.textContent = "Controls released.";
+  renderAttitude();
   setInputStatus("Create a new QR code on the flight screen to pair again.");
 }
 
-disconnectButton.addEventListener("click", endSession);
-fullscreenButton.hidden = !document.fullscreenEnabled;
-fullscreenButton.addEventListener("click", async () => {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await document.documentElement.requestFullscreen();
-  } catch { /* Keep the yoke usable when fullscreen is unavailable. */ }
-});
-document.addEventListener("fullscreenchange", () => {
-  const label = document.fullscreenElement ? "Exit full screen" : "Full screen";
-  fullscreenButton.setAttribute("aria-label", label); fullscreenButton.title = label;
-});
-centreButton.addEventListener("click", () => {
+function centreTilt() {
   if (!reading || performance.now() - readingAt >= SENSOR_STALE_MS || !link.fresh) return;
+  autoCentrePending = false;
   centred = calibration.calibrate(reading, screenAngle(), performance.now());
+  gyroCentre = orientationAngles(reading, screenAngle());
   input = { x: 0, y: 0, active: centred };
   link.send(input); setInputStatus("Tilt left/right to steer. Tip away to speed up, pull toward you to slow down.");
   void keepAwake();
-});
-modeButton.addEventListener("click", async () => {
-  if (mode === "tilt") useTouch();
-  else {
-    modeButton.disabled = true;
-    try { await enableTilt(); }
-    catch (error) { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); }
-    finally { modeButton.disabled = !link.active; }
-  }
+  renderAttitude();
+}
+async function requestTilt() {
+  centreButton.disabled = true;
+  try { await enableTilt(true); }
+  catch (error) { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); }
+  finally { renderMode(); }
+}
+centreButton.addEventListener("click", () => {
+  if (permissionPending || mode === "touch") void requestTilt();
+  else centreTilt();
 });
 link.addEventListener("status", (event: Event) => {
   const status = (event as CustomEvent).detail;
@@ -186,13 +210,14 @@ link.addEventListener("status", (event: Event) => {
     polarSource.configure(null);
     // Do not call link.stop recursively from its own status event.
     clearInterval(loop); loop = undefined; stopSensors(); invitation = undefined;
-    disconnectButton.hidden = true; modeButton.disabled = true;
+    centreButton.disabled = true;
     void wakeLock?.release(); wakeLock = undefined;
     pad.dataset.steering = "centre"; confirmed.textContent = "Controls released.";
+    renderAttitude();
     setInputStatus("Create a new QR code on the flight screen to pair again.");
   }
 });
-link.addEventListener("ready", () => { modeButton.disabled = false; centreButton.disabled = !reading || !link.fresh; void keepAwake(); });
+link.addEventListener("ready", () => { autoCentrePending = mode === "tilt"; renderMode(); void keepAwake(); });
 link.addEventListener("state", (event: Event) => displayState((event as CustomEvent<TiltState>).detail));
 
 const moveTouch = (event: PointerEvent) => {
@@ -203,7 +228,9 @@ const moveTouch = (event: PointerEvent) => {
   };
 };
 pad.addEventListener("pointerdown", event => {
-  if (mode !== "touch" || !link.fresh || pointerId !== undefined) return;
+  if (!link.fresh || pointerId !== undefined) return;
+  if (permissionPending) { event.preventDefault(); void requestTilt(); return; }
+  if (mode !== "touch") return;
   event.preventDefault(); heldKeys.clear(); pointerId = event.pointerId; pad.setPointerCapture(event.pointerId); moveTouch(event);
 });
 pad.addEventListener("pointermove", event => { if (event.pointerId === pointerId) moveTouch(event); });
@@ -211,14 +238,14 @@ for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
   pad.addEventListener(type, event => { if ((event as PointerEvent).pointerId === pointerId) releaseInput(); });
 for (const type of ["keydown", "keyup"]) pad.addEventListener(type, event => {
   const key = (event as KeyboardEvent).key;
-  if (mode !== "touch" || !link.fresh || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
+  if (!link.fresh || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
   event.preventDefault();
   if (type === "keydown") heldKeys.add(key); else heldKeys.delete(key);
   input = { x: Number(heldKeys.has("ArrowRight")) - Number(heldKeys.has("ArrowLeft")), y: Number(heldKeys.has("ArrowUp")) - Number(heldKeys.has("ArrowDown")), active: heldKeys.size > 0 };
 });
-pad.addEventListener("blur", () => { if (mode === "touch") releaseInput(); });
-window.addEventListener("blur", releaseInput);
-window.addEventListener("pagehide", () => { endSession(); disposeTextFit(); });
+pad.addEventListener("blur", () => releaseInput());
+window.addEventListener("blur", () => releaseInput());
+window.addEventListener("pagehide", endSession);
 const rotated = () => { releaseInput(); if (mode === "tilt") setInputStatus("Phone rotated. Hold it comfortably and tap Centre again."); };
 screen.orientation?.addEventListener("change", rotated);
 window.addEventListener("orientationchange", rotated);
