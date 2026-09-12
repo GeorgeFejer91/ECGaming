@@ -117,7 +117,9 @@ export class WingEcgProjection {
     const values = snapshot.values;
     values.forEach((value, index) => {
       const time = snapshot.rightEdge01-(values.length-1-index)*snapshot.sampleStep01;
-      const x = 32+time*(width-64);
+      // UV span runs from the heart to the tip on each wing. New activity
+      // enters at the root, and older samples travel outward as they age.
+      const x = 32+(1-time)*(width-64);
       const normalized = Math.max(-1, Math.min(1, (value-snapshot.center)/snapshot.halfRange));
       const y = height*.5-normalized*height*.36;
       if (!index) ctx.moveTo(x,y); else ctx.lineTo(x,y);
