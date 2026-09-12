@@ -55,3 +55,7 @@ button:disabled { opacity: .55; cursor: default; }
   .yoke-top { flex-basis: 18px; height: 18px; }
   .yoke-guide { bottom: max(18px, env(safe-area-inset-bottom)); }
 }
+@media (orientation: landscape) and (max-height: 320px) {
+  .yoke-hub { inset-block: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-bottom)); gap: 3px; }
+  #controls { gap: 3px; }
+}

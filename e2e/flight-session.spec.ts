@@ -128,10 +128,12 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
   await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
+  await phone.setViewportSize({ width: 667, height: 280 });
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await phone.evaluate(() => Object.defineProperty(navigator, "bluetooth", { configurable: true, value: undefined }));
   await phone.getByRole("button", { name: "Connect Polar H10" }).click();
   await expect(phone.locator(".polar-source-status")).toContainText("H10 is unavailable in this browser");
+  expect(await phone.locator(".yoke-hub").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowLeft");
   await expect(phone.locator("#confirmed")).toContainText("Left 100%"); await phone.keyboard.up("ArrowLeft");
 });

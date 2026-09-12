@@ -131,7 +131,7 @@ test("the phone is an edge-to-edge yoke with reachable controls on phones and ta
   await phone.getByRole("button", { name: "Enable tilt" }).click();
   await expect(phone.locator("#centre")).toBeEnabled();
   await phone.locator("#centre").click();
-  for (const viewport of [{ width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1180, height: 820 }, { width: 320, height: 568 }]) {
+  for (const viewport of [{ width: 667, height: 280 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1180, height: 820 }, { width: 320, height: 568 }]) {
     await phone.setViewportSize(viewport);
     for (const selector of ["#steering-yoke", "#tilt-pad"]) {
       expect(await phone.locator(selector).boundingBox()).toEqual({ x: 0, y: 0, ...viewport });
