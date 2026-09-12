@@ -196,6 +196,7 @@ body.compact-ground .control-workspace button:focus-visible, body.compact-ground
   body.compact-ground .control-workspace button, body.compact-ground .unified-header button { transition: none; }
 }
 /* Architectural surround replaces the heading without covering the aircraft. */
+body.compact-ground .aircraft-preview-pulse-label { position: absolute; top: 15%; left: 8%; z-index: 3; color: #8ba8b3; font: 500 11px/1.3 Inter, sans-serif; pointer-events: none; }
 body.compact-ground .aircraft-showcase { position: relative; grid-template-rows: minmax(40px, 1fr) 68px; }
 body.compact-ground .aircraft-showcase-header, body.compact-ground .aircraft-nameplate { display: none; }
 body.compact-ground .aircraft-preview-frame { grid-template-rows: minmax(0, 1fr); }

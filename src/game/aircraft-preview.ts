@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { cardiacEnvelope, RrBeatClock, type RrHeartbeatSignal } from "./flight-mechanics";
 import {
   createProceduralAircraftVisual,
   disposeAircraftVisual,
@@ -46,7 +47,7 @@ export function fitAircraftPreviewModel(
   // refreshed. Update the parent first so every new model is measured from a
   // clean identity transform instead of inheriting the previous model's scale
   // or the turntable's previous rotation.
-  (mount.parent ?? mount).updateMatrixWorld(true);
+  mount.updateWorldMatrix(true, true);
   const sphere = boundsWithoutRoots(root, excludedRoots).getBoundingSphere(
     new THREE.Sphere(),
   );
@@ -67,6 +68,15 @@ export class AircraftPreview {
   private readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
   private readonly turntable = new THREE.Group();
   private readonly modelMount = new THREE.Group();
+  private readonly pulseRoot = new THREE.Group();
+  private readonly beatClock = new RrBeatClock();
+  private readonly pulseLabel = document.createElement("span");
+  private pulseParts: { object: THREE.Object3D; scale: THREE.Vector3; roll: number }[] = [];
+  private pulseMaterials: THREE.MeshStandardMaterial[] = [];
+  private pulseAge = Infinity;
+  private pulseInterval = 800;
+  private receivedLiveSignal = false;
+  private liveUntil = 0;
   private renderer?: THREE.WebGLRenderer;
   private visual?: AircraftVisual;
   private resizeObserver?: ResizeObserver;
@@ -80,6 +90,9 @@ export class AircraftPreview {
 
   constructor(private readonly host: HTMLElement) {
     this.host.classList.add("aircraft-preview-host");
+    this.pulseLabel.className = "aircraft-preview-pulse-label";
+    this.pulseLabel.textContent = "Connect Polar for heartbeat";
+    this.host.append(this.pulseLabel);
     if (!this.webGlAvailable()) {
       this.host.classList.add("is-unavailable");
       return;
@@ -123,7 +136,8 @@ export class AircraftPreview {
   private buildScene() {
     this.camera.position.set(5.7, 2.65, -7.7);
     this.camera.lookAt(0, 0.08, 0);
-    this.turntable.add(this.modelMount);
+    this.turntable.add(this.pulseRoot);
+    this.pulseRoot.add(this.modelMount);
     this.scene.add(this.turntable);
 
     const hemisphere = new THREE.HemisphereLight("#dffcff", "#07131f", 2.2);
@@ -193,6 +207,18 @@ export class AircraftPreview {
       disposeAircraftVisual(this.visual.root);
     }
     this.visual = visual;
+    this.pulseRoot.scale.setScalar(1);
+    this.pulseAge = Infinity;
+    this.pulseParts = [];
+    this.pulseMaterials = [];
+    visual.root.traverse(object => {
+      if (object.name === "VentricleCore" || object.name.includes("capillary_wing"))
+        this.pulseParts.push({ object, scale: object.scale.clone(), roll: object.rotation.z });
+      if (!(object instanceof THREE.Mesh)) return;
+      for (const material of Array.isArray(object.material) ? object.material : [object.material])
+        if (material instanceof THREE.MeshStandardMaterial && material.name.startsWith("CardiacPulse") && !this.pulseMaterials.includes(material))
+          this.pulseMaterials.push(material);
+    });
     this.turntable.rotation.set(0, 0, 0);
     const fitted = fitAircraftPreviewModel(
       this.modelMount,
@@ -230,6 +256,7 @@ export class AircraftPreview {
     }
     const delta = Math.min(50, Math.max(0, time - this.lastTime));
     this.lastTime = time;
+    this.animateHeartbeat(delta, time);
     if (!this.reduceMotion) {
       this.turntable.rotation.y += delta * 0.00042;
       for (const propeller of this.visual?.propellers ?? [])
@@ -239,8 +266,41 @@ export class AircraftPreview {
     this.frameId = requestAnimationFrame(this.render);
   };
 
+  setHeartbeatSignal(signal: RrHeartbeatSignal) {
+    const fresh = signal.ready && !signal.simulated && Number.isFinite(signal.ageMs) && signal.ageMs >= 0 && signal.ageMs <= 1500;
+    if (fresh) this.receivedLiveSignal = true;
+    this.liveUntil = fresh ? performance.now() + 1500 - signal.ageMs : 0;
+    this.beatClock.accept(signal, fresh && this.active);
+  }
+
+  private animateHeartbeat(deltaMs: number, time: number) {
+    const live = time <= this.liveUntil;
+    let interval: number | undefined;
+    if (live) interval = this.beatClock.advance(deltaMs / 1000);
+    else {
+      this.beatClock.clear();
+    }
+    this.pulseAge += deltaMs / 1000;
+    if (interval !== undefined) { this.pulseAge = 0; this.pulseInterval = interval; }
+    const pulse = cardiacEnvelope(this.pulseAge, this.pulseInterval);
+    const motion = this.reduceMotion ? .3 : 1;
+    this.pulseRoot.scale.set(1-pulse*.10*motion, 1+pulse*.17*motion, 1-pulse*.07*motion);
+    for (const part of this.pulseParts) {
+      if (part.object.name.includes("capillary_wing"))
+        part.object.rotation.z = part.roll + (part.object.name.startsWith("Left") ? -1 : 1)*pulse*.1*motion;
+      else part.object.scale.copy(part.scale).multiplyScalar(1+pulse*.17*motion);
+    }
+    for (const material of this.pulseMaterials) material.emissiveIntensity = .3 + pulse*2;
+    const mode = live ? "live" : "waiting";
+    this.host.dataset.heartbeatMode = mode;
+    this.host.dataset.heartbeatPulse = pulse.toFixed(4);
+    const label = live ? "Polar RR heartbeat" : this.receivedLiveSignal ? "Waiting for heartbeat" : "Connect Polar for heartbeat";
+    if (this.pulseLabel.textContent !== label) this.pulseLabel.textContent = label;
+  }
+
   setActive(active: boolean) {
     this.active = active;
+    if (!active) { this.beatClock.clear(); this.pulseAge = Infinity; }
     if (!active && this.frameId !== undefined) {
       cancelAnimationFrame(this.frameId);
       this.frameId = undefined;
@@ -257,5 +317,6 @@ export class AircraftPreview {
     if (this.visual) disposeAircraftVisual(this.visual.root);
     this.renderer?.dispose();
     this.renderer?.domElement.remove();
+    this.pulseLabel.remove();
   }
 }

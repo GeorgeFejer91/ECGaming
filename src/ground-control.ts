@@ -1674,7 +1674,8 @@ function cockpitTelemetry(runtime: RuntimeState): CockpitTelemetry {
       counter: runtime.active.rrBeatCounter,
       ageMs: runtime.active.rrBeatAgeMs,
       rrMs: runtime.active.metrics.rr_interval,
-      ready: runtime.active.rrBeatReady && runtime.readiness.ready,
+      ready: runtime.active.rrBeatReady && runtime.active.physicalPolar,
+      simulated: runtime.active.simulation,
     },
   };
 }
@@ -1724,7 +1725,9 @@ function updateCommandLoop() {
     },
     now,
   );
-  if (cockpit.hasStarted()) cockpit.accept(cockpitTelemetry(runtime));
+  const telemetry = cockpitTelemetry(runtime);
+  if (telemetry.heartbeat) cockpit.setPreviewHeartbeat(telemetry.heartbeat);
+  if (cockpit.hasStarted()) cockpit.accept(telemetry);
 
   if (loggingEnabled() && now - lastLoggedAt >= 100) {
     lastLoggedAt = now;
