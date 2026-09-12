@@ -54,9 +54,31 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   await cockpit.getByRole("button", { name: "Start flight", exact: true }).click();
   await phone.bringToFront();
+  await phone.evaluate(() => {
+    (window as any).inputEvents = [];
+    for (const type of ["blur", "focus", "keydown", "keyup", "visibilitychange"]) window.addEventListener(type, event => {
+      const list = (window as any).inputEvents;
+      list.push({ type, at: performance.now(), target: (event.target as HTMLElement)?.id, key: (event as KeyboardEvent).key });
+      if (list.length > 80) list.shift();
+    }, true);
+    new MutationObserver(() => {
+      const list = (window as any).inputEvents;
+      list.push({ type: "status", text: document.querySelector("#input-status")?.textContent, at: performance.now() });
+      if (list.length > 80) list.shift();
+    }).observe(document.querySelector("#input-status")!, { childList: true });
+  });
   await expect(phone.locator("#confirmed")).toContainText("Centred");
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
-  await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x)).toBe(1);
+  try {
+    await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x)).toBe(1);
+  } catch (error) {
+    console.log("STEERING", JSON.stringify({
+      phone: await phone.evaluate(() => ({ events: (window as any).inputEvents, intent: (window as any).lastTestIntent?.tilt, confirmed: document.querySelector("#confirmed")?.textContent, status: document.querySelector("#input-status")?.textContent, focused: document.activeElement?.id, hidden: document.hidden })),
+      tower: await page.evaluate(async () => { const h = (await import("/src/flight-session/hub.ts")).getFlightSessionHub(); return { tilt: h.phone.snapshot(), selected: h.phoneSelected, ready: h.phone.ready }; }),
+      cockpit: await cockpit.evaluate(async () => { const h = (await import("/src/flight-session/hub.ts")).getFlightSessionHub(); return { tilt: h.client?.relay?.steering, fresh: h.client?.fresh, ready: h.client?.ready, selected: h.client?.relay?.phoneSelected }; }),
+    }));
+    throw error;
+  }
   await phone.keyboard.up("ArrowRight");
   const packet = await phone.evaluate(() => (window as any).lastTestIntent);
   expect(Object.keys(packet).sort()).toEqual(["signal", "tilt"]);
