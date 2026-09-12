@@ -117,6 +117,12 @@ test("three browsers route only source-computed controls and switch source witho
   await cockpit.getByRole("button", { name: "Connect Polar H10" }).click();
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "cockpit");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
+  await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal.frame?.altitude)).toBeLessThan(-.7);
+  await expect.poll(() => page.evaluate(async () =>
+    (await import("/src/flight-session/hub.ts")).getFlightSessionHub().signal.read(performance.now())?.altitude)).toBeLessThan(-.7);
+  // These pages represent separate visible devices. The tower's DOM preview uses RAF,
+  // so foreground it before checking painted text after interacting with the cockpit.
+  await page.bringToFront();
   await expect.poll(() => page.locator("#command-altitude").textContent(), { timeout: 15_000 }).toMatch(/^-0\.[789]/);
   await dialog.locator("#flight-session-source").selectOption("ground");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
