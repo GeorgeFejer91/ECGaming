@@ -118,9 +118,13 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
 
 test("the local Polar button restores an existing sensor after remote tower selection", async ({ page }) => {
   await page.goto("./ground-control/");
+  await page.setViewportSize({ width: 390, height: 844 });
   await installSyntheticPolar(page);
   await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();
   await expect(page.getByRole("button", { name: "Polar connected", exact: true })).toBeDisabled();
+  const sourceBox = await page.locator("#polar-source-controls").boundingBox();
+  const disconnectBox = await page.locator("#disconnect-polar").boundingBox();
+  expect(disconnectBox!.y + disconnectBox!.height).toBeLessThanOrEqual(sourceBox!.y + sourceBox!.height);
   await page.getByRole("button", { name: "Remote tower", exact: true }).click();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Use local Polar", exact: true }).click();

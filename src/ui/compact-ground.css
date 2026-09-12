@@ -160,3 +160,7 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground .unified-flight-shell #polar-source-controls #connect-polar { min-height: 36px; }
   .compact-ground .unified-flight-shell #polar-source-controls #disconnect-polar { min-height: 24px; }
 }
+@media (max-width: 700px) {
+  .compact-ground .unified-flight-shell #polar-source-controls .button-row { gap: 4px; }
+  .compact-ground .unified-flight-shell #polar-source-controls:has(#disconnect-polar:not(:disabled)) .button-row { margin-top: 0; }
+}
