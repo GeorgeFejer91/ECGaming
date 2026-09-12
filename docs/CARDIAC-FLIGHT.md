@@ -3,6 +3,10 @@
 The default Ventricle Glider and the optional Aorta Swift are original Blender
 aircraft. They have a heart-shaped hull, atrial canopy, arterial tubes,
 capillary-patterned wings, a valve propeller and emissive conduction details.
+The wings use rounded, swept lofts with raised red arterial and blue venous
+networks. Each membrane and its vessels share a root pivot, so the complete
+wing flexes together. The heart hull is subdivided and its surface vessels
+follow its contraction. Blue vessel color is a visual convention.
 
 ## Controls and interactions
 
@@ -14,6 +18,8 @@ capillary-patterned wings, a valve propeller and emissive conduction details.
   composite (`excitometer`). Both remain selectable in Ground Control.
 - Polar RR counter increments drive contraction, wing flex, vessel illumination,
   heartbeat sound, and one clustered smoke puff. They do not add altitude impulses.
+  Each puff contains three small lobes, moves aft independently of the plane,
+  expands only slightly and expires after 1.45 seconds. No smoke emits between beats.
 - Flight options → **Explode on mountain impact** enables an optional challenge.
   It defaults off, persists locally, checks body/wing samples against the visible
   mountain slopes, and ends the run on contact. Fly again resets the run. Signal

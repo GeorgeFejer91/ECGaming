@@ -44,15 +44,16 @@ def vessel_texture():
 
     for row in range(4):
         base_y = row / 4 + .08
+        color = (.67,.15,.20) if row % 2 == 0 else (.10,.35,.70)
         for i in range(40):
             x1, x2 = i/40, (i+1)/40
             y1 = base_y + .026*math.sin(x1*math.tau*2)
             y2 = base_y + .026*math.sin(x2*math.tau*2)
-            line(x1,y1,x2,y2,.004,(.67,.23,.27))
+            line(x1,y1,x2,y2,.004,color)
             if i % 5 == 0:
                 sign = -1 if i % 2 else 1
-                line(x1,y1,x1+.055,y1+sign*.058,.0028,(.77,.35,.34))
-                line(x1+.055,y1+sign*.058,x1+.13,y1+sign*.083,.0018,(.77,.35,.34))
+                line(x1,y1,x1+.055,y1+sign*.058,.0028,color)
+                line(x1+.055,y1+sign*.058,x1+.13,y1+sign*.083,.0018,color)
     image = bpy.data.images.new("Capillary tissue · original", width=size, height=size)
     image.pixels.foreach_set(pixels.ravel())
     image.filepath_raw = str(TEXTURES / "capillary-tissue.png")
@@ -68,7 +69,7 @@ def material(name, color, metallic=0, emission=0, texture=None):
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs["Base Color"].default_value = (*color, 1)
     bsdf.inputs["Metallic"].default_value = metallic
-    bsdf.inputs["Roughness"].default_value = .38 if metallic else .55
+    bsdf.inputs["Roughness"].default_value = .34 if metallic else .48
     if emission:
         bsdf.inputs["Emission Color" if "Emission Color" in bsdf.inputs else "Emission"].default_value = (*color, 1)
         bsdf.inputs["Emission Strength"].default_value = emission
@@ -86,7 +87,7 @@ def finish(obj, name, mat):
 
 
 def ellipsoid(name, position, scale, mat):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, location=position)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, location=position)
     obj = finish(bpy.context.object, name, mat)
     obj.scale = scale
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -95,16 +96,18 @@ def ellipsoid(name, position, scale, mat):
     return obj
 
 
-def tube(name, points, radius, mat):
+def tube(name, points, radius, mat, taper=1):
     curve = bpy.data.curves.new(name, "CURVE")
     curve.dimensions = "3D"
-    curve.resolution_u = 10
+    curve.resolution_u = 8
     curve.bevel_depth = radius
-    curve.bevel_resolution = 2
+    curve.bevel_resolution = 3
+    curve.use_fill_caps = True
     spline = curve.splines.new("BEZIER")
     spline.bezier_points.add(len(points)-1)
-    for point, co in zip(spline.bezier_points, points):
+    for i, (point, co) in enumerate(zip(spline.bezier_points, points)):
         point.co = co
+        point.radius = 1 + (taper - 1) * i / (len(points) - 1)
         point.handle_left_type = point.handle_right_type = "AUTO"
     obj = bpy.data.objects.new(name, curve)
     bpy.context.collection.objects.link(obj)
@@ -112,16 +115,46 @@ def tube(name, points, radius, mat):
     return obj
 
 
-def wing(name, points, mat):
-    n = len(points)
-    vertices = [(x,y,z) for x,y,z in points] + [(x,y,z-.13) for x,y,z in points]
-    faces = [tuple(range(n)), tuple(reversed(range(n, 2*n)))]
-    faces += [(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)]
+def wing(name, side, span, mat, *, root=.48, chord=1.65, sweep=.35,
+         center_y=-.08, height=.02, rise=.22):
+    """Closed loft with an elliptical section and a rounded, swept tip.
+
+    The surface sampler also positions vessels on the actual membrane, so
+    decorative tubes cannot float above a differently shaped wing.
+    """
+    def section(t):
+        taper = math.sqrt(max(0, 1-t**6)) * (1-.32*t)
+        return (side*(root+(span-root)*t), center_y-sweep*t**1.3,
+                height+rise*t*t, taper)
+
+    def surface(t, q, offset=0):
+        x, y, z, taper = section(t)
+        cosine = 1-2*q
+        sine = math.sqrt(max(0, 1-cosine*cosine))
+        return (x, y+chord*taper*.5*cosine,
+                z+taper*((.075+.035*(cosine+1))*sine+.035*sine*sine)+offset)
+
+    vertices, faces = [], []
+    stations, around = 32, 24
+    for i in range(stations):
+        x, y, z, taper = section(i/stations)
+        for j in range(around):
+            theta = math.tau*j/around
+            c, s = math.cos(theta), math.sin(theta)
+            vertices.append((x, y+chord*taper*.5*c,
+                             z+taper*((.075+.035*(c+1))*s+.035*s*s)))
+    faces.append(tuple(reversed(range(around))))
+    for i in range(stations-1):
+        for j in range(around):
+            a, b = i*around+j, i*around+(j+1)%around
+            faces.append((a,b,b+around,a+around))
+    tip = len(vertices)
+    vertices.append(section(1)[:3])
+    for j in range(around):
+        faces.append(((stations-1)*around+j, (stations-1)*around+(j+1)%around, tip))
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
-    if hasattr(mesh, "use_auto_smooth"):
-        mesh.use_auto_smooth = True
     uv = mesh.uv_layers.new()
     for face in mesh.polygons:
         for loop in face.loop_indices:
@@ -130,17 +163,51 @@ def wing(name, points, mat):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(mat)
-    bevel = obj.modifiers.new("Soft leading edge", "BEVEL")
-    bevel.width = .08
-    bevel.segments = 3
-    obj.modifiers.new("Wing normals", "WEIGHTED_NORMAL")
+    smooth_mesh(obj)
+    return obj, surface
+
+
+def smooth_mesh(obj):
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    obj.select_set(False)
+    for face in obj.data.polygons:
+        face.use_smooth = True
+
+
+def attach(obj, parent):
+    bpy.context.view_layer.update()
+    world = obj.matrix_world.copy()
+    obj.parent = parent
+    obj.matrix_world = world
     return obj
+
+
+def vessel_network(name, surface, mat, q, direction):
+    """Editable curve splines joined by material to keep runtime draw calls low."""
+    curves = [tube(name, [surface(t, q, .015) for t in (.02,.18,.36,.55,.74,.91)],
+                   .044, mat, .28)]
+    for t in (.23,.43,.63,.79):
+        curves.append(tube(name+" branch", [surface(t, q, .014),
+            surface(t+.045, q+direction*.09, .012),
+            surface(t+.09, q+direction*.20, .009)], .024, mat, .2))
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in curves:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = curves[0]
+    bpy.ops.object.join()
+    return curves[0]
 
 
 def heart(name, mat, slim):
     # Closed, rounded heart hull with its apex pointing toward the nose.
     vertices, faces = [], []
-    segments, rings = 64, 12
+    segments, rings = 64, 24
     for j in range(1, rings):
         phi = math.pi*j/rings
         for i in range(segments):
@@ -165,49 +232,71 @@ def heart(name, mat, slim):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(mat)
-    # Consistent normals on the custom manifold hull.
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.normals_make_consistent(inside=False)
-    bpy.ops.object.mode_set(mode="OBJECT")
-    obj.select_set(False)
-    for face in mesh.polygons:
-        face.use_smooth = True
+    smooth_mesh(obj)
+    subdiv = obj.modifiers.new("Continuous myocardium surface", "SUBSURF")
+    subdiv.levels = subdiv.render_levels = 1
     return obj
 
 
 def build(slug, slim, image):
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    ruby = material("Myocardium", (.52,.025,.072) if not slim else (.70,.075,.055), .16)
-    vessel = material("Arterial enamel", (.88,.19,.20), .2)
+    ruby = material("Myocardium", (.48,.018,.052) if not slim else (.62,.035,.052), .12)
+    vessel = material("CardiacPulse Arteries", (.85,.045,.075), .15, emission=.3)
+    vein = material("CardiacPulse Veins", (.018,.21,.82), .18, emission=.3)
     cream = material("Ivory capillary membrane", (.96,.83,.72), texture=image)
-    gold = material("Warm brass", (.78,.45,.16), .65)
-    dark = material("Atrial canopy", (.055,.045,.10), .48)
-    pulse = material("CardiacPulse", (1,.22,.19), emission=.3)
-    heart("VentricleCore", ruby, slim)
-    ellipsoid("Left atrium", (-.44,-.62,.40), (.43,.48,.39), ruby)
-    ellipsoid("Right atrium", (.44,-.62,.40), (.43,.48,.39), ruby)
-    ellipsoid("Atrial canopy", (0,.08,.64), (.36,.58,.26), dark)
+    trim = material("Cobalt wing edge", (.024,.12,.40), .32)
+    dark = material("Atrial canopy", (.022,.095,.21), .32)
+    pulse = material("CardiacPulse Septum", (1,.13,.16), emission=.3)
+    core = heart("VentricleCore", ruby, slim)
+    attach(ellipsoid("Atrial canopy", (0,.27,.71), (.30,.49,.22), dark), core)
     for side in (-1,1):
         span = 3.5 if slim else 3.2
-        points = [(side*.65,.55,.03), (side*span,-.15 if slim else .45,.22),
-                  (side*(span-.15),-.72,.28), (side*1.7,-.94,.10), (side*.6,-.66,.02)]
-        wing(("Left" if side<0 else "Right")+" capillary wing", points, cream)
-        tube("Arterial leading edge", points[:3], .045, gold)
-        tube("Wing conduction vessel", [(side*.8,0,.17),(side*1.55,-.22,.22),(side*2.5,-.38,.30)], .036, vessel)
-        for branch in (1.4,1.9,2.4):
-            tube("Purkinje branch", [(side*branch,-.3,.27),(side*(branch+.20),-.60,.29)], .018, vessel)
-        ellipsoid("PulseNode", (side*(span-.16),-.35,.31), (.10,.14,.09), pulse)
-        wing("Tail membrane", [(side*.15,-1.1,.1),(side*1.18,-1.65,.18),(side*.95,-2.05,.2),(side*.12,-1.87,.1)], ruby)
-    tube("Aortic arch", [(-.28,-.66,.63),(-.42,-1.10,1.05),(0,-1.50,1.23),(.38,-1.40,.79)], .13, vessel)
-    tube("Pulmonary return", [(.38,-.68,.58),(.64,-1.13,.94),(.66,-1.59,.73)], .09, gold)
-    tube("Septum seam", [(0,.95,.48),(-.12,.6,.69),(-.17,.2,.77),(-.20,-.3,.77)], .035, pulse)
+        label = "Left" if side < 0 else "Right"
+        # Only the assembly is named as a pulse part. The vessels inherit its
+        # root-pivot flex instead of separating from the membrane on each beat.
+        assembly = bpy.data.objects.new(label+" capillary wing", None)
+        bpy.context.collection.objects.link(assembly)
+        assembly.location = (side*.48, 0, .02)
+        membrane, surface = wing(label+" membrane", side, span, cream,
+                                 sweep=.62 if slim else .35)
+        attach(membrane, assembly)
+        attach(vessel_network(label+" arterial network", surface, vessel, .30, -1), assembly)
+        attach(vessel_network(label+" venous network", surface, vein, .68, 1), assembly)
+        attach(tube(label+" rounded leading edge", [surface(t,.035,-.015)
+                    for t in (0,.16,.32,.48,.64,.78,.89,.96,.995)], .038, trim, .25), assembly)
+        attach(ellipsoid(label+" pulse node", surface(.91,.46,.035), (.085,.075,.055), vein), assembly)
+        tail, tail_surface = wing(label+" tail membrane", side, 1.28, ruby,
+            root=.08, chord=.9, sweep=.37, center_y=-1.43, height=.04, rise=.12)
+        tube(label+" tail vein", [tail_surface(t,.48,.016) for t in (0,.2,.4,.65,.88)], .033, vein, .3)
+    attach(tube("Aortic arch", [(-.40,-.44,.58),(-.54,-.79,.88),(-.44,-1.16,1.12),
+         (-.12,-1.37,1.12),(.19,-1.29,.94),(.32,-.98,.61)], .125, vessel, .85), core)
+    attach(tube("Venous return", [(.51,-.40,.56),(.77,-.71,.80),(.80,-1.10,.93),
+         (.65,-1.38,.75),(.47,-1.42,.42)], .105, vein, .8), core)
+
+    # Project coronary vessels onto the smoothed hull; the same parent carries
+    # both the heart surface and its vessels through RR contraction.
+    bpy.context.view_layer.update()
+    hull = core.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    def coronary(name, xy, radius, mat):
+        points = []
+        for x, y in xy:
+            if slim:
+                x /= 1.18
+            hit, location, _, _ = hull.ray_cast(Vector((x,y,3)), Vector((0,0,-1)))
+            if not hit:
+                raise ValueError(f"{name}: vessel point misses the heart at {(x,y)}")
+            points.append((x,y,location.z+radius*.5))
+        attach(tube(name, points, radius, mat, .45), core)
+
+    coronary("Coronary artery", [(-.42,-.55),(-.64,-.29),(-.57,.04),(-.40,.42),(-.15,.91)], .042, vessel)
+    coronary("Arterial branch", [(-.57,.04),(-.78,.12),(-.74,.40),(-.55,.64)], .026, vessel)
+    coronary("Coronary vein", [(.53,-.56),(.69,-.27),(.59,.08),(.41,.47),(.16,.91)], .047, vein)
+    coronary("Venous branch", [(.59,.08),(.81,.20),(.73,.43),(.56,.64)], .028, vein)
+    coronary("Septum seam", [(-.20,-.47),(-.23,-.27),(-.26,-.08),(-.27,.20)], .025, pulse)
     # Twin exhaust nozzles identify where the beat smoke originates.
     for side in (-1,1):
-        tube("Vessel exhaust", [(side*.35,-.96,.0),(side*.38,-1.5,.02),(side*.38,-1.85,.11)], .13, gold)
+        tube("Vessel exhaust", [(side*.35,-.96,.0),(side*.38,-1.5,.02),(side*.38,-1.85,.11)], .12, trim)
         ellipsoid("Exhaust aperture", (side*.38,-1.87,.11), (.105,.035,.105), dark)
 
     # A source-owned rotor is exported as a named pivot, facing forward.
@@ -219,7 +308,7 @@ def build(slug, slim, image):
         blade.rotation_euler.y = angle
         blade.parent = rotor
         blade.matrix_parent_inverse = rotor.matrix_world.inverted()
-    hub = ellipsoid("Valve hub", (0,1.98,.12), (.15,.13,.15), gold)
+    hub = ellipsoid("Valve hub", (0,1.98,.12), (.15,.13,.15), vein)
     hub.parent = rotor
     hub.matrix_parent_inverse = rotor.matrix_world.inverted()
     bpy.context.view_layer.update()
@@ -253,7 +342,7 @@ def build(slug, slim, image):
     scene.render.filepath = str(OUT / f"{slug}-preview.png")
     scene.view_settings.view_transform = "Standard"
     scene.world.color = (.20,.20,.20)
-    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE / f"{slug}.blend"))
+    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE / f"{slug}.blend"), compress=True)
     bpy.ops.render.render(write_still=True)
 
 

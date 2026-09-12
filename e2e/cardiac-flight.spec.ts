@@ -44,7 +44,7 @@ test("Blender aircraft contract, RR contraction and one smoke puff per beat", as
   });
   expect(result.aircraft).toBe("cardiac-ventricle");
   expect(result.propellerAxis).toBe("z");
-  expect(result).toMatchObject({ contracted: true, flexed: true, lit: true, puffs: 6, beats: 1, resting: true });
+  expect(result).toMatchObject({ contracted: true, flexed: true, lit: true, puffs: 3, beats: 1, resting: true });
   expect(result.altitudeDelta).toBeLessThan(.76);
 });
 
@@ -79,6 +79,61 @@ test("keyboard, drag, wider steering and blur release share gentle movement", as
   expect(travel.roll).toBeLessThan(-.1);
   expect(travel.yaw).toBeLessThan(0);
   expect(travel.after).toBeCloseTo(travel.x);
+});
+
+test("both cardiac aircraft keep their red and blue vessels attached while wings flex", async ({ page }) => {
+  await flightHarness(page);
+  for (const id of ["cardiac-ventricle", "cardiac-aorta"]) {
+    const result = await page.evaluate(async id => {
+      const g = (window as any).flight;
+      await g.setAircraft(id);
+      const wings = g.pulseParts.filter((p: any) => p.object.name.includes("capillary_wing"));
+      const assemblies = wings.map((p: any) => ({
+        membrane: p.object.children.some((c: any) => c.name.endsWith("_membrane")),
+        artery: p.object.children.some((c: any) => c.name.endsWith("_arterial_network")),
+        vein: p.object.children.some((c: any) => c.name.endsWith("_venous_network")),
+      }));
+      g.heartbeat();
+      g.update(.08);
+      g.plane.updateMatrixWorld(true);
+      g.renderer.render(g.scene, g.camera);
+      return { assemblies, flexed: wings.every((p: any) => Math.abs(p.object.rotation.z-p.roll) > .005),
+        colors: g.pulseMaterials.map((m: any) => m.name) };
+    }, id);
+    expect(result.assemblies).toEqual(Array(2).fill({ membrane: true, artery: true, vein: true }));
+    expect(result.flexed).toBe(true);
+    expect(result.colors.some((name: string) => name.startsWith("CardiacPulse_Arteries") || name.startsWith("CardiacPulse Arteries"))).toBe(true);
+    expect(result.colors.some((name: string) => name.startsWith("CardiacPulse_Veins") || name.startsWith("CardiacPulse Veins"))).toBe(true);
+  }
+});
+
+test("rapid heartbeats leave compact separated puffs that expire without continuous emission", async ({ page }) => {
+  await flightHarness(page);
+  const result = await page.evaluate(() => {
+    const g = (window as any).flight;
+    const fx = g.effects;
+    fx.clear();
+    const origin = g.plane.position.clone();
+    const direction = origin.clone().set(-1, 0, 0);
+    fx.heartbeat(origin, direction);
+    const first = fx.particles.filter((p: any) => p.sprite.visible);
+    for (let i=0;i<35;i++) fx.update(.01, 1.4);
+    const beforeNext = fx.particles.filter((p: any) => p.sprite.visible).length;
+    fx.heartbeat(origin, direction);
+    const second = fx.particles.filter((p: any) => p.sprite.visible && !first.includes(p));
+    const separation = Math.min(...second.map((p: any) => p.sprite.position.x))
+      - Math.max(...first.map((p: any) => p.sprite.position.x + p.sprite.scale.x));
+    // Moving the emitter must not pull previously emitted smoke along with it.
+    const leftBehind = first.every((p: any) => p.sprite.parent === g.scene && p.sprite.position.x < origin.x-.6);
+    for (let i=0;i<100;i++) fx.update(.01, 1.4);
+    const largest = Math.max(...fx.particles.filter((p: any) => p.sprite.visible).map((p: any) => p.sprite.scale.x));
+    for (let i=0;i<50;i++) fx.update(.01, 1.4);
+    return { beforeNext, second: second.length, separation, leftBehind, largest,
+      remaining: fx.particles.filter((p: any) => p.sprite.visible).length };
+  });
+  expect(result).toMatchObject({ beforeNext: 3, second: 3, leftBehind: true, remaining: 0 });
+  expect(result.separation).toBeGreaterThan(.35);
+  expect(result.largest).toBeLessThan(.25);
 });
 
 test("optional mountain impact ends the flight, freezes on signal loss and restarts cleanly", async ({ page }) => {
