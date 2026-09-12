@@ -84,7 +84,15 @@ export function setupCompactGround(openRemoteCockpit: () => void) {
   const right = document.querySelector(".avionics-display")!;
   internals.append(document.querySelector(".beacon-instrument")!, document.querySelector(".command-console")!);
   right.prepend(metrics);
-  right.append(document.querySelector(".ecg-instrument")!);
+  const signals = document.createElement("div"); signals.className = "signal-displays";
+  const raw = document.createElement("section"); raw.className = "ecg-instrument raw-ecg-instrument";
+  raw.setAttribute("aria-labelledby", "raw-ecg-title");
+  raw.innerHTML = `<header class="instrument-header"><div><h2 id="raw-ecg-title">Raw ECG</h2></div><strong id="raw-ecg-state" role="status">Waiting for Polar</strong></header>
+    <div class="ecg-screen"><div class="ecg-screen-grid" aria-hidden="true"></div>
+    <canvas id="raw-ecg-preview" class="ecg-preview avionics-ecg-canvas" width="1100" height="260" role="img" aria-label="Raw ECG waveform"></canvas>
+    <span class="ecg-calibration" aria-hidden="true">µV · 5 s</span></div>`;
+  signals.append(document.querySelector(".ecg-instrument")!, raw);
+  right.append(signals);
   document.querySelector(".avionics-board")!.remove();
   el("ecg-instrument-title").textContent = "Selected signal";
 }

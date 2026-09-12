@@ -65,6 +65,13 @@ body.compact-ground .metric-widget-button small { font: 400 11px/1.2 Inter, sans
 body.compact-ground .unified-flight-shell .avionics-display { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; min-height: 0; height: 100%; padding: 0; overflow: hidden; background: none; border: 0; }
 body.compact-ground .tower-grid, body.compact-ground .tower-topline, body.compact-ground .tower-footer, body.compact-ground .instrument-caption, body.compact-ground .avionics-metrics, body.compact-ground .ecg-scanline { display: none; }
 body.compact-ground .ecg-instrument { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 16px; background: #081a24; }
+body.compact-ground .signal-displays { display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px; flex: 1; min-height: 0; }
+body.compact-ground .signal-displays .ecg-screen { min-height: 0; }
+@media (max-width: 700px) and (max-height: 720px) {
+  body.compact-ground .avionics-display .altitude-metric-panel { flex-basis: 126px; }
+  body.compact-ground .signal-displays .ecg-instrument { padding: 6px; }
+  body.compact-ground .signal-displays .instrument-header { min-height: 18px; }
+}
 body.compact-ground .instrument-header { min-height: 24px; flex: 0 0 auto; padding: 0; }
 body.compact-ground .instrument-header h2 { font: 600 16px/1.25 Inter, sans-serif; letter-spacing: 0; margin: 0; }
 body.compact-ground .instrument-header div > span { display: none; }

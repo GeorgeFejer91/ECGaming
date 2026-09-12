@@ -4,6 +4,7 @@ import { readTiltInvitation } from "./invitation";
 import { TiltLink } from "./link";
 import { neutralControls, orientationAngles, SENSOR_STALE_MS, TiltCalibration, type OrientationReading, type TiltState } from "./controls";
 import { PolarSourceWidget } from "../flight-session/polar-source";
+import { PracticeHeartbeat } from "./practice-heartbeat";
 import { PolarRrHaptics } from "./rr-haptics";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -16,7 +17,15 @@ let invitation = readTiltInvitation(location.hash);
 // The fragment is bearer pairing material. Keep it out of history and all subsequent navigation.
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 const link = new TiltLink("controller");
-const rrHaptics = new PolarRrHaptics(duration => navigator.vibrate?.(duration), () => !document.hidden && link.active);
+let heartbeatAt = -Infinity;
+let practiceHeartbeatActive = false;
+const heartbeatOutput = (duration: number) => {
+  if (duration > 0) heartbeatAt = performance.now();
+  else heartbeatAt = -Infinity;
+  try { navigator.vibrate?.(duration); } catch { /* Keep the visual beat when haptics are unavailable. */ }
+};
+const practiceHeartbeat = new PracticeHeartbeat(heartbeatOutput);
+const rrHaptics = new PolarRrHaptics(heartbeatOutput, () => !document.hidden && link.active && !practiceHeartbeatActive);
 const polarSource = new PolarSourceWidget(element("yoke-polar"), event => rrHaptics.handle(event));
 element("polar-status").append(polarSource.status);
 polarSource.button.addEventListener("pointerdown", event => event.stopPropagation());
@@ -92,6 +101,8 @@ function renderAttitude() {
   centreButton.dataset.state = !invitation ? "offline" : permissionPending ? "permission" : mode === "touch" ? "touch" : centred && fresh ? "live" : "centre";
   centreButton.disabled = !invitation;
   polarSource.button.dataset.state = polarSource.processor.status;
+  polarSource.button.dataset.heartbeat = practiceHeartbeatActive ? "practice" : "local";
+  polarSource.button.dataset.pulse = String(performance.now() - heartbeatAt < 150);
   polarSource.button.dataset.connected = String(polarSource.button.textContent === "Disconnect H10");
 }
 function useTouch(message = "Drag to steer, or enable tilt.") {
@@ -142,6 +153,7 @@ function connect() {
 }
 
 function publishInput() {
+  practiceHeartbeatActive = practiceHeartbeat.update(link.relay, link.fresh, !document.hidden);
   renderAttitude();
   const now = performance.now();
   polarSource.configure(link.ready ? link.relay : null);
@@ -183,6 +195,7 @@ function displayState(state: TiltState) {
   confirmed.textContent = `${steering} · ${speed}`;
 }
 function endSession() {
+  practiceHeartbeat.pause(); practiceHeartbeatActive = false;
   polarSource.stop();
   polarSource.configure(null);
   if (loop !== undefined) clearInterval(loop);
@@ -220,6 +233,7 @@ link.addEventListener("status", (event: Event) => {
   const status = (event as CustomEvent).detail;
   connectionStatus.textContent = status.message;
   if (!status.active && loop !== undefined) {
+    practiceHeartbeat.pause(); practiceHeartbeatActive = false;
     polarSource.stop();
     polarSource.configure(null);
     // Do not call link.stop recursively from its own status event.
@@ -276,7 +290,7 @@ document.addEventListener("click", event => {
 });
 document.addEventListener("visibilitychange", () => {
   rearmTilt();
-  if (document.hidden) { rrHaptics.pause(); void wakeLock?.release(); wakeLock = undefined; }
+  if (document.hidden) { practiceHeartbeat.pause(); practiceHeartbeatActive = false; rrHaptics.pause(); void wakeLock?.release(); wakeLock = undefined; }
   else { if (mode === "tilt") setInputStatus("Hold the phone steady…"); void keepAwake(); }
 });
 

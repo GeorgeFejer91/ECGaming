@@ -30,6 +30,11 @@ button:disabled { cursor: default; }
 .polar-source-button::before { content: ""; display: block; width: 100%; height: 100%; background: currentColor; mask: url("./heart-rate.svg") center / contain no-repeat; }
 .polar-source-button:disabled { opacity: .4; }
 .polar-source-button[data-connected="true"] { color: #91d8aa; border-color: #91d8aa; }
+.polar-source-button[data-heartbeat="practice"] { color: #ffcf80; border-color: #ffcf80; }
+.polar-source-button[data-pulse="true"]::before { background: #fff0d6; }
+@media (prefers-reduced-motion: no-preference) {
+  .polar-source-button[data-pulse="true"]::before { transform: scale(1.12); }
+}
 .polar-source-button[data-state="connecting"] { color: #ffcf80; border-color: #ffcf80; }
 .polar-source-button[data-state="error"], .polar-source-button[data-state="unsupported"] { color: #ff958a; border-color: #ff958a; }
 @media (orientation: portrait) {

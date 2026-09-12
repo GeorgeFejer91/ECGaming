@@ -1,5 +1,6 @@
 import "./styles.css";
 import { setupCompactGround } from "./ui/compact-ground";
+import { PracticeEcg } from "./signals/practice-ecg";
 import { createPracticeHeart } from "./ui/practice-heart";
 import { flightAssetUrl } from "./game/aircraft";
 import { getFlightSessionHub } from "./flight-session/hub";
@@ -269,7 +270,7 @@ let lastBreathingSignalAt = -Infinity;
 let breathingReady = false;
 let lastFrameAt = performance.now();
 let lastLoggedAt = -Infinity;
-let simNextBeat = performance.now();
+const practiceEcg = new PracticeEcg();
 let ecgBeatCounter = 0;
 let rrBeatCounter = 0;
 let lastEcgBeatAt = -Infinity;
@@ -282,6 +283,7 @@ let lastScopeSampleAt = -Infinity;
 let lastScopeUiAt = -Infinity;
 let lastScopeUiSignature = "";
 let traceCanvasResizePending = true;
+let rawCanvasResizePending = true;
 let latestRuntime: RuntimeState | undefined;
 let sourceSignature = "";
 let wakeLock: any;
@@ -648,9 +650,9 @@ function pulseRadar() {
   requestAnimationFrame(() => pulse.classList.add("pulse"));
 }
 
-function traceSurface() {
-  const canvas = element<HTMLCanvasElement>("ecg-preview");
-  if (traceCanvasResizePending) {
+function traceSurface(raw = false) {
+  const canvas = element<HTMLCanvasElement>(raw ? "raw-ecg-preview" : "ecg-preview");
+  if (raw ? rawCanvasResizePending : traceCanvasResizePending) {
     const bounds = canvas.getBoundingClientRect();
     const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
     const pixelWidth = Math.max(1, Math.round(bounds.width * pixelRatio));
@@ -659,7 +661,8 @@ function traceSurface() {
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
     }
-    traceCanvasResizePending = false;
+    if (raw) rawCanvasResizePending = false;
+    else traceCanvasResizePending = false;
   }
   const context = canvas.getContext("2d");
   return context
@@ -706,12 +709,18 @@ function drawMetricTrace(values: number[]) {
   context.fill();
 }
 
-function drawRealtimeEcg(now: number) {
-  const surface = traceSurface();
+function drawRealtimeEcg(now: number, active: ActiveSignal) {
+  const surface = traceSurface(true);
   if (!surface) return;
   const { context, width, height, pixelRatio } = surface;
   context.clearRect(0, 0, width, height);
   const trace = ecgTrace.snapshot(now);
+  const local = active.source === "simulation" || (flightSession.signal.source === "ground" && sourceMode === "polar");
+  const state = !local ? "remote" : trace.values.length < 2 ? "waiting" : trace.latestAgeMs < 500 ? active.simulation ? "practice" : "live" : "paused";
+  element("raw-ecg-preview").dataset.state = state;
+  setText("raw-ecg-state", state === "remote" ? "ECG on " + (flightSession.signal.source === "ground" ? "tower" : flightSession.signal.source) :
+    state === "practice" ? "Practice" : state === "live" ? "Live" : state === "paused" ? "Signal paused" : "Waiting for Polar");
+  if (!local) return;
   if (trace.values.length < 2 || trace.rightEdge01 <= 0) return;
 
   context.strokeStyle = "#69d4de";
@@ -875,29 +884,19 @@ function showMetric(values: Record<string, number>, id: string, digits = 0) {
 
 function updateSignalScope(active: ActiveSignal, now: number) {
   const remote = sourceMode === "beacon";
-  const rawLocalEcg =
-    !remote &&
-    !active.simulation &&
-    scopeMetric === "heart_rate" &&
-    ecgTrace.sampleCount > 1;
   const uiSignature = [
     sourceMode,
     active.phase,
     active.simulation,
     scopeMetric,
     ecgReady,
-    rawLocalEcg,
   ].join("|");
   if (uiSignature !== lastScopeUiSignature || now - lastScopeUiAt >= 100) {
     lastScopeUiAt = now;
     lastScopeUiSignature = uiSignature;
     setText(
       "ecg-display-mode",
-      remote
-        ? "REMOTE BEACON"
-        : rawLocalEcg
-          ? "LOCAL SENSOR"
-          : "LOCAL DERIVED",
+      remote ? "REMOTE BEACON" : "LOCAL DERIVED",
     );
     setText(
       "ecg-display-state",
@@ -905,11 +904,7 @@ function updateSignalScope(active: ActiveSignal, now: number) {
         ? active.phase === "live"
           ? "DERIVED TELEMETRY LIVE"
           : "WAITING FOR BEACON"
-        : rawLocalEcg && ecgReady
-          ? "ECG WAVEFORM LIVE"
-          : Number.isFinite(active.metrics[scopeMetric])
-            ? "METRIC TELEMETRY LIVE"
-            : "WAITING FOR METRIC",
+        : Number.isFinite(active.metrics[scopeMetric]) ? "METRIC TELEMETRY LIVE" : "WAITING FOR METRIC",
     );
     showMetric(active.metrics, "heart_rate");
     showMetric(active.metrics, "rr_interval");
@@ -918,13 +913,9 @@ function updateSignalScope(active: ActiveSignal, now: number) {
     syncScopeMetricUi(active.metrics);
     if (remote) setText("ecg-rate", "NET");
   }
-  if (rawLocalEcg) {
-    setText("scope-metric-unit", "RAW ECG");
-    drawRealtimeEcg(now);
-  } else {
-    setText("scope-metric-unit", SCOPE_METRICS[scopeMetric].unit);
-    drawMetricTrace(scopeHistory.get(scopeMetric) ?? []);
-  }
+  setText("scope-metric-unit", SCOPE_METRICS[scopeMetric].unit);
+  drawMetricTrace(scopeHistory.get(scopeMetric) ?? []);
+  drawRealtimeEcg(now, active);
 }
 
 function observeMetrics(
@@ -1107,12 +1098,13 @@ async function setSimulation(requested: boolean, practice = false) {
   if (requested && practice) await selectSource("polar");
   if (requested && physicalConnected) await disconnectPolar();
   simulated = requested; practiceFlight = requested && practice;
+  ecgTrace.reset();
+  practiceEcg.reset(performance.now());
   element<HTMLInputElement>("sim-enabled").checked = requested;
   resetScopeHistory();
   simulationSessionId = requested ? sessionId("simulation") : "";
   adaptiveRange.startSession(requested ? simulationSessionId : polarSessionId);
   if (requested) {
-    simNextBeat = performance.now();
     setText("polar-state", practice ? "Practice heartbeat" : "Simulator active");
     setText("polar-detail", practice ? "Your clockwork heart is ready to fly." : "Deterministic test data; it cannot unlock Start Flight.");
   } else if (!physicalConnected) {
@@ -1149,10 +1141,11 @@ function simulatedSignals(now: number) {
   polarMetrics.breathing_signal_ready = 1;
   if (!simulationSessionId) simulationSessionId = sessionId("simulation");
   observeMetrics(polarMetrics, now, simulationSessionId);
-  if (now >= simNextBeat) {
-    simNextBeat = now + 60_000 / bpm;
-    registerBeat("polar-rr", 1, now);
-    registerBeat("ecg-rpeak", 1, now);
+  const frame = practiceEcg.sample(now, bpm);
+  if (frame.microvolts.length) ecgTrace.pushFrame(frame.microvolts, frame.sensorTimestampNs, now);
+  for (const at of frame.beats) {
+    registerBeat("polar-rr", 1, at);
+    registerBeat("ecg-rpeak", 1, at);
     if (practiceFlight && !matchMedia("(prefers-reduced-motion: reduce)").matches)
       practiceButton?.querySelector("img")?.animate([{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 180 });
   }
@@ -1745,7 +1738,10 @@ function updateCommandLoop() {
   simulatedSignals(now);
   flightSession.signal.configure(mappings);
   const runtime = computeRuntime(now, delta);
-  flightSession.offerLocal(runtime.frame, now);
+  // Practice feedback follows the heart even when the flight's beat action is switched off.
+  flightSession.offerLocal(practiceFlight && runtime.active.source === "simulation"
+    ? { ...runtime.frame, beatCounter: runtime.active.rrBeatCounter, beatAgeMs: runtime.active.rrBeatAgeMs }
+    : runtime.frame, now);
   latestRuntime = runtime;
   if (flightSession.signal.source !== "ground" || sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
   offerBroadcast(runtime, now);
@@ -2262,14 +2258,14 @@ setInterval(
 const traceResizeObserver =
   typeof ResizeObserver === "function"
     ? new ResizeObserver(() => {
-        traceCanvasResizePending = true;
+        traceCanvasResizePending = rawCanvasResizePending = true;
       })
     : undefined;
 traceResizeObserver?.observe(element<HTMLCanvasElement>("ecg-preview"));
 addEventListener(
   "resize",
   () => {
-    traceCanvasResizePending = true;
+    traceCanvasResizePending = rawCanvasResizePending = true;
   },
   { passive: true },
 );
@@ -2298,6 +2294,7 @@ setupPilotNameField();
 setupActions();
 setupScopeMetricSelector();
 setupCompactGround(() => cockpit.openRemoteCockpit());
+traceResizeObserver?.observe(element<HTMLCanvasElement>("raw-ecg-preview"));
 practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });
 const disposeTextFit = installPretextFit();
 syncSourcePanels();
