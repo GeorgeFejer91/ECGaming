@@ -1729,9 +1729,10 @@ function syncLogButtons() {
   element<HTMLButtonElement>("cockpit-log-export").disabled = disabled;
 }
 
+let commandPaintPending = false;
 function updateCommandLoop() {
-  // RAF timestamps precede callback execution; a signal received meanwhile
-  // must not appear to come from the future and briefly revoke clearance.
+  // Signal processing and relay publication must keep running independently of
+  // the display's animation cadence (including an occluded tower window).
   const now = performance.now();
   const delta = Math.min(100, Math.max(0, now - lastFrameAt));
   lastFrameAt = now;
@@ -1746,7 +1747,13 @@ function updateCommandLoop() {
   if (flightSession.signal.source !== "ground" || sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
-  updateCommandPreview(runtime, now);
+  if (!commandPaintPending) {
+    commandPaintPending = true;
+    requestAnimationFrame(() => {
+      commandPaintPending = false;
+      if (latestRuntime) updateCommandPreview(latestRuntime, performance.now());
+    });
+  }
   gameDivePublisher.update(
     {
       volume01: runtime.active.metrics.breathing_volume,
@@ -1787,7 +1794,6 @@ function updateCommandLoop() {
     });
     syncLogButtons();
   }
-  requestAnimationFrame(updateCommandLoop);
 }
 
 async function schedulingGuard(active: boolean) {
@@ -2304,4 +2310,5 @@ showView(
     : "ground",
   false,
 );
-requestAnimationFrame(updateCommandLoop);
+updateCommandLoop();
+setInterval(updateCommandLoop, 1000 / 30);

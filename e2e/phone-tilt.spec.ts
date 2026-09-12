@@ -122,7 +122,8 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   await phone.keyboard.down("ArrowLeft");
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(-1);
   await phone.keyboard.up("ArrowLeft");
-  await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
+  // Releasing the key resumes the already enabled, centred physical tilt input.
+  await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(0);
   await dialog.locator("summary").click();
   await dialog.getByRole("button", { name: "Stop phone control" }).click();
   await expect(phone.locator("#connection-status")).toContainText("connection ended");

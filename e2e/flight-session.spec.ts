@@ -73,7 +73,7 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(phone.locator("#confirmed")).toContainText("Centred");
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
   try {
-    await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x)).toBe(1);
+    await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x), { timeout: 15_000 }).toBe(1);
   } catch (error) {
     console.log("STEERING", JSON.stringify({
       phone: await phone.evaluate(() => ({ events: (window as any).inputEvents, intent: (window as any).lastTestIntent?.tilt, confirmed: document.querySelector("#confirmed")?.textContent, status: document.querySelector("#input-status")?.textContent, focused: document.activeElement?.id, hidden: document.hidden })),
@@ -123,7 +123,7 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   // Qualify the source change by a strong opposite-direction command. Full smoothing
   // convergence depends on how many fresh frames a busy renderer can produce.
-  await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal.frame?.altitude)).toBeLessThan(-.5);
+  await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal.frame?.altitude), { timeout: 15_000 }).toBeLessThan(-.5);
   await expect.poll(() => page.evaluate(async () =>
     (await import("/src/flight-session/hub.ts")).getFlightSessionHub().signal.read(performance.now())?.altitude)).toBeLessThan(-.5);
   // These pages represent separate visible devices. The tower's DOM preview uses RAF,

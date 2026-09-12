@@ -270,7 +270,8 @@ test("Ground Control shows only source, aircraft, altitude buttons and the selec
   await expect(page.locator(".control-panel .aircraft-showcase")).toBeVisible();
   await expect(page.locator(".control-panel #start-flight-from-ground")).toBeVisible();
   await expect(page.locator(".altitude-metric-panel [data-scope-metric]")).toHaveCount(6);
-  await expect(page.locator(".avionics-display .ecg-screen")).toBeVisible();
+  await expect(page.locator("#ecg-preview")).toBeVisible();
+  await expect(page.locator("#raw-ecg-preview")).toBeVisible();
 });
 
 
