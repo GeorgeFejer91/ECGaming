@@ -1,4 +1,5 @@
 import "./styles.css";
+import { getFlightSessionHub } from "./flight-session/hub";
 import {
   FlightFlags,
   SIGNAL_BEACON_METRICS,
@@ -217,6 +218,12 @@ interface RuntimeState {
   signalLabel: string;
 }
 
+const flightSession = getFlightSessionHub();
+flightSession.coordinator = true;
+flightSession.addEventListener("sourcechange", () => {
+  if (flightSession.signal.source !== "ground") void stopBroadcast();
+  resetScopeHistory();
+});
 const polar = getPolarBrowserHub();
 const detector = new CausalRPeakDetector(130);
 const broadcaster = new FlightBroadcaster();
@@ -1093,6 +1100,22 @@ function simulatedSignals(now: number) {
 }
 
 function activeSignal(now: number): ActiveSignal {
+  if (flightSession.signal.source !== "ground") {
+    const id = flightSession.signal.source;
+    const frame = flightSession.signal.read(now);
+    return {
+      source: "remote-beacon", phase: frame ? "live" : "stale",
+      sessionId: `private-${id}-${flightSession.signal.sourceEpoch}`, sourceLabel: id === "phone" ? "PHONE H10 · PRIVATE SESSION" : "COCKPIT H10 · PRIVATE SESSION",
+      lastSignalAt: frame ? now : undefined, physicalPolar: Boolean((frame?.flags ?? 0) & FlightFlags.physicalPolar),
+      simulation: Boolean((frame?.flags ?? 0) & FlightFlags.simulation), remoteConfigReady: flightSession[id].ready,
+      metrics: {}, ecgBeatCounter: frame?.beatCounter ?? 0, rrBeatCounter: frame?.beatCounter ?? 0,
+      ecgBeatAgeMs: frame?.beatAgeMs ?? 999_999, rrBeatAgeMs: frame?.beatAgeMs ?? 999_999,
+      ecgBeatQuality: frame?.quality ?? 0, rrBeatQuality: frame?.quality ?? 0,
+      ecgBeatReady: Boolean((frame?.flags ?? 0) & FlightFlags.beatDetectorReady), rrBeatReady: Boolean(frame),
+      breathingReady: false, route: "unknown",
+      legacyFrame: { ...(frame ?? { sequence: 0, beatCounter: 0, altitude: 0, throttle: .5, traffic: .5, beatAgeMs: 999_999, quality: 0, flags: 0 }), receivedAt: now },
+    };
+  }
   if (sourceMode === "polar") {
     if (simulated)
       return {
@@ -1260,7 +1283,7 @@ function computeRuntime(now: number, delta: number): RuntimeState {
       normalizationReady: senderReady,
       beatReady: senderReady,
       signalLabel:
-        stateMetricLabel(receiver.snapshot().config?.mappings.altitude.metric) ??
+        stateMetricLabel(flightSession.signal.source !== "ground" ? mappings.altitude.metric : receiver.snapshot().config?.mappings.altitude.metric) ??
         "REMOTE LIFT",
     };
   }
@@ -1385,6 +1408,7 @@ function localBeaconOffer(now: number): SignalBeaconOffer {
 }
 
 function offerBroadcast(runtime: RuntimeState, now: number) {
+  if (flightSession.signal.source !== "ground") return;
   if (sourceMode !== "polar") return;
   const frame = runtime.frame;
   broadcaster.offer(
@@ -1548,7 +1572,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   }
 
   const selectedSource =
-    sourceMode === "polar"
+    flightSession.signal.source !== "ground" ? flightSession[flightSession.signal.source].ready : sourceMode === "polar"
       ? physicalConnected && !simulated
       : Boolean(receiver.snapshot().selectedStreamId);
   const freshPhysical =
@@ -1562,7 +1586,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   setGateRow(
     "flight-gate-source",
     selectedSource,
-    sourceMode === "polar" ? "POLAR" : "BEACON",
+    flightSession.signal.source !== "ground" ? flightSession.signal.source.toUpperCase() : sourceMode === "polar" ? "POLAR" : "BEACON",
   );
   setGateRow("flight-gate-signal", freshPhysical, "LIVE");
   setGateRow("flight-gate-mapping", mappingReady, "READY");
@@ -1584,7 +1608,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   setText(
     "command-readiness",
     runtime.readiness.ready
-      ? (sourceMode === "polar" ? "LOCAL POLAR" : "REMOTE BEACON") +
+      ? (flightSession.signal.source !== "ground" ? runtime.active.sourceLabel : sourceMode === "polar" ? "LOCAL POLAR" : "REMOTE BEACON") +
           " · CONTROL READY"
       : simulated
         ? "SIMULATION PREVIEW · REAL FLIGHT LOCKED"
@@ -1594,7 +1618,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   setText(
     "polar-header-state",
     freshPhysical
-      ? sourceMode === "polar"
+      ? flightSession.signal.source !== "ground" ? `${flightSession.signal.source.toUpperCase()} H10 LIVE` : sourceMode === "polar"
         ? "POLAR LIVE"
         : "BEACON LIVE"
       : simulated
@@ -1648,9 +1672,11 @@ function updateCommandLoop() {
   const delta = Math.min(100, Math.max(0, now - lastFrameAt));
   lastFrameAt = now;
   simulatedSignals(now);
+  flightSession.signal.configure(mappings);
   const runtime = computeRuntime(now, delta);
+  flightSession.offerLocal(runtime.frame, now);
   latestRuntime = runtime;
-  if (sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
+  if (flightSession.signal.source !== "ground" || sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
   updateCommandPreview(runtime, now);
@@ -1731,6 +1757,10 @@ async function schedulingGuard(active: boolean) {
 }
 
 async function startBroadcast() {
+  if (flightSession.signal.source !== "ground") {
+    setText("broadcast-source", "Choose Ground Control as ECG source to use public broadcasting.");
+    return;
+  }
   if (sourceMode !== "polar") {
     setText("broadcast-source", "Switch to Direct Polar first");
     return;

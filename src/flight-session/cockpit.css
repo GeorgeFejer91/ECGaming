@@ -1,0 +1,26 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "../ui/remote-pilot.css";
+:root { font-family: Inter, sans-serif; color: #243b39; background: #fff7ec; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+button { padding: 10px 16px; min-height: 44px; font: inherit; border: 1px solid #8a9991; border-radius: 6px; background: #263d3a; color: #fff7ec; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, summary:focus-visible { outline: 3px solid #8d3447; outline-offset: 2px; }
+#session-flight { position: relative; width: 100%; height: 100dvh; overflow: hidden; }
+#session-canvas { position: absolute; inset: 0; }
+#session-canvas > canvas { width: 100%; height: 100%; display: block; }
+.session-toolbar { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; padding: 12px 20px; background: #fff7ec; border-bottom: 1px solid #8a9991; }
+h1 { font-size: 18px; margin: 0; }
+.session-toolbar p { flex: 1; font-size: 13px; margin: 0; }
+.session-entry { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100% - 32px)); padding: 24px; background: #fff7ec; border: 1px solid #8a9991; border-radius: 8px; }
+.session-entry h2 { margin-top: 0; font-size: 24px; }
+p { line-height: 1.5; font-size: 14px; }
+.session-flight-status { position: absolute; top: 90px; left: 20px; padding: 12px; max-width: calc(100% - 40px); background: #fff7ec; border: 1px solid #8a9991; border-radius: 6px; }
+.session-flight-status p { margin: 0 0 8px; font-variant-numeric: tabular-nums; }
+.session-sensor { position: absolute; bottom: 16px; left: 16px; width: min(380px, calc(100% - 32px)); padding: 12px; background: #fff7ec; border: 1px solid #8a9991; border-radius: 6px; }
+.session-sensor summary { cursor: pointer; min-height: 24px; }
+.session-sensor button { margin-top: 10px; }
+.session-sensor p { font-size: 12px; }
+@media (max-width: 600px) { .session-toolbar { padding: 8px 12px; } h1 { font-size: 16px; } .session-flight-status { top: 100px; left: 12px; } }

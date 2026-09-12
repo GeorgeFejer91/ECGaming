@@ -15,6 +15,8 @@ export default defineConfig({
         flight: resolve(import.meta.dirname, "flight/index.html"),
         planePreview: resolve(import.meta.dirname, "plane-preview/index.html"),
         mobile: resolve(import.meta.dirname, "mobile/index.html"),
+        controller: resolve(import.meta.dirname, "controller/index.html"),
+        sessionCockpit: resolve(import.meta.dirname, "session-cockpit/index.html"),
         pixelHop: resolve(import.meta.dirname, "games/pixel-hop/index.html"),
         superTux: resolve(import.meta.dirname, "games/supertux/index.html"),
         moth: resolve(import.meta.dirname, "games/moth/index.html"),

@@ -38,6 +38,12 @@ notices are shipped at `public/vendor/qrcode/LICENSE-MIT.txt` and
 
 [`@chenglou/pretext`](https://github.com/chenglou/pretext) by Cheng Lou is distributed under the MIT License. ECGaming uses its cached text measurement and layout APIs to fit labelled control-room text into fixed instrument cells without repeated DOM text measurement.
 
+## Browser Remote Sync Protocol
+
+The phone tilt controller uses George Fejer's MIT-licensed BRSP/1 core and
+VDO.Ninja adapter. Exact source hashes, upstream location, tests, and licence
+are retained under `src/vendor/brsp/`. The SDK keeps its existing MPL-2.0 notices.
+
 ## Fonts
 
 Inter and Barlow Condensed are self-hosted through Fontsource packages and licensed under the SIL Open Font License 1.1. Their package license files are retained by npm in `node_modules` during development and their font binaries are included in the production bundle.

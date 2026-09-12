@@ -52,6 +52,25 @@ When Direct Polar is selected, the avionics display is a real rolling ECG wavefo
 
 ## Controls and signal mapping
 
+**Phone / tablet tilt controller:** click the dedicated **Connect phone
+controller** widget in Ground Control, scan its QR code, and tap **Enable tilt &
+connect**. Hold the phone sideways with both hands and tap **Centre**. A scalable
+SVG flight yoke shows the correct top edge and hand positions. Tilt left/right
+to steer the airplane on the other screen; tip forward/back to trim speed.
+Ground Control can disable phone speed control. Heart/breathing still controls
+altitude. **Use touch** is available without motion sensors. The same pairing
+action is under **Flight options** in the standalone and mobile game views.
+For a shared flight session, pair from Ground Control: **Flight session → Pair
+separate cockpit** opens a third browser, and **ECG source** selects Ground
+Control, phone, or cockpit. The yoke and session cockpit each have **Connect
+Polar H10**. The selected H10 browser computes the tower's mappings locally;
+only normalized flight controls and readiness are relayed. Direct H10 access
+requires a browser with Web Bluetooth; other browsers can still steer or display
+the cockpit. Source/mapping changes revoke old controls, and signal loss holds
+flight until recovery.
+Both devices need Internet; no installation is needed. See
+[Phone tilt controller](docs/PHONE-TILT.md) for pairing, lifecycle, and validation.
+
 Ground Control exposes one-open-at-a-time aviation panels for the direct Polar or beacon source, flight commands, broadcast tower, and test simulator. Smartphone Flight exposes the core choices in a touch-friendly side drawer. Each continuous command can use a derived metric or a manual value, with input range, reversal, and attack/release smoothing.
 
 The altitude card starts with large **heart** and **breath** instrument buttons. Heart control exposes all ECG, HR, RR, HRV, and excitement metrics; breath control selects Polar Stream's source-timed `breathing_volume` compatibility metric. That metric uses 200 Hz H10 chest acceleration, a 12-second X+Z PCA calibration, causal filtering, explicit freshness/readiness, and a bounded `0…1` output. It is an experimental respiratory-motion/effort surrogate—not lung volume, airflow, respiratory rate, or a clinical measure. Strap mounting and movement can change its polarity or quality.

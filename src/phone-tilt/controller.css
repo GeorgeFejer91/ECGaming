@@ -1,0 +1,48 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+:root { font-family: Inter, sans-serif; color: #243b39; background: #fff7ec; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 280px; }
+[hidden] { display: none !important; }
+.controller { max-width: 1100px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+h1 { font-size: 22px; line-height: 1.25; margin: 0; font-weight: 600; }
+p { line-height: 1.5; font-size: 15px; margin: 12px 0; }
+button { min-height: 46px; border: 1px solid #263d3a; border-radius: 6px; padding: 10px 16px; background: #263d3a; color: #fff4e6; font: inherit; font-weight: 600; cursor: pointer; touch-action: manipulation; }
+button.secondary, #disconnect { color: #263d3a; background: transparent; }
+button:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 3px solid #8d3447; outline-offset: 3px; }
+.setup-actions, .controller-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.setup-actions button { flex: 1 1 200px; }
+.controller-actions button { flex: 1; }
+#connection-status { padding-bottom: 12px; border-bottom: 1px solid #b7c5bb; }
+.note { font-size: 12px; color: #4f605a; }
+.rotate-phone { display: none; padding: 10px 12px; background: #efe6d6; border-left: 3px solid #8d3447; }
+@media (orientation: portrait) { .rotate-phone { display: block; } }
+.tilt-pad { position: relative; display: grid; place-items: center; height: clamp(220px, 40dvh, 440px); margin-top: 8px; border-top: 1px solid #b7c5bb; border-bottom: 1px solid #b7c5bb; overflow: hidden; }
+.tilt-pad[data-touch="true"] { touch-action: none; user-select: none; cursor: grab; }
+.tilt-pad[data-touch="true"]:active { cursor: grabbing; }
+#steering-yoke { position: absolute; inset: 0; display: block; min-width: 0; min-height: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; transform-origin: 50% 60%; }
+.yoke-top { position: absolute; top: 10px; left: 25%; width: 50%; height: 22px; text-align: center; color: #8d3447; font-weight: 600; pointer-events: none; }
+.yoke-guide { position: absolute; bottom: 4px; width: 40%; height: 22px; font-size: 12px; color: #4f605a; pointer-events: none; }
+.yoke-guide.left { left: 8px; }
+.yoke-guide.right { right: 8px; text-align: right; }
+.yoke-polar { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); z-index: 1; }
+.polar-source-button { max-width: 190px; min-height: 44px; padding: 8px 12px; font-size: 13px; background: #fff7ec; color: #263d3a; }
+.polar-source-status { margin: 4px 0; font-size: 12px; line-height: 1.35; }
+#confirmed { font-variant-numeric: tabular-nums; font-size: 13px; }
+footer { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-top: 20px; font-size: 12px; color: #4f605a; }
+footer a { color: #8d3447; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .controller { max-width: 1000px; padding-top: 10px; padding-bottom: 10px; }
+  header h1 { font-size: 18px; }
+  #connection-status { margin: 6px 0; padding-bottom: 6px; font-size: 13px; }
+  #controls { position: relative; }
+  .controller-actions { position: absolute; top: -51px; left: 45%; transform: translateX(-50%); margin: 0; gap: 8px; }
+  .controller-actions button { min-height: 40px; padding: 8px 14px; white-space: nowrap; }
+  #input-status { margin: 4px 0; font-size: 12px; }
+  .tilt-pad { height: clamp(150px, calc(100dvh - 196px), 350px); margin-top: 6px; }
+  #confirmed { margin: 6px 0; }
+  #wake-status { margin: 2px 0; font-size: 11px; }
+  footer { margin-top: 8px; font-size: 11px; }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#263d3a" />
+    <title>Phone controller · EC Gaming</title>
+  </head>
+  <body>
+    <main class="controller">
+      <header><h1>Your flight yoke</h1><button id="disconnect" type="button" hidden>Disconnect</button></header>
+      <p id="connection-status" role="status">Scan the QR code on your flight screen to pair this phone.</p>
+      <p class="rotate-phone" role="note">↻ Turn your phone or tablet sideways. Hold one end in each hand.</p>
+      <section id="setup" aria-label="Connect your phone">
+        <p>Hold your phone or tablet sideways with both hands. Your screen becomes an airplane steering yoke: tilt left or right to steer the plane on your other screen.</p>
+        <p>Tip the top edge away to speed up; pull it toward you to slow down. Your flight screen can switch speed control off.</p>
+        <div class="setup-actions"><button id="enable-tilt" type="button" disabled>Enable tilt &amp; connect</button><button id="connect-touch" class="secondary" type="button" disabled>Use touch instead</button></div>
+        <p class="note">Keep this page open and the phone awake. Both screens need Internet. Pairing uses VDO.Ninja connection services. Raw ECG stays on the device connected to your H10.</p>
+      </section>
+      <section id="controls" aria-label="Flight controls" hidden>
+        <div class="controller-actions"><button id="centre" type="button" disabled>Centre</button><button id="input-mode" class="secondary" type="button">Use touch</button></div>
+        <p id="input-status" role="status">Hold the phone comfortably, then tap Centre.</p>
+        <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke">
+          <span class="yoke-top" data-fit-text data-fit-min="10" data-fit-max="16">↑ TOP · SCREEN FACING YOU</span>
+          <span class="yoke-guide left" data-fit-text data-fit-min="10" data-fit-max="15">Left hand · bank left</span><span class="yoke-guide right" data-fit-text data-fit-min="10" data-fit-max="15">Right hand · bank right</span>
+          <img id="steering-yoke" alt="Airplane steering yoke with two hand grips" width="720" height="320" draggable="false" />
+          <div id="yoke-polar" class="yoke-polar"></div>
+        </div>
+        <p id="confirmed">Waiting for the flight screen.</p>
+        <div id="polar-status"></div>
+        <p id="wake-status" class="note"></p>
+      </section>
+      <footer><a href="../ground-control/">EC Gaming</a><span>Heart / breathing controls altitude</span></footer>
+    </main>
+    <script type="module" src="/src/phone-tilt/controller.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,103 @@
+import { test, expect, type Page } from "@playwright/test";
+import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
+
+/** Synthetic hardware boundary; no physical Bluetooth qualification is claimed by this test. */
+async function installSyntheticPolar(page: Page, heartRate = 120) {
+  await page.evaluate(async hr => {
+    Object.defineProperty(navigator, "bluetooth", { configurable: true, value: { requestDevice: async () => {} } });
+    const { getPolarBrowserHub } = await import("/src/polar/browser-hub.ts");
+    const hub = getPolarBrowserHub();
+    let loop: ReturnType<typeof setInterval>;
+    let callback: (event: any) => void;
+    (window as any).syntheticEcgRunning = true;
+    hub.connect = async listener => {
+      callback = listener; callback({ kind: "connection", connected: true });
+      loop = setInterval(() => {
+        if (!(window as any).syntheticEcgRunning) return;
+        callback({ kind: "heart-rate", rrIntervalsMs: [60000 / hr] });
+        callback({ kind: "metrics", snapshot: { values: { excitement_score: .85, heart_rate: hr, rr_interval: 60000 / hr } } });
+        callback({ kind: "ecg", microvolts: [0, 2, 3, 7, 15, 30, 10, 0], sensorTimestampNs: BigInt(Math.round(performance.now())) * 1_000_000n,
+          streamHealth: { observedSampleRateHz: 130 } });
+      }, 40);
+    };
+    hub.disconnect = async () => { clearInterval(loop); callback?.({ kind: "connection", connected: false }); };
+  }, heartRate);
+}
+
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(installTiltSdkFixture);
+  await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* test transport */" }));
+});
+
+test("three browsers route only source-computed controls and switch source without mixing input", async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  const errors: string[] = []; context.on("page", p => p.on("pageerror", error => errors.push(error.message)));
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("./ground-control/");
+  await page.locator("#connect-phone-controller").click();
+  const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
+  const phoneLink = dialog.getByRole("link", { name: "Open controller" }); await expect(phoneLink).toBeVisible();
+  const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
+  await phone.goto((await phoneLink.getAttribute("href"))!);
+  await phone.getByRole("button", { name: "Use touch instead" }).click();
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await dialog.locator("#flight-session-source").selectOption("phone");
+  await installSyntheticPolar(phone);
+  await phone.getByRole("button", { name: "Connect Polar H10" }).click();
+  await expect(phone.locator(".polar-source-status")).toContainText("Sending excitement score");
+  await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^\+0\.[67]/);
+  await dialog.getByRole("button", { name: "Pair separate cockpit" }).click();
+  const cockpitLink = dialog.getByRole("link", { name: "Open cockpit" }); await expect(cockpitLink).toBeVisible();
+  const cockpit = await context.newPage(); await cockpit.goto((await cockpitLink.getAttribute("href"))!);
+  await cockpit.getByRole("button", { name: "Connect to Ground Control" }).click();
+  await expect(cockpit.locator("#session-link")).toHaveText("Connected");
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
+  await cockpit.getByRole("button", { name: "Start flight", exact: true }).click();
+  await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
+  await expect.poll(() => cockpit.evaluate(async () => (await import("/src/flight-session/hub.ts")).getFlightSessionHub().readTilt()?.x)).toBe(1);
+  await phone.keyboard.up("ArrowRight");
+  const packet = await phone.evaluate(() => (window as any).lastTestIntent);
+  expect(Object.keys(packet).sort()).toEqual(["signal", "tilt"]);
+  expect(JSON.stringify(packet)).not.toMatch(/microvolts|heart_rate|excitement_score|rr_interval/);
+  await phone.screenshot({ path: testInfo.outputPath("phone-h10-yoke.png") });
+  await cockpit.screenshot({ path: testInfo.outputPath("session-cockpit.png") });
+  // Changing the tower's mapping changes calculations at the phone.
+  await dialog.getByRole("button", { name: "Back to flight" }).click();
+  await page.getByRole("button", { name: "02 Flight Commands" }).click();
+  await page.locator('[data-command="altitude"] [data-field="metric"]').selectOption("heart_rate");
+  await expect(phone.locator(".polar-source-status")).toContainText("Sending heart rate");
+  await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^\+0\.[234]/);
+  // A live network carrying repeated packets cannot hide loss of ECG samples at the source.
+  await phone.evaluate(() => { (window as any).syntheticEcgRunning = false; });
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
+  await phone.evaluate(() => { (window as any).syntheticEcgRunning = true; });
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
+  // Source selection invalidates the previous source even while that H10 remains connected.
+  await page.locator("#connect-phone-controller").click();
+  await dialog.locator("#flight-session-source").selectOption("cockpit");
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
+  await expect(phone.locator(".polar-source-status")).toContainText("Select this device");
+  await installSyntheticPolar(cockpit, 50);
+  await cockpit.locator("#session-sensor summary").click();
+  await cockpit.getByRole("button", { name: "Connect Polar H10" }).click();
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "cockpit");
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
+  await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^-0\.[789]/);
+  await dialog.locator("#flight-session-source").selectOption("ground");
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
+  await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "ground");
+  expect(errors).toEqual([]);
+});
+
+test("unsupported H10 browser retains the paired touch controller", async ({ page, context }) => {
+  await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
+  const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
+  const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
+  await phone.getByRole("button", { name: "Use touch instead" }).click();
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await phone.evaluate(() => Object.defineProperty(navigator, "bluetooth", { configurable: true, value: undefined }));
+  await phone.getByRole("button", { name: "Connect Polar H10" }).click();
+  await expect(phone.locator(".polar-source-status")).toContainText("does not expose Web Bluetooth");
+  await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowLeft");
+  await expect(phone.locator("#confirmed")).toContainText("Left 100%"); await phone.keyboard.up("ArrowLeft");
+});

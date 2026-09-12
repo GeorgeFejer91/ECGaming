@@ -1,0 +1,29 @@
+.phone-tilt-button { display: inline-flex; gap: 8px; align-items: center; text-align: left; font: inherit; font-size: 13px; padding: 9px 12px; color: #fff4e6; background: #263d3a; border: 1px solid #8a9991; border-radius: 6px; cursor: pointer; }
+.phone-tilt-button img { width: 48px; height: 36px; flex-shrink: 0; }
+.phone-tilt-button-copy { display: grid; gap: 3px; min-width: 0; }
+.phone-tilt-button-copy strong { font: inherit; font-weight: 600; }
+.phone-tilt-button-copy > span { font-size: 11px; color: #e7d8c6; }
+.phone-tilt-widget { min-height: 64px; flex-shrink: 0; }
+.phone-tilt-widget img { width: 64px; height: 48px; }
+.avionics-display > .phone-tilt-widget { position: relative; z-index: 2; align-self: flex-start; margin: 0 16px 12px; max-width: calc(100% - 32px); letter-spacing: normal; line-height: 1.25; }
+.flight-game-options .phone-tilt-button { margin: 4px 12px 12px; max-width: calc(100% - 24px); }
+.phone-tilt-dialog { box-sizing: border-box; width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 24px; border: 1px solid #8a9991; border-radius: 8px; background: #fff7ec; color: #243b39; font-family: inherit; }
+.phone-tilt-dialog::backdrop { background: rgba(10, 24, 24, .65); }
+.phone-tilt-dialog h2 { margin: 0 0 12px; font-size: 24px; }
+.phone-tilt-dialog p { font-size: 15px; line-height: 1.5; margin: 12px 0; }
+.phone-tilt-dialog canvas { display: block; max-width: 100%; height: auto !important; margin: 12px auto; }
+.phone-tilt-dialog [hidden] { display: none !important; }
+.phone-tilt-dialog a { color: #8d3447; text-decoration: underline; }
+.phone-tilt-dialog label { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-top: 16px; }
+.phone-tilt-dialog input { width: 20px; height: 20px; accent-color: #8d3447; }
+.phone-tilt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.phone-tilt-actions button { font: inherit; padding: 10px 12px; border: 1px solid #8a9991; border-radius: 6px; background: white; color: #243b39; cursor: pointer; }
+.phone-tilt-dialog .phone-tilt-note { font-size: 12px; margin-bottom: 0; }
+.flight-relay-panel { margin-top: 24px; padding-top: 8px; border-top: 1px solid #8a9991; }
+.flight-relay-panel h3 { font-size: 18px; }
+.flight-relay-panel select { width: 100%; min-height: 44px; margin-top: 8px; font: inherit; background: #fff; color: #243b39; border: 1px solid #8a9991; padding: 8px; }
+.flight-relay-panel button { min-height: 44px; font: inherit; padding: 8px 12px; margin: 4px 8px 4px 0; background: #263d3a; color: #fff7ec; border: 1px solid #8a9991; border-radius: 6px; cursor: pointer; }
+.phone-tilt-dialog :focus-visible, .phone-tilt-button:focus-visible { outline: 3px solid #8d3447; outline-offset: 3px; }
+@media (max-width: 900px) {
+  .avionics-display > .phone-tilt-widget { margin-inline: 8px; max-width: calc(100% - 16px); }
+}

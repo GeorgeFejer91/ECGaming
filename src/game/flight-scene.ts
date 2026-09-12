@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import "./flight-options.css";
+import { PhoneTiltHost } from "../phone-tilt/host";
+import { phoneThrottle } from "../phone-tilt/controls";
 import { FlightEffects } from "./flight-effects";
 import { WingEcgProjection } from "./wing-ecg-projection";
 import type { WingEcgFrame } from "../signals/wing-ecg-signal";
@@ -92,6 +94,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private crashAge = 0;
   private mountainCollisions = false;
   private readonly options = document.createElement("details");
+  private readonly phoneController: PhoneTiltHost;
   private readonly crashPanel = document.createElement("section");
   private readonly crashRestart = document.createElement("button");
   private readonly beatReadout = document.createElement("p");
@@ -125,6 +128,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.renderer.domElement.style.touchAction = "none";
     this.effects = new FlightEffects(this.scene);
     this.buildOptions();
+    this.phoneController = new PhoneTiltHost(this.options, () => this.running && !this.paused && !this.crashed);
     this.buildLighting();
     this.buildPlane();
     this.buildWorld();
@@ -428,7 +432,12 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   };
   private updateInput(delta: number) {
     let axis: number;
-    if (this.renderer.xr.isPresenting) {
+    const phone = this.phoneController.read();
+    if (phone) {
+      // Selected phone mode owns steering in both flat and immersive flight.
+      // Loss produces neutral input until the user stops phone control.
+      axis = phone.active ? phone.x : 0;
+    } else if (this.renderer.xr.isPresenting) {
       let controllerAxis: number | undefined;
       const session = this.renderer.xr.getSession();
       for (const source of session?.inputSources ?? []) {
@@ -469,7 +478,8 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.updateInput(delta);
     const beat = this.beatClock.advance(delta);
     if (beat !== undefined) { this.pulseInterval = beat; this.heartbeat(); }
-    const speed = worldSpeed(this.frame.throttle),
+    const phone = this.phoneController.read();
+    const speed = worldSpeed(phone ? phoneThrottle(this.frame.throttle, phone) : this.frame.throttle),
       attitude = aircraftAttitude(
         this.horizontalVelocity,
       );
@@ -624,6 +634,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   setSteering(axis: number) {
     this.steeringAxis = Number.isFinite(axis) ? clamp(axis, -1, 1) : 0;
   }
+  openPhoneController() { this.phoneController.open(); }
   setMountainCollisions(enabled: boolean) {
     this.mountainCollisions = enabled;
     this.options.querySelector("input")!.checked = enabled;
@@ -774,6 +785,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   }
   dispose() {
     this.disposed = true;
+    this.phoneController.dispose();
     this.aircraftLoadToken += 1;
     void this.xrSession?.end().catch(() => undefined);
     this.xrSession = undefined;

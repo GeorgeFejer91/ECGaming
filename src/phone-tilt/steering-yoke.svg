@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="130 0 460 340" preserveAspectRatio="none" fill="none">
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- The broad U-shaped yoke and two grips remain legible at phone scale. -->
+    <path d="M181 83c-13 0-22 10-22 24v66c0 26 15 45 39 52l97 29h130l97-29c24-7 39-26 39-52v-66c0-14-9-24-22-24h-17c-12 0-21 10-21 22v60c0 8-4 13-12 16l-82 24h-94l-82-24c-8-3-12-8-12-16v-60c0-12-9-22-21-22h-17Z" fill="#263d3a" stroke="#8a9991" stroke-width="4"/>
+    <path d="m212 193 94 28h108l94-28" stroke="#b7c5bb" stroke-width="4"/>
+    <path d="M171 111v59c0 17 8 29 23 35m355-94v59c0 17-8 29-23 35" stroke="#4f6961" stroke-width="5"/>
+    <rect x="161" y="91" width="56" height="101" rx="20" fill="#172d2a" stroke="#8a9991" stroke-width="3"/>
+    <rect x="503" y="91" width="56" height="101" rx="20" fill="#172d2a" stroke="#8a9991" stroke-width="3"/>
+    <path d="M175 131h27m-27 13h27m-27 13h27m-27 13h27m315-39h27m-27 13h27m-27 13h27m-27 13h27" stroke="#415b53" stroke-width="3"/>
+    <rect x="180" y="103" width="18" height="11" rx="3" fill="#db766d"/>
+    <rect x="522" y="103" width="18" height="11" rx="3" fill="#db766d"/>
+    <path d="M320 149h80c14 0 25 11 25 25v60c0 16-11 28-27 28h-76c-16 0-27-12-27-28v-60c0-14 11-25 25-25Z" fill="#344e45" stroke="#d6c4ab" stroke-width="4"/>
+    <circle cx="360" cy="203" r="40" fill="#fff4e6" stroke="#172d2a" stroke-width="3"/>
+    <path d="M328 203h64m-32-32v8m0 48v8" stroke="#a9b8ae" stroke-width="2"/>
+    <path d="M360 179c3 4 4 10 4 17l22 12v5l-22-5v12l8 5v4l-12-3-12 3v-4l8-5v-12l-22 5v-5l22-12c0-7 1-13 4-17Z" fill="#8d3447"/>
+    <circle cx="310" cy="164" r="2" fill="#d6c4ab"/><circle cx="410" cy="164" r="2" fill="#d6c4ab"/>
+    <circle cx="310" cy="247" r="2" fill="#d6c4ab"/><circle cx="410" cy="247" r="2" fill="#d6c4ab"/>
+  </g>
+</svg>

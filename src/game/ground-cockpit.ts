@@ -12,6 +12,7 @@ import { AircraftPreview } from "./aircraft-preview";
 import type { EcgGameModule } from "./ecg-game-module";
 import { createFlightScene } from "./flight-scene";
 import { FlightSound } from "./sound";
+import { decoratePhoneButton } from "../phone-tilt/button";
 
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
 const element = <T extends HTMLElement>(id: string) =>
@@ -85,6 +86,7 @@ export class GroundCockpit extends EventTarget {
   private game?: EcgGameModule;
   private gameFailure?: Error;
   private readonly sound = new FlightSound();
+  private readonly phoneButton = document.createElement("button");
   private readonly preview: AircraftPreview;
   private started = false;
   private visible = false;
@@ -110,6 +112,13 @@ export class GroundCockpit extends EventTarget {
     this.preview = new AircraftPreview(element("ground-aircraft-preview"));
     this.hydrateAircraftSelector();
     this.bindActions();
+    this.phoneButton.id = "connect-phone-controller";
+    decoratePhoneButton(this.phoneButton, true);
+    this.phoneButton.addEventListener("click", () => {
+      try { this.ensureGame().openPhoneController(); }
+      catch (error) { this.showGameUnavailable(error); }
+    });
+    document.querySelector(".avionics-display .tower-topline")?.after(this.phoneButton);
   }
 
   private ensureGame() {
@@ -489,6 +498,7 @@ export class GroundCockpit extends EventTarget {
   }
 
   dispose() {
+    this.phoneButton.remove();
     if (this.rewardTimer) clearTimeout(this.rewardTimer);
     this.releaseSteering();
     this.preview.dispose();

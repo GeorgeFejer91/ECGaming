@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Session cockpit · EC Gaming</title>
+  </head>
+  <body>
+    <main id="session-flight">
+      <div id="session-canvas" aria-label="ECG plane flight view"></div>
+      <header class="session-toolbar"><h1>EC Gaming · Cockpit</h1><p id="session-link" role="status">Scan a cockpit QR code from Ground Control.</p><button id="session-disconnect" hidden>Disconnect</button></header>
+      <section class="session-entry" id="session-entry">
+        <h2>Your flight session</h2><p>Ground Control chooses the heart and breathing mappings. A paired phone can steer the plane.</p>
+        <button id="session-connect" disabled>Connect to Ground Control</button>
+      </section>
+      <section id="session-flight-status" class="session-flight-status" hidden>
+        <p id="session-signal" role="status">Waiting for the selected H10 source.</p>
+        <button id="session-start" disabled>Start flight</button><button id="session-xr" hidden>Enter immersive</button>
+      </section>
+      <details id="session-sensor" class="session-sensor" hidden><summary>Polar H10 on this device</summary><div id="session-polar"></div><p>To use this device for ECG, choose Separate cockpit as the ECG source on Ground Control.</p></details>
+    </main>
+    <script type="module" src="/src/flight-session/cockpit.ts"></script>
+  </body>
+</html>
