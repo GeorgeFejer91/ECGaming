@@ -1,5 +1,6 @@
 import "./styles.css";
 import { setupCompactGround } from "./ui/compact-ground";
+import { createPracticeHeart } from "./ui/practice-heart";
 import { flightAssetUrl } from "./game/aircraft";
 import { getFlightSessionHub } from "./flight-session/hub";
 import {
@@ -259,6 +260,8 @@ let scopeMetric = storedScopeMetric();
 let physicalConnected = false;
 let ecgReady = false;
 let simulated = false;
+let practiceFlight = false;
+let practiceButton: HTMLButtonElement | undefined;
 let polarSessionId = "";
 let simulationSessionId = "";
 let lastPolarSignalAt = -Infinity;
@@ -1062,6 +1065,7 @@ async function connectPolar() {
     return;
   }
   simulated = false;
+  practiceFlight = false;
   element<HTMLInputElement>("sim-enabled").checked = false;
   for (const key of Object.keys(polarMetrics)) delete polarMetrics[key];
   ecgTrace.reset();
@@ -1099,10 +1103,40 @@ async function disconnectPolar() {
   syncPolarAttention();
 }
 
+async function setSimulation(requested: boolean, practice = false) {
+  if (requested && practice) await selectSource("polar");
+  if (requested && physicalConnected) await disconnectPolar();
+  simulated = requested; practiceFlight = requested && practice;
+  element<HTMLInputElement>("sim-enabled").checked = requested;
+  resetScopeHistory();
+  simulationSessionId = requested ? sessionId("simulation") : "";
+  adaptiveRange.startSession(requested ? simulationSessionId : polarSessionId);
+  if (requested) {
+    simNextBeat = performance.now();
+    setText("polar-state", practice ? "Practice heartbeat" : "Simulator active");
+    setText("polar-detail", practice ? "Your clockwork heart is ready to fly." : "Deterministic test data; it cannot unlock Start Flight.");
+  } else if (!physicalConnected) {
+    setText("polar-state", "Ready to connect");
+    setText("polar-detail", "Connect your Polar H10, or switch on the practice heart.");
+  }
+  syncPolarAttention();
+}
+
+async function togglePracticeHeart() {
+  if (!practiceButton) return;
+  practiceButton.disabled = true;
+  try {
+    await setSimulation(!(practiceFlight && simulated && sourceMode === "polar" && flightSession.signal.source === "ground"), true);
+  } catch (error) {
+    setText("polar-state", "Practice unavailable");
+    setText("polar-detail", error instanceof Error ? error.message : "Try the heart again.");
+  } finally { practiceButton.disabled = false; }
+}
+
 function simulatedSignals(now: number) {
   if (!simulated || sourceMode !== "polar") return;
-  const bpm = Number(element<HTMLInputElement>("sim-bpm").value);
-  const excitement = Number(element<HTMLInputElement>("sim-excite").value);
+  const bpm = Number(element<HTMLInputElement>("sim-bpm").value) + (practiceFlight ? 6 * Math.sin(now / 2600) : 0);
+  const excitement = clamp(Number(element<HTMLInputElement>("sim-excite").value) + (practiceFlight ? .22 * Math.sin(now / 3300) : 0));
   polarMetrics.heart_rate = bpm;
   polarMetrics.rr_interval = 60_000 / bpm;
   polarMetrics.excitement_score = excitement;
@@ -1119,6 +1153,8 @@ function simulatedSignals(now: number) {
     simNextBeat = now + 60_000 / bpm;
     registerBeat("polar-rr", 1, now);
     registerBeat("ecg-rpeak", 1, now);
+    if (practiceFlight && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+      practiceButton?.querySelector("img")?.animate([{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 180 });
   }
 }
 
@@ -1375,6 +1411,7 @@ function computeRuntime(now: number, delta: number): RuntimeState {
     lastSignalAtMs: active.lastSignalAt,
     physicalPolar: active.physicalPolar,
     simulation: active.simulation,
+    allowLocalSimulation: practiceFlight && flightSession.signal.source === "ground" && sourceMode === "polar",
     remoteConfigReady: active.remoteConfigReady,
     metricReady: commandsValid,
     normalizationReady,
@@ -1476,7 +1513,7 @@ function gateReason(readiness: FlightLaunchReadiness) {
   };
   return reason
     ? messages[reason] ?? "Complete Ground Control readiness before flight."
-    : "Fresh physical body-signal control is ready. Runway clearance granted.";
+    : practiceFlight && simulated ? "Practice heartbeat ready. Start your flight." : "Fresh physical body-signal control is ready. Runway clearance granted.";
 }
 
 function setGateRow(id: string, ready: boolean, value: string) {
@@ -1602,10 +1639,12 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
     lastGroundBeatCounter = frame.beatCounter;
   }
 
-  const selectedSource =
+  const practice = practiceFlight && runtime.active.source === "simulation";
+  if (practiceButton?.getAttribute("aria-pressed") !== String(practice)) practiceButton?.setAttribute("aria-pressed", String(practice));
+  const selectedSource = practice || (
     flightSession.signal.source !== "ground" ? flightSession[flightSession.signal.source].ready : sourceMode === "polar"
       ? physicalConnected && !simulated
-      : Boolean(receiver.snapshot().selectedStreamId);
+      : Boolean(receiver.snapshot().selectedStreamId));
   const freshPhysical =
     runtime.active.phase === "live" &&
     runtime.active.physicalPolar &&
@@ -1617,9 +1656,9 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   setGateRow(
     "flight-gate-source",
     selectedSource,
-    flightSession.signal.source !== "ground" ? flightSession.signal.source.toUpperCase() : sourceMode === "polar" ? "POLAR" : "BEACON",
+    practice ? "PRACTICE" : flightSession.signal.source !== "ground" ? flightSession.signal.source.toUpperCase() : sourceMode === "polar" ? "POLAR" : "BEACON",
   );
-  setGateRow("flight-gate-signal", freshPhysical, "LIVE");
+  setGateRow("flight-gate-signal", freshPhysical || practice, practice ? "PRACTICE" : "LIVE");
   setGateRow("flight-gate-mapping", mappingReady, "READY");
   element("flight-gate").classList.toggle(
     "is-ready",
@@ -1639,7 +1678,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
   setText(
     "command-readiness",
     runtime.readiness.ready
-      ? (flightSession.signal.source !== "ground" ? runtime.active.sourceLabel : sourceMode === "polar" ? "LOCAL POLAR" : "REMOTE BEACON") +
+      ? (practice ? "PRACTICE HEART" : flightSession.signal.source !== "ground" ? runtime.active.sourceLabel : sourceMode === "polar" ? "LOCAL POLAR" : "REMOTE BEACON") +
           " · CONTROL READY"
       : simulated
         ? "SIMULATION PREVIEW · REAL FLIGHT LOCKED"
@@ -1653,7 +1692,7 @@ function updateCommandPreview(runtime: RuntimeState, now: number) {
         ? "POLAR LIVE"
         : "BEACON LIVE"
       : simulated
-        ? "SIMULATION · LOCKED"
+        ? practice ? "PRACTICE HEART" : "SIMULATION · LOCKED"
         : "SIGNAL HOLD",
   );
   updateAdaptiveUi(runtime);
@@ -1674,7 +1713,7 @@ function cockpitTelemetry(runtime: RuntimeState): CockpitTelemetry {
       counter: runtime.active.rrBeatCounter,
       ageMs: runtime.active.rrBeatAgeMs,
       rrMs: runtime.active.metrics.rr_interval,
-      ready: runtime.active.rrBeatReady && runtime.active.physicalPolar,
+      ready: runtime.active.rrBeatReady && (runtime.active.physicalPolar || (practiceFlight && runtime.active.source === "simulation")),
       simulated: runtime.active.simulation,
     },
   };
@@ -1726,7 +1765,7 @@ function updateCommandLoop() {
     now,
   );
   const telemetry = cockpitTelemetry(runtime);
-  if (telemetry.heartbeat) cockpit.setPreviewHeartbeat(telemetry.heartbeat);
+  if (telemetry.heartbeat) cockpit.setPreviewHeartbeat(telemetry.heartbeat, practiceFlight && runtime.active.source === "simulation");
   if (cockpit.hasStarted()) cockpit.accept(telemetry);
 
   if (loggingEnabled() && now - lastLoggedAt >= 100) {
@@ -2115,34 +2154,9 @@ function setupActions() {
       adaptiveRange.reset(metric as DerivedMetricId);
   });
 
-  element<HTMLInputElement>("sim-enabled").addEventListener(
-    "change",
-    async (event) => {
-      const requested = (event.target as HTMLInputElement).checked;
-      if (requested && physicalConnected) await disconnectPolar();
-      simulated = requested;
-      resetScopeHistory();
-      simulationSessionId = requested ? sessionId("simulation") : "";
-      adaptiveRange.startSession(
-        requested ? simulationSessionId : polarSessionId,
-      );
-      if (simulated) {
-        simNextBeat = performance.now();
-        setText("polar-state", "Simulator active");
-        setText(
-          "polar-detail",
-          "Deterministic test data; it cannot unlock Start Flight.",
-        );
-      } else if (!physicalConnected) {
-        setText("polar-state", "Ready to connect");
-        setText(
-          "polar-detail",
-          "Use a worn Polar H10 in desktop Chrome or Edge, or a compatible Android Chromium browser.",
-        );
-      }
-      syncPolarAttention();
-    },
-  );
+  element<HTMLInputElement>("sim-enabled").addEventListener("change", event => {
+    void setSimulation((event.target as HTMLInputElement).checked);
+  });
   for (const id of ["sim-bpm", "sim-excite", "sim-breath"])
     element<HTMLInputElement>(id).addEventListener("input", () => {
       setText(
@@ -2284,6 +2298,7 @@ setupPilotNameField();
 setupActions();
 setupScopeMetricSelector();
 setupCompactGround(() => cockpit.openRemoteCockpit());
+practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });
 const disposeTextFit = installPretextFit();
 syncSourcePanels();
 showView(

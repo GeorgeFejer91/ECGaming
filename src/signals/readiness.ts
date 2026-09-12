@@ -23,6 +23,8 @@ export interface FlightLaunchReadinessInput {
   maximumSignalAgeMs?: number;
   physicalPolar: boolean;
   simulation: boolean;
+  /** Explicit practice switch owned by this local Ground Control document, never a remote flag. */
+  allowLocalSimulation?: boolean;
   remoteConfigReady?: boolean;
   metricReady: boolean;
   normalizationReady: boolean;
@@ -60,8 +62,9 @@ export function flightLaunchReadiness(
   if (!hasSignal) reasons.push("signal-missing");
   else if (signalAgeMs! < 0 || signalAgeMs! > maximumAge)
     reasons.push("signal-stale");
-  if (!input.physicalPolar) reasons.push("physical-polar-missing");
-  if (input.source === "simulation" || input.simulation)
+  const practice = input.allowLocalSimulation === true && input.source === "simulation" && input.simulation;
+  if (!input.physicalPolar && !practice) reasons.push("physical-polar-missing");
+  if ((input.source === "simulation" || input.simulation) && !practice)
     reasons.push("simulation-rejected");
   if (!input.metricReady) reasons.push("metric-not-ready");
   if (!input.normalizationReady) reasons.push("normalization-not-ready");

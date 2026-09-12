@@ -1,0 +1,19 @@
+body.compact-ground .unified-flight-shell #polar-source-controls .button-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 6px 8px; align-items: stretch;
+}
+body.compact-ground #connect-polar { grid-column: 1; grid-row: 1; }
+body.compact-ground #disconnect-polar { grid-column: 1; grid-row: 2; }
+body.compact-ground #practice-heart {
+  grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 72px; width: 72px; padding: 3px; border: 1px solid #627980; border-radius: 6px;
+  background: #142a33; color: #dce7e3; cursor: pointer; font: 600 10px/1.2 Inter, sans-serif;
+}
+#practice-heart img { width: 56px; height: 56px; object-fit: contain; }
+body.compact-ground #practice-heart[aria-pressed="true"] { background: #28413d; border-color: #e4c382; color: #f6dba4; }
+#practice-heart:focus-visible { outline: 2px solid #f6dba4; outline-offset: 3px; }
+@media (max-width: 700px) {
+  body.compact-ground .unified-flight-shell .control-panel { grid-template-rows: 100px minmax(0, 1fr); }
+  body.compact-ground .unified-flight-shell #polar-source-controls .button-row { grid-template-columns: minmax(0, 1fr) 54px; gap: 4px; }
+  body.compact-ground #practice-heart { width: 54px; min-height: 58px; }
+  #practice-heart img { width: 42px; height: 42px; }
+}

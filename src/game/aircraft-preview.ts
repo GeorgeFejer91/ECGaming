@@ -266,8 +266,10 @@ export class AircraftPreview {
     this.frameId = requestAnimationFrame(this.render);
   };
 
-  setHeartbeatSignal(signal: RrHeartbeatSignal) {
-    const fresh = signal.ready && !signal.simulated && Number.isFinite(signal.ageMs) && signal.ageMs >= 0 && signal.ageMs <= 1500;
+  private practiceHeartbeat = false;
+  setHeartbeatSignal(signal: RrHeartbeatSignal, practice = false) {
+    this.practiceHeartbeat = practice && signal.simulated === true;
+    const fresh = signal.ready && (!signal.simulated || this.practiceHeartbeat) && Number.isFinite(signal.ageMs) && signal.ageMs >= 0 && signal.ageMs <= 1500;
     if (fresh) this.receivedLiveSignal = true;
     this.liveUntil = fresh ? performance.now() + 1500 - signal.ageMs : 0;
     this.beatClock.accept(signal, fresh && this.active);
@@ -291,10 +293,10 @@ export class AircraftPreview {
       else part.object.scale.copy(part.scale).multiplyScalar(1+pulse*.17*motion);
     }
     for (const material of this.pulseMaterials) material.emissiveIntensity = .3 + pulse*2;
-    const mode = live ? "live" : "waiting";
+    const mode = live ? this.practiceHeartbeat ? "practice" : "live" : "waiting";
     this.host.dataset.heartbeatMode = mode;
     this.host.dataset.heartbeatPulse = pulse.toFixed(4);
-    const label = live ? "Polar RR heartbeat" : this.receivedLiveSignal ? "Waiting for heartbeat" : "Connect Polar for heartbeat";
+    const label = live ? this.practiceHeartbeat ? "Practice heartbeat" : "Polar RR heartbeat" : this.receivedLiveSignal ? "Waiting for heartbeat" : "Connect Polar for heartbeat";
     if (this.pulseLabel.textContent !== label) this.pulseLabel.textContent = label;
   }
 

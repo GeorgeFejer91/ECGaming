@@ -16,6 +16,15 @@ const readyInput = {
 };
 
 describe("flight launch readiness", () => {
+  it("permits an explicitly selected local practice heart without granting remote simulation clearance", () => {
+    const practice = { ...readyInput, source: "simulation" as const, physicalPolar: false, simulation: true, allowLocalSimulation: true };
+    expect(flightLaunchReadiness(practice).ready).toBe(true);
+    expect(flightLaunchReadiness({ ...practice, allowLocalSimulation: false }).ready).toBe(false);
+    expect(flightLaunchReadiness({ ...practice, source: "remote-beacon" }).ready).toBe(false);
+    expect(flightLaunchReadiness({ ...practice, source: "polar-direct" }).ready).toBe(false);
+    expect(flightLaunchReadiness({ ...practice, aircraftReady: false }).reasons).toContain("aircraft-not-ready");
+    expect(flightLaunchReadiness({ ...practice, lastSignalAtMs: 0 }).reasons).toContain("signal-stale");
+  });
   it("accepts only a fresh live physical source with every dependency ready", () => {
     expect(flightLaunchReadiness(readyInput)).toEqual({
       ready: true,

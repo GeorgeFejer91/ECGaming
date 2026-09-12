@@ -32,6 +32,12 @@ The backend of this static application is an in-browser session router (`FlightS
 
 Raw ECG, ECG buffers, H10 acceleration samples, HR/RR series, and derived metric values remain in the source browser. Only normalized altitude/throttle/traffic, selected beat timing, quality/readiness flags, and phone steering travel in this session. The router does not record them. ECG wing traces remain local to the raw ECG browser. Private pairing does not enable public broadcasting. The tower does not republish a private remote source as a public beacon.
 
+## Practice heart
+
+Ground Control has a silver clockwork-heart **Practice** button beside **Connect Polar H10**. Switch it on to generate deterministic simulated HR/RR and gently varying excitement locally, then use **Start flight** without wearing a sensor. The button pulses with each generated beat. Switch it off to remove practice clearance and hold an active flight. Practice never starts automatically on reload. The hidden diagnostic simulator remains preview-only.
+
+Only this explicit local practice selection relaxes the physical-sensor requirement; simulation stays labelled and flagged as simulated. Remote beacons and separate session cockpits retain their existing physical-source launch checks. Phone tilt still controls a practice flight running in Ground Control's cockpit, and a mock heart does not produce physical H10 haptics.
+
 ## Motion permissions and heartbeat vibration
 
 Brave blocks motion sensors by default. On Android, enable **Settings → Site settings → Motion sensors** for the controller site, then reopen it from a fresh QR code. A tap on the instrument requests permission on browsers exposing `DeviceOrientationEvent.requestPermission()` (including iOS Safari); it cannot override a sensor block in browser settings. Touch fallback remains available while motion is unavailable.

@@ -449,7 +449,7 @@ export class GroundCockpit extends EventTarget {
   }
 
   setEcgSignal(frame: WingEcgFrame | null) { this.game?.setEcgSignal(frame); }
-  setPreviewHeartbeat(signal: RrHeartbeatSignal) { this.preview.setHeartbeatSignal(signal); }
+  setPreviewHeartbeat(signal: RrHeartbeatSignal, practice = false) { this.preview.setHeartbeatSignal(signal, practice); }
 
   setVisible(visible: boolean) {
     this.visible = visible;
