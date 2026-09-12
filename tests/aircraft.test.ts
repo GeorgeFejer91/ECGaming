@@ -19,32 +19,8 @@ import {
 } from "../src/game/aircraft-preview";
 
 describe("aircraft catalog", () => {
-  it("offers the project plane and every licensed source-pack aircraft", () => {
-    expect(AIRCRAFT_CATALOG.map(({ id }) => id)).toEqual([
-      "cardiac-ventricle",
-      "cardiac-aorta",
-      "ecgaming-classic",
-      "og-cartoon-plane",
-      "og-biplane",
-      "styloo-plancestylized",
-      "styloo-plancestylized-001",
-      "styloo-planeanimal",
-      "styloo-planeanimal-001",
-      "styloo-planeazer",
-      "styloo-planeazer-001",
-      "styloo-planeazer-002",
-      "styloo-planehelice",
-      "styloo-planehelice-001",
-      "styloo-planehuge",
-      "styloo-planesty",
-      "styloo-planesty-001",
-      "styloo-planesty-002",
-      "styloo-planesty-003",
-      "styloo-planestylized-001",
-      "poly-cute-airplane",
-      "poly-small-airplane",
-      "magic-low-poly-airplane",
-    ]);
+  it("offers only the two project-authored cardiac aircraft", () => {
+    expect(AIRCRAFT_CATALOG.map(({ id }) => id)).toEqual(["cardiac-ventricle", "cardiac-aorta"]);
   });
 
   it("ships a GLB for every downloaded catalog entry", () => {

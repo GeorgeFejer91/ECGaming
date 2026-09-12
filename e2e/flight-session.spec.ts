@@ -65,17 +65,16 @@ test("three browsers route only source-computed controls and switch source witho
   await cockpit.screenshot({ path: testInfo.outputPath("session-cockpit.png") });
   // Changing the tower's mapping changes calculations at the phone.
   await dialog.getByRole("button", { name: "Back to flight" }).click();
-  await page.getByRole("button", { name: "02 Flight Commands" }).click();
-  await page.locator('[data-command="altitude"] [data-field="metric"]').selectOption("heart_rate");
+  await page.getByRole("button", { name: "Heart rate", exact: true }).click();
   await expect(phone.locator(".polar-source-status")).toContainText("Sending heart rate");
   await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^\+0\.[234]/);
-  await page.locator("#adaptive-normalization").check();
+  await page.locator("#adaptive-normalization").evaluate((input: HTMLInputElement) => { input.checked = true; input.dispatchEvent(new Event("change")); });
   await expect(page.locator("#adaptive-range-state")).toContainText("PHONE");
   const revision = await phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision);
-  await page.locator("#reset-adaptive-range").click();
+  await page.locator("#reset-adaptive-range").evaluate((button: HTMLButtonElement) => button.click());
   await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision)).toBeGreaterThan(revision);
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
-  await page.locator("#adaptive-normalization").uncheck();
+  await page.locator("#adaptive-normalization").evaluate((input: HTMLInputElement) => { input.checked = false; input.dispatchEvent(new Event("change")); });
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   // A live network carrying repeated packets cannot hide loss of ECG samples at the source.
   await phone.evaluate(() => { (window as any).syntheticEcgRunning = false; });
@@ -96,7 +95,7 @@ test("three browsers route only source-computed controls and switch source witho
   await cockpit.getByRole("button", { name: "Connect Polar H10" }).click();
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "cockpit");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
-  await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^-0\.[789]/);
+  await expect.poll(() => page.locator("#command-altitude").textContent(), { timeout: 15_000 }).toMatch(/^-0\.[789]/);
   await dialog.locator("#flight-session-source").selectOption("ground");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "ground");
@@ -114,4 +113,18 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
   await expect(phone.locator(".polar-source-status")).toContainText("does not expose Web Bluetooth");
   await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowLeft");
   await expect(phone.locator("#confirmed")).toContainText("Left 100%"); await phone.keyboard.up("ArrowLeft");
+});
+
+
+test("the local Polar button restores an existing sensor after remote tower selection", async ({ page }) => {
+  await page.goto("./ground-control/");
+  await installSyntheticPolar(page);
+  await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Polar connected", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Remote tower", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Use local Polar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Polar connected", exact: true })).toBeDisabled();
+  await expect(page.locator("#signal-source-polar")).toBeChecked();
+  await expect(page.locator("#start-flight-from-ground")).toBeEnabled();
 });

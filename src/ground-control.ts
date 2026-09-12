@@ -1,4 +1,6 @@
 import "./styles.css";
+import { setupCompactGround } from "./ui/compact-ground";
+import { flightAssetUrl } from "./game/aircraft";
 import { getFlightSessionHub } from "./flight-session/hub";
 import {
   FlightFlags,
@@ -22,6 +24,7 @@ import type {
 import { AdaptiveRangeTracker } from "./signals/adaptive-range";
 import {
   AttackReleaseSmoother,
+  DEFAULT_MAPPINGS,
   commandValue,
   defaultNormalizationConfig,
   resetBindingMetric,
@@ -102,7 +105,7 @@ type ScopeMetricId =
   | "rmssd"
   | "ecg_local_power";
 
-const METRIC_ASSET_ROOT = import.meta.env.BASE_URL + "assets/metrics/";
+const METRIC_ASSET_ROOT = flightAssetUrl("assets/metrics/");
 const SCOPE_METRICS: Record<
   ScopeMetricId,
   {
@@ -319,7 +322,7 @@ function setupAccordion() {
             button.setAttribute("aria-expanded", String(open));
             const glyph = button.querySelector<HTMLElement>("i");
             if (glyph) glyph.textContent = open ? "−" : "+";
-            item.querySelector<HTMLElement>(".accordion-body")!.hidden = !open;
+            element(button.getAttribute("aria-controls")!).hidden = !open;
           });
       }),
     );
@@ -578,6 +581,10 @@ function syncSourcePanels() {
 }
 
 function syncPolarAttention() {
+  const localSelected = sourceMode === "polar" && flightSession.signal.source === "ground";
+  element<HTMLButtonElement>("connect-polar").disabled = physicalConnected && localSelected;
+  const label = document.querySelector("[data-polar-label]");
+  if (label) label.textContent = physicalConnected ? (localSelected ? "Polar connected" : "Use local Polar") : "Connect Polar H10";
   const needsAttention =
     sourceMode === "polar" && !physicalConnected && !simulated;
   element("polar-connect-nudge").hidden = !needsAttention;
@@ -827,6 +834,14 @@ function syncScopeMetricUi(values: Record<string, number>) {
 }
 
 function setupScopeMetricSelector() {
+  if (SCOPE_METRIC_IDS.includes(mappings.altitude.metric as ScopeMetricId)) {
+    scopeMetric = mappings.altitude.metric as ScopeMetricId;
+  }
+  // Retired controls must not leave an invisible speed, beat or calibration override.
+  mappings = structuredClone(DEFAULT_MAPPINGS);
+  mappings.altitude = resetBindingMetric(mappings.altitude, scopeMetric);
+  saveMappings();
+  renderMappings();
   document
     .querySelectorAll<HTMLButtonElement>("[data-scope-metric]")
     .forEach((button) =>
@@ -834,6 +849,12 @@ function setupScopeMetricSelector() {
         const next = button.dataset.scopeMetric as ScopeMetricId;
         if (!SCOPE_METRIC_IDS.includes(next)) return;
         scopeMetric = next;
+        mappings.altitude = resetBindingMetric(mappings.altitude, next);
+        mappings.beatSource = "polar-rr";
+        mappings.beatAction = "pulse";
+        adaptiveRange.reset();
+        saveMappings();
+        renderMappings();
         localStorage.setItem(SCOPE_METRIC_KEY, scopeMetric);
         syncScopeMetricUi(latestRuntime?.active.metrics ?? {});
       }),
@@ -1937,6 +1958,7 @@ async function stopBeaconScan() {
 }
 
 async function selectSource(mode: SourceMode) {
+  flightSession.selectSource("ground");
   if (sourceMode === mode) {
     syncSourcePanels();
     return;
@@ -2009,7 +2031,10 @@ function download(content: string, name: string, type: string) {
 }
 
 function setupActions() {
-  element("connect-polar").addEventListener("click", () => void connectPolar());
+  element("connect-polar").addEventListener("click", async () => {
+    await selectSource("polar");
+    if (!physicalConnected) await connectPolar();
+  });
   element("disconnect-polar").addEventListener(
     "click",
     () => void disconnectPolar(),
@@ -2255,6 +2280,7 @@ renderMappings();
 setupPilotNameField();
 setupActions();
 setupScopeMetricSelector();
+setupCompactGround(() => cockpit.openRemoteCockpit());
 const disposeTextFit = installPretextFit();
 syncSourcePanels();
 showView(

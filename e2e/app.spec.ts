@@ -58,30 +58,16 @@ window.VDONinjaSDK=class extends EventTarget {
   }
 }`;
 
-test("Remote pilot QR keeps the tower editable and stops the invitation", async ({ page }) => {
-  await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
+test("remote connection actions sit below the tower and cockpit switch", async ({ page }) => {
   await page.goto("./ground-control/");
-  await page.getByRole("button", { name: "Remote pilot", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator("canvas")).toBeVisible();
-  const link = await dialog.getByRole("link", { name: "Open phone flight view" }).getAttribute("href");
-  const url = new URL(link!);
-  expect(url.pathname).toBe("/flight/");
-  expect(url.hash).toContain("pilot=ecg_ground_");
-  expect(url.hash).toContain("session=");
-  expect(url.hash).toContain("aircraft=cardiac-ventricle");
-  await dialog.getByRole("button", { name: "Back to tower" }).click();
-  await page.getByRole("button", { name: /Flight Commands/ }).click();
-  const metric = page.locator('[data-command="altitude"] [data-field="metric"]');
-  await expect(metric).toBeEnabled();
-  await metric.selectOption("heart_rate");
-  await expect(metric).toHaveValue("heart_rate");
-  await page.getByRole("button", { name: "Remote pilot", exact: true }).click();
-  await dialog.getByRole("button", { name: "Stop remote pilot" }).click();
-  await expect(dialog.locator("canvas")).toBeHidden();
-  await expect(dialog.getByRole("link", { name: "Open phone flight view" })).toBeHidden();
+  await expect(page.getByRole("group", { name: "View mode" }).getByRole("button")).toHaveCount(2);
+  const remotes = page.getByRole("group", { name: "Connect a remote device" });
+  await expect(remotes.getByRole("button")).toHaveCount(3);
+  await expect(remotes.getByRole("button", { name: "Remote tower" })).toBeVisible();
+  await expect(remotes.getByRole("button", { name: "Remote cockpit" })).toBeVisible();
+  await expect(remotes.getByRole("button", { name: "Phone steering wheel" })).toBeVisible();
 });
+
 
 test("QR phone view connects to its tower with touch steering and no page-load connection", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -181,14 +167,14 @@ test("Smartphone Flight offers an honest fallback and a playable simulator", asy
   await page.goto("./mobile/");
   const aircraft = page.getByLabel("Choose your plane");
   await expect(aircraft).toBeEnabled();
-  expect(await aircraft.locator("option").count()).toBeGreaterThanOrEqual(7);
-  await aircraft.selectOption("og-biplane");
+  expect(await aircraft.locator("option").count()).toBe(2);
+  await aircraft.selectOption("cardiac-aorta");
   await expect(page.locator("#mobile-aircraft-status")).toContainText(
     "sized for every ring",
   );
   expect(
     await page.evaluate(() => localStorage.getItem("ecgaming-aircraft-v1")),
-  ).toBe("og-biplane");
+  ).toBe("cardiac-aorta");
   await expect(page.locator("#mobile-support")).toContainText(
     "DIRECT BLUETOOTH UNAVAILABLE",
   );
@@ -264,7 +250,7 @@ test("every catalog aircraft loads without falling back", async ({ page }) => {
   const ids = await aircraft.locator("option").evaluateAll((options) =>
     options.map((option) => (option as HTMLOptionElement).value),
   );
-  expect(ids).toHaveLength(23);
+  expect(ids).toHaveLength(2);
   for (const id of ids) {
     await aircraft.selectOption(id);
     await expect(aircraft).toBeEnabled();
@@ -275,27 +261,20 @@ test("every catalog aircraft loads without falling back", async ({ page }) => {
   }
 });
 
-test("Ground Control keeps exactly one aviation accordion open", async ({
-  page,
-}) => {
-  await page.route("**/vendor/vdoninja/**", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
-  );
+test("Ground Control shows only source, aircraft, altitude buttons and the selected signal", async ({ page }) => {
   await page.goto("./ground-control/");
-  await expect(
-    page.getByRole("button", { name: /Polar Link/ }),
-  ).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: /Flight Commands/ }).click();
-  await expect(
-    page.getByRole("button", { name: /Flight Commands/ }),
-  ).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    page.getByRole("button", { name: /Polar Link/ }),
-  ).toHaveAttribute("aria-expanded", "false");
-  await expect(page.locator(".accordion-item.is-open")).toHaveCount(1);
+  await expect(page.locator("#accordion")).toBeHidden();
+  await expect(page.locator(".beacon-instrument")).toBeHidden();
+  await expect(page.locator(".command-console")).toBeHidden();
+  await expect(page.locator(".control-panel #connect-polar")).toBeVisible();
+  await expect(page.locator(".control-panel .aircraft-showcase")).toBeVisible();
+  await expect(page.locator(".control-panel #start-flight-from-ground")).toBeVisible();
+  await expect(page.locator(".altitude-metric-panel [data-scope-metric]")).toHaveCount(6);
+  await expect(page.locator(".avionics-display .ecg-screen")).toBeVisible();
 });
 
-test("Ground Control metric widgets focus the signal scope and persist the view", async ({
+
+test("Ground Control metric buttons drive altitude and persist the selected signal", async ({
   page,
 }) => {
   await page.route("**/vendor/vdoninja/**", (route) =>
@@ -319,8 +298,8 @@ test("Ground Control metric widgets focus the signal scope and persist the view"
   );
   await expect(page.locator("#scope-metric-unit")).toHaveText("0–1");
 
-  await page.getByRole("button", { name: /Test Simulator/ }).click();
-  await page.locator("#sim-enabled").check();
+  // Exercise the retained diagnostic input without exposing it in the menu.
+  await page.locator("#sim-enabled").evaluate((input: HTMLInputElement) => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
   await expect(page.locator("#widget-breathing_volume")).toHaveText("0.50");
   await expect(page.locator("#scope-metric-value")).toHaveText("0.50");
 
@@ -331,41 +310,20 @@ test("Ground Control metric widgets focus the signal scope and persist the view"
   );
 });
 
-test("Ground Control highlights Polar setup and requires a pilot name for broadcasting", async ({
-  page,
-}) => {
-  await page.route("**/vendor/vdoninja/**", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
-  );
+test("Connect Polar requests Bluetooth only after the visible button is tapped", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).polarRequests = 0;
+    Object.defineProperty(navigator, "bluetooth", { configurable: true, value: {
+      requestDevice() { (window as any).polarRequests++; return Promise.reject(new DOMException("Cancelled", "NotFoundError")); },
+    } });
+  });
   await page.goto("./ground-control/");
-
-  const connectPolar = page.locator("#connect-polar");
-  await expect(connectPolar).toHaveClass(/needs-attention/);
-  await expect(page.locator("#polar-connect-nudge")).toBeVisible();
-
-  await page.getByRole("button", { name: /Broadcast Tower/ }).click();
-  const pilotName = page.getByLabel(/PILOT NAME/);
-  const pilotField = page.locator("#pilot-name-field");
-  await page.locator("#start-broadcast").click();
-  await expect(pilotField).toHaveClass(/needs-attention/);
-  await expect(pilotName).toHaveAttribute("aria-invalid", "true");
-  await expect(pilotName).toBeFocused();
-  await expect(page.locator("#pilot-name-help")).toContainText(
-    /Enter your pilot name/i,
-  );
-
-  await pilotName.fill("Captain George");
-  await expect(pilotField).not.toHaveClass(/needs-attention/);
-  await page.locator("#start-broadcast").click();
-  await expect(page.locator("#broadcast-source")).toHaveText(
-    "Captain George",
-  );
-  await expect(pilotName).toBeDisabled();
-
-  await page.reload();
-  await page.getByRole("button", { name: /Broadcast Tower/ }).click();
-  await expect(pilotName).toHaveValue("Captain George");
+  expect(await page.evaluate(() => (window as any).polarRequests)).toBe(0);
+  await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).polarRequests)).toBe(1);
+  await expect(page.locator("#start-flight-from-ground")).toBeDisabled();
 });
+
 
 test("Ground Control and Cockpit are explicit views and preview does not launch", async ({
   page,
@@ -429,143 +387,41 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
   await expect(start).toBeDisabled();
 });
 
-test("Ground Control hangar previews and persists cardiac aircraft callsigns", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route("**/vendor/vdoninja/**", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
-  );
+test("compact Ground Control fits the viewport and selects only cardiac aircraft", async ({ page }) => {
+  await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
+  await page.addInitScript(() => localStorage.setItem("ecgaming-aircraft-v1", "styloo-planeazer"));
   await page.goto("./ground-control/");
-
-  const preview = page.locator("#ground-aircraft-preview");
-  const next = page.getByRole("button", { name: "Next aircraft" });
-  await expect(preview.locator("canvas")).toBeVisible();
-  await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Ventricle Glider",
-  );
-  await expect(page.locator("#ground-aircraft-counter")).toHaveText("01 / 23");
-  await expect(page.locator("#ground-aircraft")).toHaveClass(/visually-hidden/);
-  await expect(next).toBeEnabled();
-  await expect(page.locator("#ground-aircraft-name")).toHaveAttribute(
-    "data-pretext-fit",
-    "ready",
-  );
-  const fixedRail = await page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>(".control-panel")!;
-    const workspace = document.querySelector<HTMLElement>(
-      ".control-workspace",
-    )!;
-    return {
-      panelWidth: panel.getBoundingClientRect().width,
-      workspaceHeight: workspace.getBoundingClientRect().height,
-      panelHeight: panel.getBoundingClientRect().height,
-      rows: getComputedStyle(panel).gridTemplateRows
-        .split(" ")
-        .map(Number.parseFloat),
-    };
-  });
-  expect(fixedRail.panelWidth).toBeCloseTo(430, 0);
-  expect(fixedRail.panelHeight).toBeCloseTo(fixedRail.workspaceHeight, 0);
-  expect(fixedRail.rows).toHaveLength(4);
-  for (const [index, ratio] of [0.08, 0.48, 0.24, 0.2].entries())
-    expect(fixedRail.rows[index] / fixedRail.panelHeight).toBeCloseTo(ratio, 2);
-
-  const polarWorkflowFit = await page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>(".control-panel")!;
-    const openBody = document.querySelector<HTMLElement>(
-      '.accordion-item[data-section="polar"].is-open .accordion-body',
-    )!;
-    return {
-      panelOverflow: panel.scrollHeight - panel.clientHeight,
-      openBodyOverflow: openBody.scrollHeight - openBody.clientHeight,
-    };
-  });
-  expect(polarWorkflowFit.panelOverflow).toBeLessThanOrEqual(1);
-  expect(polarWorkflowFit.openBodyOverflow).toBeLessThanOrEqual(1);
-
-  await next.click();
-  await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Aorta Swift",
-  );
-  await expect(page.locator("#ground-aircraft-tagline")).toContainText(
-    "capillary wings",
-  );
-  await expect(page.locator("#ground-aircraft-counter")).toHaveText("02 / 23");
-  await expect(next).toBeEnabled();
-  expect(
-    await page.evaluate(() => localStorage.getItem("ecgaming-aircraft-v1")),
-  ).toBe("cardiac-aorta");
-
-  await page.reload();
-  await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Aorta Swift",
-  );
-  await expect(page.locator("#ground-aircraft-preview canvas")).toBeVisible();
-  await expect(page.locator(".action-widget-heart")).toBeVisible();
-  await expect(page.locator(".action-widget-runway")).toBeVisible();
-  const fittedText = await page.evaluate(() =>
-    Array.from(
-      document.querySelectorAll<HTMLElement>("[data-fit-text]"),
-      (element) => ({
-        id: element.id,
-        visible: element.getClientRects().length > 0,
-        ready: element.dataset.pretextFit,
-        horizontal: element.scrollWidth - element.clientWidth,
-        vertical: element.scrollHeight - element.clientHeight,
-      }),
-    ).filter((element) => element.visible),
-  );
-  for (const text of fittedText) {
-    expect(text.ready, text.id).toBe("ready");
-    expect(text.horizontal, text.id).toBeLessThanOrEqual(1);
-    expect(text.vertical, text.id).toBeLessThanOrEqual(1);
+  await expect(page.locator("#ground-aircraft-preview")).toHaveAttribute("data-aircraft", "cardiac-ventricle");
+  await expect(page.locator("#ground-aircraft option")).toHaveCount(2);
+  for (const viewport of [{width:1440,height:900},{width:1280,height:720},{width:390,height:844}]) {
+    await page.setViewportSize(viewport);
+    await page.waitForTimeout(150);
+    const fit = await page.evaluate(() => {
+      const selectors = [".view-mode-button", ".remote-connection-bar > button", "[data-aircraft-choice]", "#connect-polar", "#start-flight-from-ground", "[data-scope-metric]"];
+      const rects = [...document.querySelectorAll<HTMLElement>(selectors.join(','))].map(element => ({
+        name: element.getAttribute('aria-label') || element.textContent?.trim(),
+        box: element.getBoundingClientRect().toJSON(),
+      }));
+      return { width:innerWidth, height:innerHeight, scrollX:document.documentElement.scrollWidth-innerWidth,
+        scrollY:document.documentElement.scrollHeight-innerHeight, rects };
+    });
+    expect(fit.scrollX).toBeLessThanOrEqual(1); expect(fit.scrollY).toBeLessThanOrEqual(1);
+    for (const {name,box} of fit.rects) {
+      expect(box.width,name).toBeGreaterThan(0); expect(box.height,name).toBeGreaterThan(0);
+      expect(box.left,name).toBeGreaterThanOrEqual(0); expect(box.top,name).toBeGreaterThanOrEqual(0);
+      expect(box.right,name).toBeLessThanOrEqual(fit.width+1); expect(box.bottom,name).toBeLessThanOrEqual(fit.height+1);
+    }
+    for(let a=0;a<fit.rects.length;a++) for(let b=a+1;b<fit.rects.length;b++) {
+      const x=fit.rects[a], y=fit.rects[b];
+      const overlap=Math.min(x.box.right,y.box.right)-Math.max(x.box.left,y.box.left)>1 && Math.min(x.box.bottom,y.box.bottom)-Math.max(x.box.top,y.box.top)>1;
+      expect(overlap,x.name+' overlaps '+y.name).toBe(false);
+    }
   }
-
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.reload();
-  const shortDesktopFit = await page.evaluate(() => {
-    const selectors = [
-      ".control-panel",
-      ".public-warning",
-      '.accordion-item[data-section="polar"].is-open .accordion-body',
-      ".aircraft-showcase",
-      ".flight-gate",
-    ];
-    return {
-      documentOverflow:
-        document.documentElement.scrollHeight -
-        document.documentElement.clientHeight,
-      regions: selectors.map((selector) => {
-        const element = document.querySelector<HTMLElement>(selector)!;
-        return element.scrollHeight - element.clientHeight;
-      }),
-    };
-  });
-  expect(shortDesktopFit.documentOverflow).toBeLessThanOrEqual(1);
-  for (const overflow of shortDesktopFit.regions)
-    expect(overflow).toBeLessThanOrEqual(1);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  const responsive = await page.evaluate(() => ({
-    overflow:
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-    controls: Array.from(
-      document.querySelectorAll<HTMLElement>(".aircraft-carousel-button"),
-      (button) => ({
-        width: button.getBoundingClientRect().width,
-        height: button.getBoundingClientRect().height,
-      }),
-    ),
-  }));
-  expect(responsive.overflow).toBeLessThanOrEqual(1);
-  expect(responsive.controls).toHaveLength(2);
-  for (const control of responsive.controls) {
-    expect(control.width).toBeGreaterThan(100);
-    expect(control.height).toBeGreaterThanOrEqual(44);
-  }
+  const aorta=page.locator('[data-aircraft-choice="cardiac-aorta"]');
+  await aorta.click();
+  await expect(aorta).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#ground-aircraft-preview')).toHaveAttribute('data-aircraft','cardiac-aorta');
+  expect(await page.evaluate(() => localStorage.getItem('ecgaming-aircraft-v1'))).toBe('cardiac-aorta');
 });
 
 test("every hangar aircraft stays centered at one preview scale", async ({
@@ -578,13 +434,13 @@ test("every hangar aircraft stays centered at one preview scale", async ({
   );
   await page.goto("./ground-control/");
   const preview = page.locator("#ground-aircraft-preview");
-  const next = page.getByRole("button", { name: "Next aircraft" });
+
   const ids = await page
     .locator("#ground-aircraft option")
     .evaluateAll((options) =>
       options.map((option) => (option as HTMLOptionElement).value),
     );
-  expect(ids).toHaveLength(23);
+  expect(ids).toHaveLength(2);
 
   const canvas = preview.locator("canvas");
   const firstRotationFrame = await canvas.screenshot();
@@ -607,8 +463,7 @@ test("every hangar aircraft stays centered at one preview scale", async ({
     expect(Math.hypot(...geometry.center), id).toBeLessThan(0.001);
     expect(geometry.envelopeRadius, id).toBeLessThan(2.7);
     if (index < ids.length - 1) {
-      await expect(next).toBeEnabled();
-      await next.click();
+      await page.locator(`[data-aircraft-choice="${ids[index+1]}"]`).click();
     }
   }
 });
@@ -650,8 +505,8 @@ test("Ground Control simulator never grants production runway clearance", async 
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
   await page.goto("./ground-control/");
-  await page.getByRole("button", { name: /Test Simulator/ }).click();
-  await page.locator("#sim-enabled").check();
+  // Exercise the retained diagnostic input without exposing it in the menu.
+  await page.locator("#sim-enabled").evaluate((input: HTMLInputElement) => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
 
   await expect(page.locator("#polar-state")).toHaveText("Simulator active");
   await expect(page.locator("#polar-detail")).toContainText(
@@ -661,52 +516,19 @@ test("Ground Control simulator never grants production runway clearance", async 
   await expect(page.locator("#start-flight-from-ground")).toBeDisabled();
 });
 
-test("lift metric defaults and adaptive calibration are visible in Ground Control", async ({
-  page,
-}) => {
-  await page.route("**/vendor/vdoninja/**", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
-  );
+test("altitude buttons apply their matching metric ranges and keep RR heartbeat pulses", async ({ page }) => {
   await page.goto("./ground-control/");
-  await page.getByRole("button", { name: /Flight Commands/ }).click();
-
   const altitude = page.locator('[data-command="altitude"]');
-  const breathControl = altitude.getByRole("button", {
-    name: /BREATH CONTROL/,
-  });
-  const heartControl = altitude.getByRole("button", { name: /HEART CONTROL/ });
-  await breathControl.click();
-  await expect(breathControl).toHaveAttribute("aria-pressed", "true");
-  await expect(heartControl).toHaveAttribute("aria-pressed", "false");
-  await expect(altitude.locator('[data-field="metric"]')).toHaveValue(
-    "breathing_volume",
-  );
-  await expect(altitude.locator('[data-field="minimum"]')).toHaveValue("0");
-  await expect(altitude.locator('[data-field="maximum"]')).toHaveValue("1");
-
-  await heartControl.click();
-  await expect(heartControl).toHaveAttribute("aria-pressed", "true");
-  await expect(altitude.locator('[data-field="metric"]')).toHaveValue(
-    "excitement_score",
-  );
-  await altitude.locator('[data-field="metric"]').selectOption("heart_rate");
-  await expect(altitude.locator('[data-field="minimum"]')).toHaveValue("45");
-  await expect(altitude.locator('[data-field="maximum"]')).toHaveValue("160");
-
-  await altitude.locator('[data-field="metric"]').selectOption("rr_interval");
-  await expect(altitude.locator('[data-field="minimum"]')).toHaveValue("400");
-  await expect(altitude.locator('[data-field="maximum"]')).toHaveValue(
-    "1300",
-  );
-
-  await page.locator("#adaptive-normalization").check();
-  await expect(page.locator("#adaptive-normalization")).toBeChecked();
-  await expect(page.locator("#adaptive-range-state")).toContainText(
-    /CALIBRATING · 0\/10 SAMPLES · NEED SPAN 80/,
-  );
-  await expect(page.locator("#adaptive-range-min")).toHaveText("—");
-  await expect(page.locator("#adaptive-range-max")).toHaveText("—");
+  for (const [metric, minimum, maximum] of [["breathing_volume", "0", "1"], ["heart_rate", "45", "160"], ["rr_interval", "400", "1300"]]) {
+    await page.locator('[data-scope-metric="'+metric+'"]').click();
+    await expect(altitude.locator('[data-field="metric"]')).toHaveValue(metric);
+    await expect(altitude.locator('[data-field="minimum"]')).toHaveValue(minimum);
+    await expect(altitude.locator('[data-field="maximum"]')).toHaveValue(maximum);
+    await expect(page.locator('#beat-source')).toHaveValue("polar-rr");
+    await expect(page.locator('#beat-action')).toHaveValue("pulse");
+  }
 });
+
 
 test("fresh physical derived beacon grants Start and launches in place without device requests", async ({
   page,
@@ -742,9 +564,10 @@ test("fresh physical derived beacon grants Start and launches in place without d
   });
   const pathname = new URL(page.url()).pathname;
 
-  await page.locator("#signal-source-beacon").check();
+  await page.getByRole("button", { name: "Remote tower", exact: true }).click();
   await page.locator("#scan-beacons").click();
   await expect(page.locator(".beacon-source-button")).toHaveCount(1);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator("#beacon-radar-state")).toHaveText("BEACON LOCK");
   await expect(page.locator("#flight-gate-state")).toHaveText("CLEARED");
   await expect(page.locator("#flight-gate-signal")).toHaveClass(/is-ready/);
@@ -806,7 +629,7 @@ test("Flight receives mocked commands without requesting Bluetooth or media", as
   await expect(page.getByLabel("Aircraft")).toBeEnabled();
   expect(
     await page.getByLabel("Aircraft").locator("option").count(),
-  ).toBeGreaterThanOrEqual(7);
+  ).toBe(2);
   await expect(page.locator("#start-panel")).toContainText(
     "controller thumbstick or tilt your head left or right",
   );
@@ -830,10 +653,11 @@ test("fresh beacon clearance uses receipt time even when animation callbacks are
   await page.route("**/vendor/vdoninja/**", route =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
   await page.goto("./ground-control/");
-  await page.locator("#signal-source-beacon").check();
+  await page.getByRole("button", { name: "Remote tower", exact: true }).click();
   await page.locator("#scan-beacons").click();
   await expect(page.locator("#beacon-radar-state")).toHaveText("BEACON LOCK");
   await expect(page.locator("#flight-gate-state")).toHaveText("CLEARED");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.locator("#start-flight-from-ground").click();
   await expect(page.locator("#ground-view")).toBeHidden();
   await expect(page.locator("#cockpit-view")).toBeVisible();

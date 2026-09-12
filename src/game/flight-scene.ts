@@ -634,7 +634,10 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   setSteering(axis: number) {
     this.steeringAxis = Number.isFinite(axis) ? clamp(axis, -1, 1) : 0;
   }
-  openPhoneController() { this.phoneController.open(); }
+  openPhoneController(role: "phone" | "cockpit" = "phone") {
+    if (role === "cockpit") this.phoneController.openCockpit();
+    else this.phoneController.open();
+  }
   setMountainCollisions(enabled: boolean) {
     this.mountainCollisions = enabled;
     this.options.querySelector("input")!.checked = enabled;

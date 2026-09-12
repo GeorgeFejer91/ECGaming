@@ -17,7 +17,7 @@ export interface EcgGameModule extends EventTarget {
   restart(): void;
   setControls(frame: FlightFrame): void;
   setSteering(axis: number): void;
-  openPhoneController(): void;
+  openPhoneController(role?: "phone" | "cockpit"): void;
   setHeartbeatSignal(signal: RrHeartbeatSignal): void;
   setEcgSignal(frame: WingEcgFrame | null): void;
   setMountainCollisions(enabled: boolean): void;

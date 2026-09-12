@@ -24,6 +24,7 @@ export class PhoneTiltHost {
   private qrRequest = 0;
   private monitor?: ReturnType<typeof setInterval>;
   private clearCockpitQr = () => {};
+  private pairCockpit?: HTMLButtonElement;
 
   constructor(host: HTMLElement, private flying: () => boolean) {
     const buttonStatus = decoratePhoneButton(this.button);
@@ -81,8 +82,17 @@ export class PhoneTiltHost {
   }
   open() {
     if (this.hub.client) return;
+    this.dialog.classList.remove("cockpit-pairing-only");
+    this.dialog.setAttribute("aria-label", "Phone tilt controller");
     if (!this.dialog.open) this.dialog.showModal();
     if (!this.selected) void this.pair();
+  }
+  openCockpit() {
+    if (this.hub.client || !this.pairCockpit) return;
+    this.dialog.classList.add("cockpit-pairing-only");
+    this.dialog.setAttribute("aria-label", "Remote cockpit");
+    if (!this.dialog.open) this.dialog.showModal();
+    if (!this.hub.cockpit.active) this.pairCockpit.click();
   }
   read(): TiltState | undefined {
     if (!this.hub.client) { this.hub.speedEnabled = this.speed.checked; this.hub.flying = this.flying(); }
@@ -108,6 +118,7 @@ export class PhoneTiltHost {
     for (const link of [this.hub.phone, this.hub.cockpit]) link.addEventListener("status", update, { signal: this.abort.signal });
     update();
     const pair = document.createElement("button"); pair.type = "button"; pair.textContent = "Pair separate cockpit";
+    this.pairCockpit = pair;
     const stop = document.createElement("button"); stop.type = "button"; stop.textContent = "Disconnect cockpit"; stop.hidden = true;
     const canvas = document.createElement("canvas"); canvas.hidden = true; canvas.setAttribute("aria-label", "Scan to join the separate cockpit");
     const anchor = document.createElement("a"); anchor.textContent = "Open cockpit"; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.hidden = true;

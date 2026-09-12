@@ -23,7 +23,7 @@ test("dedicated SVG widget opens QR pairing without Polar or flight clearance", 
   await page.goto("./ground-control/");
   const widget = page.locator("#connect-phone-controller");
   await expect(widget).toBeVisible();
-  await expect(widget).toContainText("Connect phone controller");
+  await expect(widget).toContainText("Phone steering");
   expect(await widget.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   await widget.click();
   const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
@@ -109,4 +109,25 @@ test("invalid links stay inert and phone layouts fit portrait and landscape", as
     await page.setViewportSize(viewport);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
+});
+
+test("Remote cockpit pairs independently and leaves phone pairing behind its own button", async ({ page }) => {
+  await page.goto("./ground-control/");
+  await page.getByRole("button", { name: "Remote cockpit", exact: true }).click();
+  const cockpit = page.getByRole("dialog", { name: "Remote cockpit", exact: true });
+  await expect(cockpit).toBeVisible();
+  const link = cockpit.getByRole("link", { name: "Open cockpit", exact: true });
+  await expect(link).toBeVisible();
+  const url = new URL((await link.getAttribute("href"))!);
+  expect(url.pathname).toBe("/session-cockpit/");
+  expect(new URLSearchParams(url.hash.slice(1)).get("secret")).toHaveLength(32);
+  await expect(cockpit.getByRole("link", { name: "Open controller" })).toBeHidden();
+  await expect(cockpit.getByRole("img", { name: "Scan to join the separate cockpit" })).toHaveCount(0);
+  await expect(cockpit.locator('canvas[aria-label="Scan to join the separate cockpit"]')).toBeVisible();
+  await cockpit.getByRole("button", { name: "Disconnect cockpit", exact: true }).click();
+  await expect(link).toBeHidden();
+  await cockpit.getByRole("button", { name: "Back to flight" }).click();
+  await page.getByRole("button", { name: "Phone steering wheel" }).click();
+  const phone = page.getByRole("dialog", { name: "Phone tilt controller" });
+  await expect(phone.getByRole("link", { name: "Open controller" })).toBeVisible();
 });

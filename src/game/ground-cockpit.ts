@@ -197,6 +197,8 @@ export class GroundCockpit extends EventTarget {
     const aircraft = AIRCRAFT_CATALOG[Math.max(0, index)];
     const persona = getAircraftPersona(id);
     element<HTMLSelectElement>("ground-aircraft").value = id;
+    document.querySelectorAll<HTMLButtonElement>("[data-aircraft-choice]").forEach(button =>
+      button.setAttribute("aria-pressed", String(button.dataset.aircraftChoice === id)));
     setText("ground-aircraft-source-name", aircraft.label);
     setText("ground-aircraft-name", persona.name);
     setText("ground-aircraft-tagline", persona.tagline);
@@ -221,6 +223,7 @@ export class GroundCockpit extends EventTarget {
     select.disabled = true;
     previous.disabled = true;
     next.disabled = true;
+    document.querySelectorAll<HTMLButtonElement>("[data-aircraft-choice]").forEach(button => { button.disabled = true; });
     previewHost.classList.add("is-loading");
     this.updateAircraftPresentation(id);
     setText("ground-aircraft-status", "LOADING // PREPARING FLIGHT MODEL");
@@ -257,6 +260,7 @@ export class GroundCockpit extends EventTarget {
         select.disabled = false;
         previous.disabled = false;
         next.disabled = false;
+        document.querySelectorAll<HTMLButtonElement>("[data-aircraft-choice]").forEach(button => { button.disabled = false; });
         previewHost.classList.remove("is-loading");
       }
     }
@@ -480,6 +484,8 @@ export class GroundCockpit extends EventTarget {
   currentAircraft() {
     return this.selectedAircraftId;
   }
+
+  openRemoteCockpit() { this.ensureGame().openPhoneController("cockpit"); }
 
   aircraftIsReady() {
     return !this.aircraftLoading && this.aircraftAvailable;

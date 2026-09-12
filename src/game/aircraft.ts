@@ -19,7 +19,7 @@ export interface AircraftDefinition {
   removeNodeNames?: readonly string[];
 }
 
-export const AIRCRAFT_CATALOG = [
+const AIRCRAFT_DEFINITIONS = [
   {
     id: "cardiac-ventricle",
     label: "Ventricle Glider",
@@ -213,8 +213,13 @@ export const AIRCRAFT_CATALOG = [
   },
 ] as const satisfies readonly AircraftDefinition[];
 
-export type AircraftId = (typeof AIRCRAFT_CATALOG)[number]["id"];
-export type AircraftCatalogEntry = (typeof AIRCRAFT_CATALOG)[number];
+// Only the two project-authored cardiac aircraft are offered to players.
+// Keep legacy definitions available internally for fallback/source metadata.
+export const AIRCRAFT_CATALOG = AIRCRAFT_DEFINITIONS.filter(
+  ({ id }) => id === "cardiac-ventricle" || id === "cardiac-aorta",
+);
+export type AircraftId = (typeof AIRCRAFT_DEFINITIONS)[number]["id"];
+export type AircraftCatalogEntry = (typeof AIRCRAFT_DEFINITIONS)[number];
 export const DEFAULT_AIRCRAFT_ID: AircraftId = "cardiac-ventricle";
 
 export interface AircraftPersona {
@@ -366,7 +371,7 @@ export const isAircraftId = (value: string): value is AircraftId =>
   AIRCRAFT_CATALOG.some((entry) => entry.id === value);
 
 export const getAircraftDefinition = (id: AircraftId) =>
-  AIRCRAFT_CATALOG.find((entry) => entry.id === id)!;
+  AIRCRAFT_DEFINITIONS.find((entry) => entry.id === id)!;
 
 export const aircraftAssetUrl = (id: AircraftId) => {
   const path = getAircraftDefinition(id).assetPath;
