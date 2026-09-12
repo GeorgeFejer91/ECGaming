@@ -1,5 +1,6 @@
 import type { FlightFrame } from "../protocol/types";
 import type { RrHeartbeatSignal } from "./flight-mechanics";
+import type { WingEcgFrame } from "../signals/wing-ecg-signal";
 import {
   AIRCRAFT_CATALOG,
   DEFAULT_AIRCRAFT_ID,
@@ -433,6 +434,8 @@ export class GroundCockpit extends EventTarget {
       this.game.setPaused(!this.effectiveReady || !this.visible);
     if (telemetry.heartbeat) this.game.setHeartbeatSignal({ ...telemetry.heartbeat, ready: telemetry.heartbeat.ready && this.effectiveReady });
   }
+
+  setEcgSignal(frame: WingEcgFrame | null) { this.game?.setEcgSignal(frame); }
 
   setVisible(visible: boolean) {
     this.visible = visible;

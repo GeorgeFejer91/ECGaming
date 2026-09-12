@@ -17,7 +17,8 @@ follow its contraction. Blue vessel color is a visual convention.
   altitude input. It is distinct from the separately available Activation
   composite (`excitometer`). Both remain selectable in Ground Control.
 - Polar RR counter increments drive contraction, wing flex, vessel illumination,
-  heartbeat sound, and one clustered smoke puff. They do not add altitude impulses.
+  heartbeat sound, and a synchronized smoke puff from each of the cardiac
+  aircraft's two named exhaust apertures. They do not add altitude impulses.
   Each puff contains three small lobes, moves aft independently of the plane,
   expands only slightly and expires after 1.45 seconds. No smoke emits between beats.
 - Flight options → **Explode on mountain impact** enables an optional challenge.
@@ -31,6 +32,29 @@ batch. Up to four received beats are replayed at the reported interval; duplicat
 old sessions, implausible jumps and stale/paused backlog are dropped. A single
 new notification triggers promptly; no beats are synthesized after input stops.
 Simulation is explicitly labeled in the mobile view and asset preview.
+
+## Local ECG wing projection
+
+**Flight options → Show local ECG on wings** projects the latest three seconds
+of raw Polar ECG onto both curved cardiac wing membranes. The same trace is
+repeated from root to tip on each wing; it is not an estimate of conduction
+through the wings. The projection follows each wing's flex and the plane's
+attitude. Vessel geometry and the original tissue material remain visible.
+
+Ground Control's integrated cockpit and the mobile page with a direct Polar
+connection feed local 130 Hz microvolt samples into the projection. The shared
+512 × 128 texture updates at most 30 times per second. Samples retain sensor
+timing and use visual auto-scaling that preserves short R peaks. The display is
+an embodiment effect, not a calibrated ECG measurement display.
+
+The waveform clears after one second without fresh samples, on disconnection,
+when switching sources or entering simulation, and when disabled. Duplicate or
+old sample frames cannot keep it live. Only a bounded three-second buffer is
+retained in memory; this feature adds no recording, upload, or raw ECG transport.
+The QR/remote view continues to receive derived metrics and Polar RR counters
+only. It has no ECG projection without a local raw ECG input. Raw ECG samples
+never trigger smoke: that remains tied to Polar RR notifications. The local
+asset preview explicitly generates simulated ECG and RR for inspection.
 
 ## Remote pilot
 

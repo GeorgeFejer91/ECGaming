@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import "./flight-options.css";
 import { FlightEffects } from "./flight-effects";
+import { WingEcgProjection } from "./wing-ecg-projection";
+import type { WingEcgFrame } from "../signals/wing-ecg-signal";
 import { advanceSteering, cardiacEnvelope, RrBeatClock, touchesMountain, type MountainPeak, type RrHeartbeatSignal } from "./flight-mechanics";
 import type { FlightFrame } from "../protocol/types";
 import {
@@ -79,9 +81,12 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private pulseInterval = 800;
   private readonly beatClock = new RrBeatClock();
   private readonly effects: FlightEffects;
+  private readonly wingEcg = new WingEcgProjection();
+  private readonly ecgReadout = document.createElement("p");
   private pulseMaterials: THREE.MeshStandardMaterial[] = [];
   private pulseParts: { object: THREE.Object3D; scale: THREE.Vector3; roll: number }[] = [];
   private readonly exhaustPosition = new THREE.Vector3();
+  private exhaustSockets: THREE.Object3D[] = [];
   private readonly previousPlanePosition = new THREE.Vector3();
   private crashed = false;
   private crashAge = 0;
@@ -144,6 +149,15 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.beatReadout.textContent = "Waiting for Polar RR beats";
     this.beatReadout.setAttribute("data-rr-status", "waiting");
     this.options.append(summary, label, hint, this.beatReadout);
+    const ecgLabel = document.createElement("label");
+    const ecgToggle = document.createElement("input");
+    ecgToggle.type = "checkbox";
+    ecgToggle.checked = true;
+    ecgToggle.addEventListener("change", () => this.wingEcg.setEnabled(ecgToggle.checked));
+    ecgLabel.append(ecgToggle, "Show local ECG on wings");
+    this.ecgReadout.dataset.ecgWings = "waiting";
+    this.ecgReadout.textContent = "Wing ECG: waiting for local Polar samples";
+    this.options.append(ecgLabel, this.ecgReadout);
     this.crashPanel.className = "flight-crash-panel";
     this.crashPanel.hidden = true;
     this.crashPanel.setAttribute("role", "status");
@@ -400,6 +414,16 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       this.crashRestart.textContent = this.paused ? "Waiting for signal…" : "Fly again";
     } else if (this.running && !this.paused) this.update(delta);
     else if (!this.running) this.updateIdle(delta, time);
+    const ecgState = this.wingEcg.update(time);
+    if (this.ecgReadout.dataset.ecgWings !== ecgState) {
+      this.ecgReadout.dataset.ecgWings = ecgState;
+      this.ecgReadout.textContent = ecgState === "live" ? "Wing ECG: local Polar waveform · 3 s · auto-scaled"
+        : ecgState === "simulated" ? "Wing ECG: simulated waveform"
+        : ecgState === "stale" ? "Wing ECG: samples stopped"
+        : ecgState === "off" ? "Wing ECG: off"
+        : ecgState === "unsupported" ? "Wing ECG: select a cardiac aircraft"
+        : "Wing ECG: waiting for local Polar samples";
+    }
     this.renderer.render(this.scene, this.camera);
   };
   private updateInput(delta: number) {
@@ -609,9 +633,10 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   setHeartbeatSignal(signal: RrHeartbeatSignal) {
     this.beatClock.accept(signal, this.running && !this.paused && !this.crashed);
     const fresh = signal.ready && signal.ageMs >= 0 && signal.ageMs < 1500;
-    this.beatReadout.textContent = fresh ? `${signal.simulated ? "Simulated RR" : "Polar RR"} · ${Math.round(signal.rrMs ?? this.beatClock.rrMs)} ms · one puff per beat` : "Waiting for Polar RR beats";
+    this.beatReadout.textContent = fresh ? `${signal.simulated ? "Simulated RR" : "Polar RR"} · ${Math.round(signal.rrMs ?? this.beatClock.rrMs)} ms · exhaust puffs on each beat` : "Waiting for Polar RR beats";
     this.beatReadout.dataset.rrStatus = fresh ? "receiving" : "waiting";
   }
+  setEcgSignal(frame: WingEcgFrame | null) { this.wingEcg.accept(frame); }
   async setAircraft(requestedId: AircraftId) {
     const token = ++this.aircraftLoadToken;
     let visual;
@@ -629,6 +654,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     }
 
     const previous = this.aircraftVisual;
+    this.wingEcg.unbind();
     this.aircraftPulseRoot.clear();
     this.aircraftPulseRoot.add(visual.root);
     this.aircraftVisual = visual.root;
@@ -636,7 +662,9 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.aircraftId = visual.id;
     this.pulseMaterials = [];
     this.pulseParts = [];
+    this.exhaustSockets = [];
     visual.root.traverse(object => {
+      if (object.name.startsWith("Exhaust_aperture")) this.exhaustSockets.push(object);
       if (object.name === "VentricleCore" || object.name.includes("capillary_wing"))
         this.pulseParts.push({ object, scale: object.scale.clone(), roll: object.rotation.z });
       if (!(object instanceof THREE.Mesh)) return;
@@ -645,6 +673,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
         if (material instanceof THREE.MeshStandardMaterial && material.name.startsWith("CardiacPulse") && !this.pulseMaterials.includes(material))
           this.pulseMaterials.push(material);
     });
+    this.wingEcg.bind(visual.root);
     if (previous) disposeAircraftVisual(previous);
     const detail = {
       requestedId,
@@ -674,9 +703,16 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     if (!this.running || this.paused || this.crashed) return;
     this.pulseAge = 0;
     this.plane.updateMatrixWorld(true);
-    this.exhaustPosition.set(0, -.03, 1.0);
-    this.plane.localToWorld(this.exhaustPosition);
-    this.effects.heartbeat(this.exhaustPosition);
+    if (this.exhaustSockets.length) {
+      for (const socket of this.exhaustSockets) {
+        socket.getWorldPosition(this.exhaustPosition);
+        this.effects.heartbeat(this.exhaustPosition);
+      }
+    } else {
+      this.exhaustPosition.set(0, -.03, 1.0);
+      this.plane.localToWorld(this.exhaustPosition);
+      this.effects.heartbeat(this.exhaustPosition);
+    }
     this.dispatchEvent(event("heartbeat", this.snapshot()));
   }
   snapshot(): GameSnapshot {
@@ -743,6 +779,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.xrSession = undefined;
     this.renderer.setAnimationLoop(null);
     this.effects.dispose();
+    this.wingEcg.dispose();
     disposeAircraftVisual(this.scene);
     this.tissueTexture?.dispose();
     this.options.remove(); this.crashPanel.remove();

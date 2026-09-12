@@ -962,6 +962,7 @@ function handlePolarEvent(event: any) {
       lastPolarSignalAt = -Infinity;
       lastBreathingSignalAt = -Infinity;
       ecgTrace.reset();
+      cockpit.setEcgSignal(null);
     }
     setText(
       "polar-state",
@@ -996,6 +997,9 @@ function handlePolarEvent(event: any) {
     lastPolarSignalAt = now;
     const samples = event.microvolts ?? [];
     ecgTrace.pushFrame(samples, event.sensorTimestampNs, now);
+    if (sourceMode === "polar" && !simulated)
+      cockpit.setEcgSignal({ microvolts: samples, sensorTimestampNs: String(event.sensorTimestampNs),
+        sourceId: polarSessionId, simulated: event.mock === true });
     setText(
       "ecg-rate",
       Number(event.streamHealth?.observedSampleRateHz ?? 130).toFixed(0),
@@ -1643,6 +1647,7 @@ function updateCommandLoop(now: number) {
   simulatedSignals(now);
   const runtime = computeRuntime(now, delta);
   latestRuntime = runtime;
+  if (sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
   updateCommandPreview(runtime, now);

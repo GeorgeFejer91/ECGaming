@@ -1,6 +1,7 @@
 import type { FlightFrame } from "../protocol/types";
 import type { AircraftId } from "./aircraft";
 import type { RrHeartbeatSignal } from "./flight-mechanics";
+import type { WingEcgFrame } from "../signals/wing-ecg-signal";
 
 export interface GameSnapshot {
   running: boolean;
@@ -17,6 +18,7 @@ export interface EcgGameModule extends EventTarget {
   setControls(frame: FlightFrame): void;
   setSteering(axis: number): void;
   setHeartbeatSignal(signal: RrHeartbeatSignal): void;
+  setEcgSignal(frame: WingEcgFrame | null): void;
   setMountainCollisions(enabled: boolean): void;
   setAircraft(id: AircraftId): Promise<AircraftId>;
   setPaused(paused: boolean): void;

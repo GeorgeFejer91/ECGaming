@@ -298,6 +298,7 @@ function handlePolarEvent(event: any) {
       breathingReady = false;
       lastBreathingAt = -Infinity;
       ecgRate = 0;
+      game.setEcgSignal(null);
     }
     element<HTMLButtonElement>("mobile-connect").disabled = physicalConnected;
     element<HTMLButtonElement>("mobile-disconnect").disabled =
@@ -324,6 +325,8 @@ function handlePolarEvent(event: any) {
       Number.isFinite,
     );
     appendEcg(samples);
+    game.setEcgSignal({ microvolts: samples, sensorTimestampNs: String(event.sensorTimestampNs),
+      sourceId: `mobile-polar-${rrSession}`, simulated: event.mock === true });
     for (const beat of detector.pushFrame(samples, event.sensorTimestampNs)) {
       detectorConfidence = beat.confidence;
       if (detector.ready) registerBeat("ecg-rpeak", beat.confidence);
@@ -359,6 +362,7 @@ async function connectPolar() {
   rrCounter = 0; lastRrAt = -Infinity; rrSession++;
   lastBeatAt = -Infinity;
   ecgSamples.length = 0;
+  game.setEcgSignal(null);
   breathingReady = false;
   lastBreathingAt = -Infinity;
   drawEcg();
@@ -378,6 +382,7 @@ async function connectPolar() {
 async function disconnectPolar() {
   await session.disconnect();
   physicalConnected = false;
+  game.setEcgSignal(null);
   ecgReady = false;
   breathingReady = false;
   lastBreathingAt = -Infinity;
@@ -723,6 +728,7 @@ function bindActions() {
       const enabled = (event.target as HTMLInputElement).checked;
       if (enabled && physicalConnected) await disconnectPolar();
       simulated = enabled;
+      game.setEcgSignal(null);
       if (simulated) {
         simNextBeat = performance.now();
         detector.reset();

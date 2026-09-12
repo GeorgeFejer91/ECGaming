@@ -18,7 +18,7 @@ async function flightHarness(page: Page) {
   });
 }
 
-test("Blender aircraft contract, RR contraction and one smoke puff per beat", async ({ page }) => {
+test("Blender aircraft contract, RR contraction and a puff from both exhausts per beat", async ({ page }) => {
   await flightHarness(page);
   const result = await page.evaluate(() => {
     const g = (window as any).flight;
@@ -44,7 +44,7 @@ test("Blender aircraft contract, RR contraction and one smoke puff per beat", as
   });
   expect(result.aircraft).toBe("cardiac-ventricle");
   expect(result.propellerAxis).toBe("z");
-  expect(result).toMatchObject({ contracted: true, flexed: true, lit: true, puffs: 3, beats: 1, resting: true });
+  expect(result).toMatchObject({ contracted: true, flexed: true, lit: true, puffs: 6, beats: 1, resting: true });
   expect(result.altitudeDelta).toBeLessThan(.76);
 });
 
