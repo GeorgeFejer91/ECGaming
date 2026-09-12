@@ -1,10 +1,13 @@
 /** Test-only two-page SDK adapter. Real browser BRSP/WebCrypto, deterministic transport. */
-export function installTiltSdkFixture(options: { motionPermissionRequired?: boolean; motionReadings?: boolean } = {}) {
+export function installTiltSdkFixture(options: { motionPermissionRequired?: boolean; motionReadings?: boolean; pausePhonePairing?: boolean } = {}) {
   // Shared-context BroadcastChannel fixtures represent separate visible devices, not background tabs.
   // Tests can explicitly hide one device to exercise the application's visibility release.
   (window as any).testPageVisible = true;
   (window as any).testSdkStarts = 0;
   (window as any).motionPermissionRequests = 0;
+  (window as any).fullscreenRequests = 0;
+  // Keep the desktop test window resizable while recording the phone fullscreen boundary.
+  Element.prototype.requestFullscreen = async () => { (window as any).fullscreenRequests++; };
   Object.defineProperty(document, "hidden", { configurable: true, get: () => !(window as any).testPageVisible });
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (window as any).testPageVisible ? "visible" : "hidden" });
   const emit = (target: EventTarget, name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail }));
@@ -26,7 +29,11 @@ export function installTiltSdkFixture(options: { motionPermissionRequired?: bool
     bus?: BroadcastChannel;
     streamId = "";
     channels = new Map<string, Channel>();
-    async connect() { (window as any).testSdkStarts++; }
+    async connect() {
+      (window as any).testSdkStarts++;
+      if (options.pausePhonePairing && location.pathname.includes("/controller/"))
+        await new Promise<void>(resolve => { (window as any).resumeTestPairing = resolve; });
+    }
     post(message: Record<string, unknown>) { this.bus?.postMessage({ ...message, from: this.role }); }
     async joinRoom({ room }: { room: string }) {
       this.bus = new BroadcastChannel(`tilt-test-${room}`);

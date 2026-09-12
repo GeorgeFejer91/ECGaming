@@ -61,7 +61,13 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   expect(new URL(phone.url()).hash).toBe("");
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
+  await phone.evaluate(() => {
+    (window as any).fullscreenRequests = 0;
+    Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 1 });
+    document.documentElement.requestFullscreen = async () => { (window as any).fullscreenRequests++; };
+  });
   await phone.mouse.move(30, 195); await phone.mouse.down(); await phone.mouse.up();
+  expect(await phone.evaluate(() => (window as any).fullscreenRequests)).toBe(1);
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
   await phone.getByRole("button", { name: "Enable tilt" }).click();
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
@@ -125,12 +131,17 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
 test("tilt starts and centres automatically, with a live local gyro and stale-input release", async ({ browser }, testInfo) => {
   const context = await browser.newContext();
   try {
-    await context.addInitScript(installTiltSdkFixture, { motionPermissionRequired: false });
+    await context.addInitScript(installTiltSdkFixture, { motionPermissionRequired: false, pausePhonePairing: true });
     await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* test transport */" }));
     const page = await context.newPage(); await sceneHarness(page);
     const anchor = page.getByRole("link", { name: "Open controller" }); await expect(anchor).toBeVisible();
     const phone = await context.newPage(); await phone.setViewportSize({ width: 844, height: 390 });
     await phone.goto((await anchor.getAttribute("href"))!);
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+    await expect(phone.locator("#connection-status")).not.toHaveText("Connected");
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: -10, gamma: -40 }; });
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(-10.00 80 80) translate(0 0.00)");
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: 0, gamma: -40 }; (window as any).resumeTestPairing(); });
     await expect(phone.locator("#connection-status")).toHaveText("Connected");
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(true);
     expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);
@@ -144,6 +155,20 @@ test("tilt starts and centres automatically, with a live local gyro and stale-in
     await phone.evaluate(() => { (window as any).sendOrientation = false; });
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
     await expect(phone.locator("#centre")).toHaveAttribute("data-state", "centre");
+    // A quiet sensor must not permanently disable tilt or require another permission tap.
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: 0, gamma: -40 }; (window as any).sendOrientation = true; });
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeLessThan(-.7);
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+    // Rotating the phone into the opposite landscape grip centres the next real reading.
+    await phone.evaluate(() => {
+      Object.defineProperty(screen.orientation, "angle", { configurable: true, get: () => 270 });
+      (window as any).orientationSample = { beta: 0, gamma: 40 };
+      screen.orientation.dispatchEvent(new Event("change"));
+    });
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(0.00 80 80) translate(0 0.00)");
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: 24, gamma: 40 }; });
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
   } finally { await context.close(); }
 });
 
@@ -160,11 +185,17 @@ test("a browser without motion readings shows the drag cue and keeps steering av
     await expect(phone.locator("#touch-cue")).toBeVisible();
     await phone.mouse.move(30, 195); await phone.mouse.down();
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(-1);
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(0.00 80 80) translate(0 0.00)");
     await phone.mouse.up();
     await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowRight");
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(1);
     await phone.keyboard.up("ArrowRight");
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(false);
+    // A browser unblocked in Site settings can start sending readings after touch fallback.
+    await phone.evaluate(() => { (window as any).sendOrientation = true; });
+    await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: -24, gamma: -40 }; });
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
   } finally { await context.close(); }
 });
 

@@ -11,6 +11,7 @@ async function installSyntheticPolar(page: Page, heartRate = 120) {
     let callback: (event: any) => void;
     (window as any).syntheticEcgRunning = true;
     hub.connect = async listener => {
+      (window as any).emitTestPolar = listener;
       callback = listener; callback({ kind: "connection", connected: true });
       loop = setInterval(() => {
         if (!(window as any).syntheticEcgRunning) return;
@@ -131,6 +132,36 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-source", "ground");
   expect(errors).toEqual([]);
+});
+
+test("the phone vibrates for local Polar RR notifications and stops on hide or disconnect", async ({ page, context }) => {
+  await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
+  const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
+  const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await installSyntheticPolar(phone);
+  await phone.evaluate(() => {
+    (window as any).syntheticEcgRunning = false;
+    (window as any).vibrationCalls = [];
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: (duration: number) => {
+      (window as any).vibrationCalls.push(duration); return true;
+    } });
+  });
+  await phone.getByRole("button", { name: "Connect Polar H10" }).click();
+  await phone.evaluate(() => (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [800, 810] }));
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([100]);
+  await phone.evaluate(() => {
+    (window as any).testPageVisible = false; document.dispatchEvent(new Event("visibilitychange"));
+    (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [810] });
+  });
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.at(-1))).toBe(0);
+  await phone.evaluate(() => {
+    (window as any).testPageVisible = true; document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await phone.getByRole("button", { name: "Disconnect H10" }).click();
+  await phone.evaluate(() => (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [810] }));
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([100]);
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.at(-1))).toBe(0);
 });
 
 test("unsupported H10 browser retains the paired touch controller", async ({ page, context }) => {

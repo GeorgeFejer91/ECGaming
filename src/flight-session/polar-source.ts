@@ -28,6 +28,7 @@ export class PolarControlProcessor {
   private sequence = 0;
   private lastFrameAt = 0;
   status: SourceStatus = "idle";
+  constructor(private readonly onRPeak?: (ageMs: number) => void) {}
   configure(config: RelayState) {
     if (this.config?.configRevision !== config.configRevision || this.config?.sourceEpoch !== config.sourceEpoch) {
       this.ranges.startSession(`${config.sourceEpoch}:${config.configRevision}`);
@@ -76,6 +77,7 @@ export class PolarControlProcessor {
       for (const beat of this.detector.pushFrame(samples, event.sensorTimestampNs)) {
         if (!this.detector.ready) continue;
         this.confidence = beat.confidence; this.rpeakAt = now; this.rpeakCount++;
+        this.onRPeak?.(Math.max(0, Number(BigInt(event.sensorTimestampNs)) / 1_000_000 - beat.timestampMs));
       }
     }
     if (event.kind === "accelerometer") { this.lastAccAt = now; this.breathingReady = event.breathing?.ready === true; }
@@ -112,7 +114,7 @@ export class PolarControlProcessor {
 
 /** Shared UI for the phone and the cockpit; device chooser stays directly in the button gesture. */
 export class PolarSourceWidget {
-  readonly processor = new PolarControlProcessor();
+  readonly processor = new PolarControlProcessor(ageMs => this.onLocalEvent?.({ kind: "r-peak", ageMs }));
   readonly button = document.createElement("button");
   readonly status = document.createElement("p");
   private ownsConnection = false;
@@ -122,9 +124,10 @@ export class PolarSourceWidget {
   private readonly handleEvent = (event: any) => {
     if (!this.ownsConnection) return;
     this.processor.handle(event, performance.now());
+    this.onLocalEvent?.(event);
     if (event.kind === "status" || event.kind === "error") this.status.textContent = event.message;
   };
-  constructor(host: HTMLElement) {
+  constructor(host: HTMLElement, private readonly onLocalEvent?: (event: any) => void) {
     this.button.type = "button"; this.button.textContent = "Connect Polar H10"; this.button.className = "polar-source-button"; this.button.disabled = true;
     this.status.className = "polar-source-status"; this.status.setAttribute("role", "status");
     this.status.textContent = "";
@@ -140,6 +143,7 @@ export class PolarSourceWidget {
       void getPolarBrowserHub().connect(this.handleEvent).then(() => { if (generation !== this.generation) void getPolarBrowserHub().disconnect(); }, error => {
         if (generation !== this.generation) return;
         this.ownsConnection = false; this.processor.reset(); this.processor.status = "error";
+        this.onLocalEvent?.({ kind: "error" });
         this.button.textContent = "Connect Polar H10"; this.status.textContent = error instanceof Error ? error.message : "H10 connection failed.";
       }).finally(() => { this.connecting = false; this.button.disabled = !this.config && !this.ownsConnection; });
     });
@@ -160,6 +164,7 @@ export class PolarSourceWidget {
   }
   stop() {
     ++this.generation;
+    this.onLocalEvent?.({ kind: "connection", connected: false });
     if (this.ownsConnection) void getPolarBrowserHub().disconnect();
     this.ownsConnection = false; this.processor.reset(); this.button.textContent = "Connect Polar H10";
     this.status.textContent = "H10 disconnected.";
