@@ -1,5 +1,6 @@
 import type { FlightFrame } from "../protocol/types";
 import type { AircraftId } from "./aircraft";
+import type { RrHeartbeatSignal } from "./flight-mechanics";
 
 export interface GameSnapshot {
   running: boolean;
@@ -7,12 +8,16 @@ export interface GameSnapshot {
   score: number;
   immersive: boolean;
   aircraftId: AircraftId;
+  crashed: boolean;
+  mountainCollisions: boolean;
 }
 export interface EcgGameModule extends EventTarget {
   start(): void;
   restart(): void;
   setControls(frame: FlightFrame): void;
   setSteering(axis: number): void;
+  setHeartbeatSignal(signal: RrHeartbeatSignal): void;
+  setMountainCollisions(enabled: boolean): void;
   setAircraft(id: AircraftId): Promise<AircraftId>;
   setPaused(paused: boolean): void;
   heartbeat(): void;

@@ -58,6 +58,60 @@ window.VDONinjaSDK=class extends EventTarget {
   }
 }`;
 
+test("Remote pilot QR keeps the tower editable and stops the invitation", async ({ page }) => {
+  await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
+  await page.goto("./ground-control/");
+  await page.getByRole("button", { name: "Remote pilot", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("canvas")).toBeVisible();
+  const link = await dialog.getByRole("link", { name: "Open phone flight view" }).getAttribute("href");
+  const url = new URL(link!);
+  expect(url.pathname).toBe("/flight/");
+  expect(url.hash).toContain("pilot=ecg_ground_");
+  expect(url.hash).toContain("session=");
+  expect(url.hash).toContain("aircraft=cardiac-ventricle");
+  await dialog.getByRole("button", { name: "Back to tower" }).click();
+  await page.getByRole("button", { name: /Flight Commands/ }).click();
+  const metric = page.locator('[data-command="altitude"] [data-field="metric"]');
+  await expect(metric).toBeEnabled();
+  await metric.selectOption("heart_rate");
+  await expect(metric).toHaveValue("heart_rate");
+  await page.getByRole("button", { name: "Remote pilot", exact: true }).click();
+  await dialog.getByRole("button", { name: "Stop remote pilot" }).click();
+  await expect(dialog.locator("canvas")).toBeHidden();
+  await expect(dialog.getByRole("link", { name: "Open phone flight view" })).toBeHidden();
+});
+
+test("QR phone view connects to its tower with touch steering and no page-load connection", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo.replace("constructor(){\n    super();", "constructor(){\n    super(); window.__vdoConstructed = (window.__vdoConstructed || 0) + 1;") }));
+  await page.goto("./flight/#pilot=ecg_ground_e2e00001&session=e2e-session&aircraft=cardiac-aorta");
+  expect(await page.evaluate(() => (window as any).__vdoConstructed ?? 0)).toBe(0);
+  await page.getByRole("button", { name: "Connect to tower" }).click();
+  await expect(page.getByRole("button", { name: "Start flight", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Aircraft")).toHaveValue("cardiac-aorta");
+  await page.getByRole("button", { name: "Start flight", exact: true }).click();
+  const right = page.getByRole("button", { name: "Steer right", exact: true });
+  await expect(right).toBeVisible();
+  await right.hover(); await page.mouse.down();
+  await expect(right).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.up();
+  await expect(right).toHaveAttribute("aria-pressed", "false");
+  await page.screenshot({ path: ".cache/cardiac-flight/remote-phone.png" });
+  await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+  await expect(right).toBeHidden();
+  await expect(page.getByRole("button", { name: "Connect to tower" })).toBeEnabled();
+});
+
+test("an expired QR session cannot unlock a different flight", async ({ page }) => {
+  await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
+  await page.goto("./flight/#pilot=ecg_ground_e2e00001&session=expired");
+  await page.getByRole("button", { name: "Connect to tower" }).click();
+  await expect(page.locator("#connection-copy")).toContainText("earlier tower session");
+  await expect(page.getByRole("button", { name: "Start flight", exact: true })).toBeHidden();
+});
+
 test("landing opens directly on compact game choices", async ({ page }) => {
   await page.goto("./");
   await expect(page.locator(".hero-grid")).toHaveCount(0);
@@ -210,7 +264,7 @@ test("every catalog aircraft loads without falling back", async ({ page }) => {
   const ids = await aircraft.locator("option").evaluateAll((options) =>
     options.map((option) => (option as HTMLOptionElement).value),
   );
-  expect(ids).toHaveLength(21);
+  expect(ids).toHaveLength(23);
   for (const id of ids) {
     await aircraft.selectOption(id);
     await expect(aircraft).toBeEnabled();
@@ -388,9 +442,9 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
   const next = page.getByRole("button", { name: "Next aircraft" });
   await expect(preview.locator("canvas")).toBeVisible();
   await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Pulsefire Mk I",
+    "Ventricle Glider",
   );
-  await expect(page.locator("#ground-aircraft-counter")).toHaveText("01 / 21");
+  await expect(page.locator("#ground-aircraft-counter")).toHaveText("01 / 23");
   await expect(page.locator("#ground-aircraft")).toHaveClass(/visually-hidden/);
   await expect(next).toBeEnabled();
   await expect(page.locator("#ground-aircraft-name")).toHaveAttribute(
@@ -432,20 +486,20 @@ test("Ground Control hangar previews and persists cardiac aircraft callsigns", a
 
   await next.click();
   await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Beatwing Scout",
+    "Aorta Swift",
   );
   await expect(page.locator("#ground-aircraft-tagline")).toContainText(
-    "Loud pulse",
+    "capillary wings",
   );
-  await expect(page.locator("#ground-aircraft-counter")).toHaveText("02 / 21");
+  await expect(page.locator("#ground-aircraft-counter")).toHaveText("02 / 23");
   await expect(next).toBeEnabled();
   expect(
     await page.evaluate(() => localStorage.getItem("ecgaming-aircraft-v1")),
-  ).toBe("og-cartoon-plane");
+  ).toBe("cardiac-aorta");
 
   await page.reload();
   await expect(page.locator("#ground-aircraft-name")).toHaveText(
-    "Beatwing Scout",
+    "Aorta Swift",
   );
   await expect(page.locator("#ground-aircraft-preview canvas")).toBeVisible();
   await expect(page.locator(".action-widget-heart")).toBeVisible();
@@ -530,7 +584,7 @@ test("every hangar aircraft stays centered at one preview scale", async ({
     .evaluateAll((options) =>
       options.map((option) => (option as HTMLOptionElement).value),
     );
-  expect(ids).toHaveLength(21);
+  expect(ids).toHaveLength(23);
 
   const canvas = preview.locator("canvas");
   const firstRotationFrame = await canvas.screenshot();

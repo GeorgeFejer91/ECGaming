@@ -30,7 +30,7 @@ export interface MobileReadinessInput {
 
 export const DEFAULT_MOBILE_SETTINGS: MobileControlSettings = Object.freeze({
   altitudeMode: "excitement_score",
-  beatSource: "ecg-rpeak",
+  beatSource: "polar-rr",
   manualAltitude: 0.5,
   throttle: 0.5,
   traffic: 0.5,

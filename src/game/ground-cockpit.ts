@@ -1,5 +1,5 @@
-import { isFreshBeat } from "../protocol/flight-frame";
 import type { FlightFrame } from "../protocol/types";
+import type { RrHeartbeatSignal } from "./flight-mechanics";
 import {
   AIRCRAFT_CATALOG,
   DEFAULT_AIRCRAFT_ID,
@@ -27,6 +27,7 @@ export interface CockpitTelemetry {
   latencyMs?: number;
   ready: boolean;
   holdReason?: string;
+  heartbeat?: RrHeartbeatSignal;
 }
 
 const COCKPIT_RECOVERY_MS = 3_000;
@@ -87,7 +88,6 @@ export class GroundCockpit extends EventTarget {
   private started = false;
   private visible = false;
   private muted = false;
-  private lastBeatCounter?: number;
   private rewardTimer?: number;
   private aircraftRequest = 0;
   private aircraftReady: Promise<void> = Promise.resolve();
@@ -123,6 +123,8 @@ export class GroundCockpit extends EventTarget {
     }
     this.game.addEventListener("score", this.handleScore as EventListener);
     this.game.addEventListener("xrchange", this.handleXrChange);
+    this.game.addEventListener("heartbeat", () => this.sound.beat());
+    this.game.addEventListener("crash", () => this.sound.crash());
     this.aircraftReady = this.selectAircraft(this.selectedAircraftId);
     return this.game;
   }
@@ -379,7 +381,6 @@ export class GroundCockpit extends EventTarget {
       performance.now(),
     ).ready;
     element("cockpit-runway-panel").hidden = true;
-    this.lastBeatCounter = undefined;
     this.accept(telemetry);
     game.restart();
     game.setPaused(!this.effectiveReady || !this.visible);
@@ -430,13 +431,7 @@ export class GroundCockpit extends EventTarget {
     );
     if (this.started)
       this.game.setPaused(!this.effectiveReady || !this.visible);
-    if (this.effectiveReady && isFreshBeat(frame, this.lastBeatCounter)) {
-      this.lastBeatCounter = frame.beatCounter;
-      this.game.heartbeat();
-      this.sound.beat();
-    } else if (frame.beatCounter !== this.lastBeatCounter) {
-      this.lastBeatCounter = frame.beatCounter;
-    }
+    if (telemetry.heartbeat) this.game.setHeartbeatSignal({ ...telemetry.heartbeat, ready: telemetry.heartbeat.ready && this.effectiveReady });
   }
 
   setVisible(visible: boolean) {

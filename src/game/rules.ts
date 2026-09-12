@@ -16,8 +16,8 @@ export const aircraftAttitude = (
 ) => {
   const lateralVelocity = horizontalVelocity + dragBankVelocity;
   return {
-    roll: Math.max(-0.48, Math.min(0.48, -lateralVelocity * 0.1)),
-    yaw: Math.max(-0.16, Math.min(0.16, -lateralVelocity * 0.035)),
+    roll: Math.max(-0.24, Math.min(0.24, -lateralVelocity * 0.04)),
+    yaw: Math.max(-0.15, Math.min(0.15, -lateralVelocity * 0.025)),
   };
 };
 

@@ -42,6 +42,8 @@ const gameHeartbeatPublisher = new GameHeartbeatPublisher("mobile-direct");
 const gameDivePublisher = new GameDivePublisher("mobile-direct");
 const game = createFlightScene(element("game-canvas"));
 const sound = new FlightSound();
+game.addEventListener("heartbeat", () => sound.beat());
+game.addEventListener("crash", () => sound.crash());
 const log = new SessionCsvLog();
 const metrics: Record<string, number> = {};
 const ecgSamples: number[] = [];
@@ -67,6 +69,9 @@ let settings = sanitizeMobileSettings(
   signalHeld = false,
   currentReady = false,
   beatCounter = 0,
+  rrCounter = 0,
+  lastRrAt = -Infinity,
+  rrSession = 0,
   lastBeatAt = -Infinity,
   lastFrameAt = performance.now(),
   lastLogAt = -Infinity,
@@ -228,6 +233,10 @@ function appendEcg(samples: number[]) {
 }
 
 function registerBeat(source: "ecg-rpeak" | "polar-rr", confidence: number) {
+  if (source === "polar-rr") {
+    rrCounter = (rrCounter + 1) >>> 0;
+    lastRrAt = performance.now();
+  }
   if (mappings.beatSource !== source || mappings.beatAction === "off") return;
   beatCounter = (beatCounter + 1) >>> 0;
   lastBeatAt = performance.now();
@@ -241,10 +250,6 @@ function registerBeat(source: "ecg-rpeak" | "polar-rr", confidence: number) {
     simulated,
     ready: simulated || (physicalConnected && ecgReady),
   });
-  if (started && !signalHeld) {
-    game.heartbeat();
-    sound.beat();
-  }
   if (element<HTMLInputElement>("mobile-log-enabled").checked)
     log.add({ event: "beat", source, beat_counter: beatCounter, confidence });
 }
@@ -351,6 +356,7 @@ async function connectPolar() {
   for (const key of Object.keys(metrics)) delete metrics[key];
   detector.reset();
   beatCounter = 0;
+  rrCounter = 0; lastRrAt = -Infinity; rrSession++;
   lastBeatAt = -Infinity;
   ecgSamples.length = 0;
   breathingReady = false;
@@ -404,11 +410,8 @@ function simulatedSignals(now: number) {
         );
       }),
     );
-    if (mappings.beatSource !== "off")
-      registerBeat(
-        mappings.beatSource === "polar-rr" ? "polar-rr" : "ecg-rpeak",
-        1,
-      );
+    registerBeat("polar-rr", 1);
+    if (mappings.beatSource === "ecg-rpeak") registerBeat("ecg-rpeak", 1);
   }
   showMetrics();
 }
@@ -552,6 +555,14 @@ function updateLoop(now: number) {
       (simulated ? FlightFlags.simulation : 0),
   };
   game.setControls(frame);
+  game.setHeartbeatSignal({
+    sessionId: `mobile-${rrSession}-${simulated ? "sim" : "polar"}`,
+    counter: rrCounter,
+    ageMs: now - lastRrAt,
+    rrMs: metrics.rr_interval,
+    ready: ready && started && !signalHeld,
+    simulated,
+  });
   const displayValue = (frame.altitude + 1) / 2;
   setText("mobile-signal-value", displayValue.toFixed(2));
   if (started && !ready) pauseForSignal();

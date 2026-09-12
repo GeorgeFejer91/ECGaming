@@ -7,7 +7,6 @@ import {
   AIRCRAFT_MAX_HEIGHT,
   AIRCRAFT_MAX_WIDTH,
   AIRCRAFT_PERSONAS,
-  DEFAULT_AIRCRAFT_ID,
   disposeAircraftVisual,
   loadAircraftVisual,
   normalizeAircraftVisual,
@@ -22,6 +21,8 @@ import {
 describe("aircraft catalog", () => {
   it("offers the project plane and every licensed source-pack aircraft", () => {
     expect(AIRCRAFT_CATALOG.map(({ id }) => id)).toEqual([
+      "cardiac-ventricle",
+      "cardiac-aorta",
       "ecgaming-classic",
       "og-cartoon-plane",
       "og-biplane",
@@ -121,7 +122,7 @@ describe("aircraft catalog", () => {
   });
 
   it("gives the procedural fallback a visible animated propeller", async () => {
-    const visual = await loadAircraftVisual(DEFAULT_AIRCRAFT_ID);
+    const visual = await loadAircraftVisual("ecgaming-classic");
     const size = new THREE.Box3()
       .setFromObject(visual.root)
       .getSize(new THREE.Vector3());

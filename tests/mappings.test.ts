@@ -7,11 +7,13 @@ import {
 } from "../src/signals/mappings";
 
 describe("signal mappings", () => {
-  it("maps excitement to signed altitude and manual controls to unit values", () => {
+  it("maps Excitometer to signed altitude while RR drives the heart interaction", () => {
     expect(
       commandValue("altitude", { excitement_score: 0.75 }, DEFAULT_MAPPINGS),
     ).toBe(0.5);
     expect(commandValue("throttle", {}, DEFAULT_MAPPINGS)).toBe(0.5);
+    expect(DEFAULT_MAPPINGS.beatSource).toBe("polar-rr");
+    expect(DEFAULT_MAPPINGS.beatAction).toBe("pulse");
   });
   it("reverses and sanitizes imported settings", () => {
     const value = sanitizeMappings({

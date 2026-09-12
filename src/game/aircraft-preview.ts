@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {
-  DEFAULT_AIRCRAFT_ID,
+  createProceduralAircraftVisual,
   disposeAircraftVisual,
   loadAircraftVisual,
   spinAircraftPropeller,
@@ -182,7 +182,7 @@ export class AircraftPreview {
       visual = await loadAircraftVisual(id);
     } catch (error) {
       console.warn(`Preview could not load ${id}; using project aircraft.`, error);
-      visual = await loadAircraftVisual(DEFAULT_AIRCRAFT_ID);
+      visual = createProceduralAircraftVisual();
     }
     if (request !== this.request) {
       disposeAircraftVisual(visual.root);

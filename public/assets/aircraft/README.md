@@ -1,5 +1,12 @@
 # Aircraft asset manifest
 
+`cardiac-ventricle.glb` and `cardiac-aorta.glb` are original ECGaming aircraft,
+authored with Blender 5.2.1 LTS. Editable, packed sources live in
+`assets/blender/`, with a reproducible generator at
+`scripts/build_cardiac_aircraft.py`. The vessel textures and previews are also
+original project work. Their named core, wings, pulse materials and valve
+propeller support RR-driven animation in the browser.
+
 These GLBs are redistributable runtime conversions of the sources credited in
 the repository root `THIRD_PARTY_NOTICES.md`. The originals are not claimed as
 ECGaming work.

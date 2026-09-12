@@ -21,11 +21,11 @@ describe("heartbeat flight rules", () => {
     expect(applyRingResult(2, false)).toEqual({ score: 2, points: 0 });
   });
   it("banks and yaws into lateral steering without exceeding visual limits", () => {
-    expect(aircraftAttitude(3).roll).toBeCloseTo(-0.3);
-    expect(aircraftAttitude(3).yaw).toBeCloseTo(-0.105);
-    expect(aircraftAttitude(-3).roll).toBeCloseTo(0.3);
-    expect(aircraftAttitude(-3).yaw).toBeCloseTo(0.105);
-    expect(aircraftAttitude(99, 99)).toEqual({ roll: -0.48, yaw: -0.16 });
+    expect(aircraftAttitude(3).roll).toBeCloseTo(-0.12);
+    expect(aircraftAttitude(3).yaw).toBeCloseTo(-0.075);
+    expect(aircraftAttitude(-3).roll).toBeCloseTo(0.12);
+    expect(aircraftAttitude(-3).yaw).toBeCloseTo(0.075);
+    expect(aircraftAttitude(99, 99)).toEqual({ roll: -0.24, yaw: -0.15 });
   });
   it("turns continuous headset roll into a deadzoned steering axis", () => {
     const degrees = (value: number) => (value * Math.PI) / 180;

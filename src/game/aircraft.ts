@@ -14,11 +14,32 @@ export interface AircraftDefinition {
   rotation: readonly [number, number, number];
   /** Optional source rotor to animate instead of adding an ECGaming rotor. */
   sourcePropellerNode?: string;
+  sourcePropellerAxis?: "x" | "z";
   /** Source nodes known to be accidental duplicate geometry. */
   removeNodeNames?: readonly string[];
 }
 
 export const AIRCRAFT_CATALOG = [
+  {
+    id: "cardiac-ventricle",
+    label: "Ventricle Glider",
+    assetPath: "/assets/aircraft/cardiac-ventricle.glb",
+    sourceUrl: "https://github.com/GeorgeFejer91/ECGaming/tree/main/assets/blender",
+    license: "Project",
+    rotation: [0, 0, 0],
+    sourcePropellerNode: "CardiacRotor",
+    sourcePropellerAxis: "z",
+  },
+  {
+    id: "cardiac-aorta",
+    label: "Aorta Swift",
+    assetPath: "/assets/aircraft/cardiac-aorta.glb",
+    sourceUrl: "https://github.com/GeorgeFejer91/ECGaming/tree/main/assets/blender",
+    license: "Project",
+    rotation: [0, 0, 0],
+    sourcePropellerNode: "CardiacRotor",
+    sourcePropellerAxis: "z",
+  },
   {
     id: "ecgaming-classic",
     label: "ECGaming Classic",
@@ -194,7 +215,7 @@ export const AIRCRAFT_CATALOG = [
 
 export type AircraftId = (typeof AIRCRAFT_CATALOG)[number]["id"];
 export type AircraftCatalogEntry = (typeof AIRCRAFT_CATALOG)[number];
-export const DEFAULT_AIRCRAFT_ID: AircraftId = "ecgaming-classic";
+export const DEFAULT_AIRCRAFT_ID: AircraftId = "cardiac-ventricle";
 
 export interface AircraftPersona {
   name: string;
@@ -203,6 +224,14 @@ export interface AircraftPersona {
 
 /** Player-facing hangar callsigns; source/credit labels remain in the catalog. */
 export const AIRCRAFT_PERSONAS = {
+  "cardiac-ventricle": {
+    name: "Ventricle Glider",
+    tagline: "A heart in flight. Every beat leaves a trace.",
+  },
+  "cardiac-aorta": {
+    name: "Aorta Swift",
+    tagline: "Swept capillary wings and an arterial heart.",
+  },
   "ecgaming-classic": {
     name: "Pulsefire Mk I",
     tagline: "The original heartbeat hot-rod.",
@@ -302,6 +331,7 @@ export function prepareSourcePropeller(
   scene: THREE.Object3D,
   nodeName: string,
   removeNodeNames: readonly string[] = [],
+  rotationAxis: "x" | "z" = "x",
 ): THREE.Group {
   for (const name of removeNodeNames) {
     const duplicate = scene.getObjectByName(name);
@@ -317,7 +347,7 @@ export function prepareSourcePropeller(
   pivot.quaternion.copy(source.quaternion);
   pivot.scale.copy(source.scale);
   pivot.userData.ecgamingAnimatedPropeller = true;
-  pivot.userData.ecgamingRotationAxis = "x";
+  pivot.userData.ecgamingRotationAxis = rotationAxis;
   parent.remove(source);
   source.position.set(0, 0, 0);
   source.quaternion.identity();
@@ -341,7 +371,13 @@ export const getAircraftDefinition = (id: AircraftId) =>
 export const aircraftAssetUrl = (id: AircraftId) => {
   const path = getAircraftDefinition(id).assetPath;
   if (!path) return null;
-  return `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
+  return flightAssetUrl(path);
+};
+
+/** Production chunks live in assets/, while entry pages may be nested. */
+export const flightAssetUrl = (path: string) => {
+  const base = import.meta.env.DEV ? import.meta.env.BASE_URL : new URL(/* @vite-ignore */ "../", import.meta.url).href;
+  return `${base}${path.replace(/^\//, "")}`;
 };
 
 /** Center and uniformly fit an aircraft inside the ring's safe X/Y opening. */
@@ -616,7 +652,7 @@ export const createProceduralAircraftVisual = (): AircraftVisual => {
     [3.25, 0.01, -0.03],
   );
   normalizeAircraftVisual(root);
-  return { id: DEFAULT_AIRCRAFT_ID, root, propellers: [propeller] };
+  return { id: "ecgaming-classic", root, propellers: [propeller] };
 };
 
 const loadGltf = (url: string) => new GLTFLoader().loadAsync(url);
@@ -624,7 +660,7 @@ const loadGltf = (url: string) => new GLTFLoader().loadAsync(url);
 export async function loadAircraftVisual(
   id: AircraftId,
 ): Promise<AircraftVisual> {
-  if (id === DEFAULT_AIRCRAFT_ID) {
+  if (id === "ecgaming-classic") {
     return createProceduralAircraftVisual();
   }
 
@@ -644,11 +680,12 @@ export async function loadAircraftVisual(
         gltf.scene,
         definition.sourcePropellerNode,
         definition.removeNodeNames,
+        definition.sourcePropellerAxis,
       )
     : undefined;
   root.add(gltf.scene);
   root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
+    if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line)) return;
     object.castShadow = true;
     object.receiveShadow = true;
   });
@@ -682,7 +719,7 @@ export function disposeAircraftVisual(root: THREE.Object3D) {
   const materials = new Set<THREE.Material>();
   const textures = new Set<THREE.Texture>();
   root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
+    if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line)) return;
     object.geometry.dispose();
     const meshMaterials = Array.isArray(object.material)
       ? object.material

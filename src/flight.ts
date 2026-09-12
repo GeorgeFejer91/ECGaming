@@ -1,4 +1,7 @@
 import "./styles.css";
+import "./ui/remote-pilot.css";
+import { readRemotePilotInvitation } from "./protocol/remote-pilot";
+import { installFlightSteering } from "./ui/flight-steering";
 import {
   FlightFlags,
   isFreshBeat,
@@ -27,12 +30,15 @@ const receiver = new FlightReceiver(),
   sound = new FlightSound(),
   log = new SessionCsvLog();
 const gameHeartbeatPublisher = new GameHeartbeatPublisher("flight-deck");
+const invitation = readRemotePilotInvitation(location.hash);
+const invalidInvitation = location.hash.includes("pilot=") && !invitation;
+const disposeSteering = installFlightSteering(element("flight-main"), game);
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
 const persistedAircraftId = localStorage.getItem(AIRCRAFT_KEY);
 let selectedAircraftId: AircraftId =
-  persistedAircraftId && isAircraftId(persistedAircraftId)
+  invitation?.aircraftId ?? (persistedAircraftId && isAircraftId(persistedAircraftId)
     ? persistedAircraftId
-    : DEFAULT_AIRCRAFT_ID,
+    : DEFAULT_AIRCRAFT_ID),
   aircraftReady: Promise<void> = Promise.resolve(),
   aircraftRequest = 0;
 let started = false,
@@ -93,6 +99,7 @@ function renderSources(state: FlightReceiverSnapshot) {
   const host = element("source-list");
   host.replaceChildren();
   for (const source of state.sources) {
+    if (invitation && source.streamId !== invitation.streamId) continue;
     const button = document.createElement("button");
     button.className = "source-button";
     button.type = "button";
@@ -105,6 +112,7 @@ function renderSources(state: FlightReceiverSnapshot) {
   }
 }
 function isReady(state: FlightReceiverSnapshot) {
+  if (invalidInvitation || (invitation && state.config?.sessionId !== invitation.sessionId)) return false;
   const beaconFlags = state.beacon.latest?.flags ?? 0;
   const physicalEcgBeacon = Boolean(
     state.beacon.fresh &&
@@ -194,8 +202,6 @@ function acceptFrame(state: FlightReceiverSnapshot) {
       simulated: Boolean(frame.flags & FlightFlags.simulation),
       ready: isReady(state),
     });
-    game.heartbeat();
-    sound.beat();
     if (element<HTMLInputElement>("flight-log-enabled").checked)
       log.add({
         event: "beat",
@@ -259,10 +265,11 @@ function beginResumeCountdown() {
   }, 1000);
 }
 async function findGround() {
+  if (invalidInvitation) return;
   element<HTMLButtonElement>("find-ground").disabled = true;
   setText("connection-title", "Scanning the airwaves…");
   try {
-    await receiver.startDiscovery();
+    await receiver.startDiscovery(invitation);
   } catch (error) {
     setText("connection-title", "Could not open the data link");
     setText(
@@ -303,6 +310,20 @@ receiver.addEventListener("frame", ((event: CustomEvent) => {
   updateConnection(event.detail);
   acceptFrame(event.detail);
 }) as EventListener);
+receiver.addEventListener("beaconframe", ((event: CustomEvent<FlightReceiverSnapshot>) => {
+  const state = event.detail;
+  const beacon = state.beacon.latest;
+  if (!beacon) return;
+  game.setHeartbeatSignal({
+    sessionId: String(beacon.sessionToken),
+    counter: beacon.rrBeatCounter,
+    ageMs: beacon.rrBeatAgeMs + (state.beacon.packetAgeMs ?? 0),
+    rrMs: beacon.metrics.rr_interval,
+    ready: isReady(state) && Boolean(beacon.flags & SignalBeaconFlags.rrStreamReady),
+  });
+}) as EventListener);
+game.addEventListener("heartbeat", () => sound.beat());
+game.addEventListener("crash", () => sound.crash());
 game.addEventListener("score", ((event: CustomEvent) => {
   const { score, points, kind } = event.detail;
   setText("score", String(score).padStart(3, "0"));
@@ -370,9 +391,28 @@ game.addEventListener("xrchange", () => {
   xrButton.disabled = active;
 });
 addEventListener("beforeunload", () => {
+  disposeSteering();
   gameHeartbeatPublisher.close();
   if (countdownTimer) clearInterval(countdownTimer);
   void receiver.stop();
   game.dispose();
 });
 hydrateAircraftSelector();
+if (invitation || invalidInvitation) {
+  document.body.classList.add("remote-pilot-mode");
+  setText("connection-title", invalidInvitation ? "This pilot link is incomplete" : "Your remote cockpit");
+  setText("connection-copy", invalidInvitation ? "Scan the QR code from your tower again." : "Connect to the tower from your QR code. The tower supplies heart signals and controls the height mapping; you steer left and right here.");
+  setText("find-ground", "Connect to tower");
+  element<HTMLButtonElement>("find-ground").disabled = invalidInvitation;
+  const exit = document.createElement("button");
+  exit.type = "button"; exit.className = "hud-button remote-pilot-exit";
+  exit.textContent = "Disconnect";
+  exit.addEventListener("click", () => {
+    pauseForSignal(); started = false;
+    game.setPaused(true);
+    element("pause-panel").hidden = true;
+    element("start-panel").hidden = true;
+    void receiver.stop();
+  });
+  element("flight-main").append(exit);
+}

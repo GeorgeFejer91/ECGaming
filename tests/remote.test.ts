@@ -82,6 +82,42 @@ const frame = (sequence: number) =>
 
 afterEach(() => vi.useRealTimers());
 describe("VDO.Ninja flight bridge", () => {
+  it("keeps a QR receiver on its exact tower and rejects an old session", async () => {
+    vi.useFakeTimers();
+    const sdk = new FakeSdk();
+    const receiver = new FlightReceiver({ sdkFactory: () => sdk as any });
+    const streamId = `${FLIGHT_SOURCE_PREFIX}1234abcd`;
+    await receiver.startDiscovery({ streamId, sessionId: "current-session" });
+    sdk.emit("listing", { list: [{ streamID: `${FLIGHT_SOURCE_PREFIX}other`, UUID: "other" }] });
+    await vi.advanceTimersByTimeAsync(350);
+    expect(sdk.viewed).toBe("");
+    sdk.emit("listing", { list: [{ streamID: streamId, UUID: "chosen" }] });
+    await vi.advanceTimersByTimeAsync(350);
+    expect(sdk.viewed).toBe(streamId);
+    const config = { kind: "ecgaming-flight-config", protocol: "ecgflightv1", schemaVersion: 1, sourceId: streamId, sessionId: "old-session", createdAt: new Date().toISOString(), mappings: DEFAULT_MAPPINGS };
+    sdk.emit("dataReceived", { uuid: "chosen", data: config });
+    expect(receiver.snapshot().config).toBeUndefined();
+    sdk.emit("dataReceived", { uuid: "chosen", data: { ...config, sessionId: "current-session" } });
+    expect(receiver.snapshot().config?.sessionId).toBe("current-session");
+    await receiver.stop();
+  });
+  it("sends live tower mapping changes without rotating the paired session", async () => {
+    const sdk = new FakeSdk();
+    const sender = new FlightBroadcaster({ sdkFactory: () => sdk as any });
+    const initial = await sender.start(DEFAULT_MAPPINGS, "Test tower");
+    sdk.emit("dataChannelOpen", { uuid: "phone" });
+    await Promise.resolve(); await Promise.resolve();
+    const next = structuredClone(DEFAULT_MAPPINGS);
+    next.altitude.metric = "heart_rate";
+    sender.updateMappings(next);
+    const sent = sdk.sentData.filter(item => item.data.kind === "ecgaming-flight-config").at(-1)!;
+    expect(sent.data.sessionId).toBe(initial.sessionId);
+    expect(sent.data.mappings.altitude.metric).toBe("heart_rate");
+    expect(sender.snapshot().streamId).toBe(initial.streamId);
+    next.altitude.metric = "manual";
+    expect(sent.data.mappings.altitude.metric).toBe("heart_rate");
+    await sender.stop();
+  });
   it("announces a safe pilot name and preserves it during discovery", async () => {
     const senderSdk = new FakeSdk();
     const sender = new FlightBroadcaster({

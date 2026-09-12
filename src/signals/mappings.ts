@@ -96,7 +96,7 @@ export const DEFAULT_MAPPINGS: FlightMappings = {
     releaseMs: 500,
     manual: 0.5,
   },
-  beatSource: "ecg-rpeak",
+  beatSource: "polar-rr",
   beatAction: "pulse",
 };
 

@@ -38,6 +38,7 @@ import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 import { GameDivePublisher } from "./game/dive-intent-channel";
 import { SessionCsvLog } from "./logging/session-log";
 import { installPretextFit } from "./ui/pretext-fit";
+import { RemotePilotDialog } from "./ui/remote-pilot-dialog";
 // Reused under the Affect Tracker repository's BSD-3-Clause license.
 import { POLAR_METRICS } from "./vendor/affect-tracker/polar-stream.js";
 import {
@@ -222,6 +223,15 @@ const broadcaster = new FlightBroadcaster();
 const receiver = new FlightReceiver();
 const adaptiveRange = new AdaptiveRangeTracker();
 const cockpit = new GroundCockpit();
+const remotePilotDialog = new RemotePilotDialog(async () => {
+  if (sourceMode !== "polar") {
+    remotePilotDialog.update({ ...broadcaster.snapshot(), message: "Choose Direct Polar in Ground Control before starting remote pilot." });
+    return;
+  }
+  if (!element<HTMLInputElement>("pilot-name").value.trim())
+    element<HTMLInputElement>("pilot-name").value = "Control Tower";
+  await startBroadcast();
+}, stopBroadcast, () => broadcaster.snapshot(), () => cockpit.currentAircraft());
 const gameHeartbeatPublisher = new GameHeartbeatPublisher("ground-control");
 const gameDivePublisher = new GameDivePublisher("ground-control");
 const log = new SessionCsvLog();
@@ -282,6 +292,7 @@ function stateMetricLabel(metric?: MetricId) {
 
 function saveMappings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(mappings));
+  broadcaster.updateMappings(mappings);
 }
 
 function setupAccordion() {
@@ -474,7 +485,6 @@ function remoteIsLegacy() {
 }
 
 function syncMappingAvailability() {
-  const broadcastLocked = broadcaster.snapshot().phase === "broadcasting";
   const sourceMapped = remoteIsLegacy();
   document.querySelectorAll<HTMLElement>("[data-command]").forEach((card) => {
     const command = card.dataset.command as ContinuousCommand;
@@ -487,7 +497,7 @@ function syncMappingAvailability() {
       .forEach(
         (input) =>
           (input.disabled =
-            broadcastLocked || sourceMapped || binding.metric !== "manual"),
+            sourceMapped || binding.metric !== "manual"),
       );
     card
       .querySelectorAll<HTMLInputElement>(
@@ -496,7 +506,6 @@ function syncMappingAvailability() {
       .forEach(
         (input) =>
           (input.disabled =
-            broadcastLocked ||
             sourceMapped ||
             binding.metric === "manual" ||
             adaptive),
@@ -506,12 +515,12 @@ function syncMappingAvailability() {
         '[data-field="metric"],[data-field="attackMs"],[data-field="releaseMs"],[data-field="reverse"]',
       )
       .forEach(
-        (input) => (input.disabled = broadcastLocked || sourceMapped),
+        (input) => (input.disabled = sourceMapped),
       );
     card
       .querySelectorAll<HTMLButtonElement>("[data-signal-family]")
       .forEach((button) => {
-        button.disabled = broadcastLocked || sourceMapped;
+        button.disabled = sourceMapped;
         const isBreath = binding.metric === "breathing_volume";
         button.setAttribute(
           "aria-pressed",
@@ -523,7 +532,7 @@ function syncMappingAvailability() {
     if (command === "altitude")
       card.toggleAttribute("data-beat-lift", mappings.beatAction === "lift");
   });
-  const locked = broadcastLocked || sourceMapped;
+  const locked = sourceMapped;
   element<HTMLInputElement>("import-settings").disabled = locked;
   const beatSource = element<HTMLSelectElement>("beat-source");
   const beatAction = element<HTMLSelectElement>("beat-action");
@@ -1601,6 +1610,13 @@ function cockpitTelemetry(runtime: RuntimeState): CockpitTelemetry {
     latencyMs: runtime.active.latencyMs,
     ready: runtime.readiness.ready,
     holdReason: gateReason(runtime.readiness),
+    heartbeat: {
+      sessionId: runtime.active.sessionId,
+      counter: runtime.active.rrBeatCounter,
+      ageMs: runtime.active.rrBeatAgeMs,
+      rrMs: runtime.active.metrics.rr_interval,
+      ready: runtime.active.rrBeatReady && runtime.readiness.ready,
+    },
   };
 }
 
@@ -2126,6 +2142,7 @@ receiver.addEventListener("frame", ((event: CustomEvent) =>
 
 broadcaster.addEventListener("statechange", ((event: CustomEvent) => {
   const state = event.detail;
+  remotePilotDialog.update(state);
   setText("broadcast-source", state.sourceLabel || "Not announced");
   setText(
     "broadcast-listeners",
@@ -2177,6 +2194,14 @@ addEventListener("beforeunload", () => {
 });
 
 setupAccordion();
+const remotePilotButton = document.createElement("button");
+remotePilotButton.id = "remote-pilot";
+remotePilotButton.type = "button";
+remotePilotButton.className = "remote-pilot-menu-button";
+remotePilotButton.textContent = "Remote pilot";
+remotePilotButton.setAttribute("aria-haspopup", "dialog");
+remotePilotButton.addEventListener("click", () => void remotePilotDialog.open());
+document.querySelector(".view-mode-switch")!.append(remotePilotButton);
 renderMappings();
 setupPilotNameField();
 setupActions();

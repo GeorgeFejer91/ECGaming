@@ -15,6 +15,7 @@ import {
   SIGNAL_BEACON_METRICS,
   SIGNAL_BEACON_STALE_MS,
 } from "./flight-frame";
+import type { RemotePilotInvitation } from "./remote-pilot";
 import type {
   FlightConfigV1,
   FlightFrame,
@@ -490,6 +491,13 @@ export class FlightBroadcaster extends RemoteBase {
       }),
     );
   }
+  /** Tower-owned mapping changes use the existing reliable config path. */
+  updateMappings(mappings: FlightMappings) {
+    if (!this.config || this.phase !== "broadcasting") return;
+    this.config = createConfig(this.streamId, mappings, this.config.sessionId, this.sourceLabel);
+    for (const uuid of new Set([...this.channels.keys(), ...this.beaconChannels.keys()]))
+      this.deliverConfig(uuid);
+  }
   private deliverBeaconConfig(uuid: string) {
     if (!this.sdk || !this.beaconConfig || !uuid) return false;
     return Boolean(
@@ -901,6 +909,7 @@ export class FlightBroadcaster extends RemoteBase {
 }
 
 export class FlightReceiver extends RemoteBase {
+  private invitation?: RemotePilotInvitation;
   private phase: FlightReceiverSnapshot["phase"] = "idle";
   private sources = new Map<string, RemoteSource>();
   private selectedStreamId = "";
@@ -1029,7 +1038,10 @@ export class FlightReceiver extends RemoteBase {
     if (this.discoveryTimer || this.selectedStreamId) return;
     this.discoveryTimer = this.timeout(() => {
       this.discoveryTimer = undefined;
-      if (this.sources.size === 1)
+      if (this.invitation) {
+        if (this.sources.has(this.invitation.streamId)) void this.selectSource(this.invitation.streamId);
+        else { this.phase = "discovering"; this.emit({ message: "Waiting for the tower from your QR code. Keep its broadcast running." }); }
+      } else if (this.sources.size === 1)
         void this.selectSource([...this.sources.keys()][0]!);
       else {
         this.phase = this.sources.size > 1 ? "selecting" : "discovering";
@@ -1037,9 +1049,10 @@ export class FlightReceiver extends RemoteBase {
       }
     }, DISCOVERY_SETTLE_MS);
   }
-  async startDiscovery() {
+  async startDiscovery(invitation?: RemotePilotInvitation) {
     if (this.phase !== "idle" && this.phase !== "error") return this.snapshot();
     await this.stop();
+    this.invitation = invitation;
     this.phase = "discovering";
     this.emit({ message: "Looking for public Ground Control broadcasts…" });
     try {
@@ -1095,6 +1108,7 @@ export class FlightReceiver extends RemoteBase {
     }
   }
   async selectSource(streamId: string) {
+    if (this.invitation && streamId !== this.invitation.streamId) return this.snapshot();
     if (!this.sdk || !isFlightSource(streamId)) return this.snapshot();
     if (this.selectedStreamId && this.selectedStreamId !== streamId)
       try {
@@ -1160,6 +1174,10 @@ export class FlightReceiver extends RemoteBase {
       return false;
     const config = parseConfig(detail.data);
     if (config) {
+      if (this.invitation && config.sessionId !== this.invitation.sessionId) {
+        this.emit({ message: "This QR code belongs to an earlier tower session. Scan the new code." });
+        return false;
+      }
       if (
         config.sourceId !== this.selectedStreamId ||
         (this.beaconConfig &&
@@ -1179,6 +1197,7 @@ export class FlightReceiver extends RemoteBase {
       return true;
     }
     const beaconConfig = parseBeaconConfig(detail.data);
+    if (this.invitation && beaconConfig && beaconConfig.sessionId !== this.invitation.sessionId) return false;
     if (
       !beaconConfig ||
       beaconConfig.sourceId !== this.selectedStreamId ||
@@ -1493,6 +1512,7 @@ export class FlightReceiver extends RemoteBase {
   }
   async stop() {
     const previous = this.selectedStreamId;
+    this.invitation = undefined;
     if (this.sdk && previous)
       try {
         await this.sdk.stopViewing?.(previous);

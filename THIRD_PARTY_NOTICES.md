@@ -27,6 +27,13 @@ The ECG Flight adapter is independently implemented as BSD-3-Clause project code
 
 [Three.js](https://threejs.org/) is distributed under the MIT License. Copyright © 2010–2026 Three.js authors.
 
+## Remote pilot QR generation
+
+`qrcode` 1.5.4 (Ryan Day) and its browser dependency `dijkstrajs` 1.0.3 are
+distributed under the MIT License. QR images are generated locally. The full
+notices are shipped at `public/vendor/qrcode/LICENSE-MIT.txt` and
+`public/vendor/qrcode/dijkstrajs-LICENSE.txt`.
+
 ## Pretext
 
 [`@chenglou/pretext`](https://github.com/chenglou/pretext) by Cheng Lou is distributed under the MIT License. ECGaming uses its cached text measurement and layout APIs to fit labelled control-room text into fixed instrument cells without repeated DOM text measurement.
