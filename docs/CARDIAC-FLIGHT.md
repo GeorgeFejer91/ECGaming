@@ -119,6 +119,11 @@ depends on the exported geometry, materials and Three.js renderer.
 
 ## Evidence boundary
 
+The public [plane preview](https://ec-games.space/plane-preview/) loads both
+standard cardiac aircraft with simulated ECG and RR controls, synchronized
+dual-exhaust puffs, drag/keyboard rotation and Excite-O-Meter altitude. It does
+not connect to a sensor; real ECG remains local to the Polar-connected game.
+
 Automated checks cover steering cadence/braking, real browser GLB loading and
 named animation parts, RR deduplication/batching/rollover/recovery, mountain
 contact and restart, QR routing/session checks, live mapping delivery, and phone

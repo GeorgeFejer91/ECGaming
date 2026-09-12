@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Explore ECGaming's cardiac aircraft with simulated ECG on the wings and RR-driven heartbeat motion." />
+    <title>Cardiac plane preview · ECGaming</title>
+    <link rel="stylesheet" href="../src/plane-preview.css" />
+  </head>
+  <body>
+    <main>
+      <aside>
+        <a href="../ground-control/">Open ECGaming</a>
+        <h1>A heart in flight</h1>
+        <p>Explore our Blender aircraft with <strong>simulated ECG and RR beats</strong>. No sensor is needed.</p>
+        <label for="aircraft">Aircraft</label>
+        <select id="aircraft">
+          <option value="cardiac-ventricle">Ventricle Glider</option>
+          <option value="cardiac-aorta">Aorta Swift</option>
+        </select>
+        <label for="rr">RR interval · <output id="rr-value">800 ms / 75 BPM</output></label>
+        <input id="rr" type="range" min="350" max="1500" value="800" step="10" />
+        <label for="excitement">Excite-O-Meter · <output id="excite-value">0.50</output></label>
+        <input id="excitement" type="range" min="0" max="1" value=".5" step=".01" />
+        <button id="toggle" type="button">Pause heartbeat</button>
+        <p id="state">Loading the Blender model…</p>
+        <p>Each beat contracts the heart, flexes the wings, lights the vessels and releases a puff from both exhausts. Excite-O-Meter moves the plane up and down.</p>
+        <p>The wing trace is simulated here. Connect Polar in the game to show your own local ECG.</p>
+      </aside>
+      <section id="view" aria-label="Interactive cardiac aircraft">
+        <p id="caption">Drag or use ← → to rotate · simulated ECG</p>
+      </section>
+    </main>
+    <noscript>This interactive preview needs JavaScript.</noscript>
+    <script type="module" src="../src/plane-preview.ts"></script>
+  </body>
+</html>

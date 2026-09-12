@@ -13,6 +13,7 @@ export default defineConfig({
           "ground-control/index.html",
         ),
         flight: resolve(import.meta.dirname, "flight/index.html"),
+        planePreview: resolve(import.meta.dirname, "plane-preview/index.html"),
         mobile: resolve(import.meta.dirname, "mobile/index.html"),
         pixelHop: resolve(import.meta.dirname, "games/pixel-hop/index.html"),
         superTux: resolve(import.meta.dirname, "games/supertux/index.html"),
