@@ -164,3 +164,10 @@ body.compact-ground { height: 100dvh; min-height: 0; overflow: hidden; }
   .compact-ground .unified-flight-shell #polar-source-controls .button-row { gap: 4px; }
   .compact-ground .unified-flight-shell #polar-source-controls:has(#disconnect-polar:not(:disabled)) .button-row { margin-top: 0; }
 }
+@media (min-width: 701px) {
+  .compact-ground .unified-flight-shell .control-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compact-ground .cardiac-aircraft-choices { gap: 16px; }
+  .compact-ground .unified-flight-shell #polar-source-controls { display: flex; flex-direction: column; justify-content: space-between; }
+  .compact-ground .unified-flight-shell #polar-source-controls .button-row { flex-direction: column-reverse; }
+  .compact-ground .flight-gate-start { margin-top: auto; }
+}
