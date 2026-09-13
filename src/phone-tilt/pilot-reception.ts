@@ -32,6 +32,7 @@ class PilotReception {
       if (message.kind !== "request") { this.lobby.closePeer(peer); return; }
       if (this.requests.has(peer)) {
         if (this.requests.get(peer)!.id !== message.id) this.lobby.closePeer(peer);
+        else this.lobby.send(peer, { kind: "received", id: message.id });
         return;
       }
       if (this.requested.has(peer)) { this.lobby.closePeer(peer); return; }
@@ -48,6 +49,7 @@ class PilotReception {
       }
       row.prepend(text); row.append(controls);
       this.requests.set(peer, { id: message.id, row }); this.dialog.append(row);
+      this.lobby.send(peer, { kind: "received", id: message.id });
       accept.addEventListener("click", () => void this.accept(peer, message.id, message.mode));
       decline.addEventListener("click", () => { if (!this.busy) this.decline(peer, message.id); });
       this.setBusy(this.busy);

@@ -12,7 +12,7 @@ export const validTower = (value: string) => /^[A-Za-z0-9_]{8}$/.test(value);
 export type PilotRequestMode = "pilot" | "cockpit";
 export type PilotMessage = { kind: "request"; id: string; name: string; mode: PilotRequestMode } |
   { kind: "accepted"; id: string; invitation: TiltInvitation } |
-  { kind: "declined" | "cancel"; id: string };
+  { kind: "declined" | "cancel" | "received"; id: string };
 export function parsePilotMessage(data: unknown): PilotMessage | undefined {
   if (typeof data !== "string" || new TextEncoder().encode(data).length > 1024) return;
   try {
@@ -21,7 +21,7 @@ export function parsePilotMessage(data: unknown): PilotMessage | undefined {
     const keys = Object.keys(v).sort().join(",");
     if (v.kind === "request" && keys === "id,kind,mode,name" && typeof v.name === "string" && v.name && v.name === cleanPilotName(v.name) &&
       ["pilot", "cockpit"].includes(String(v.mode))) return v;
-    if (["declined", "cancel"].includes(v.kind) && keys === "id,kind") return v;
+    if (["declined", "cancel", "received"].includes(v.kind) && keys === "id,kind") return v;
     if (v.kind === "accepted" && keys === "id,invitation,kind" && v.invitation &&
       Object.keys(v.invitation).sort().join(",") === "room,secret" &&
       typeof v.invitation.room === "string" && typeof v.invitation.secret === "string" &&

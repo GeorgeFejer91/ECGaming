@@ -51,7 +51,7 @@ test("direct URL requests a named pilot; only acceptance enables steering", asyn
   await expect(phone.locator(".pilot-request-debug")).toContainText(/TargetAny open Ground Control/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryGround Control selected/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
-  await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestSent; check Ground Control/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/Request(Received by Ground Control|Sent; check Ground Control)/);
   expect((await phoneState(page)).selected).toBe(false);
   await expect(phone.locator("#pilot-entry")).toBeVisible();
   await approval.getByRole("button", { name: "Let pilot fly" }).click();
@@ -76,7 +76,18 @@ test("request channel closure retries before reporting failure", async ({ page, 
   await expect(approval).toContainText("Retry wants to take the wheel.");
   await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryGround Control .* found|DiscoveryGround Control selected/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
-  await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestSent; check Ground Control/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/Request(Received by Ground Control|Sent; check Ground Control)/);
+});
+
+test("missing request receipt resends before reporting failure", async ({ page, context }) => {
+  const url = await ground(page);
+  await page.evaluate(() => { (window as any).pilotLoseNextRequestBeforeDelivery = true; });
+  const phone = await context.newPage();
+  await request(phone, url, "Resend");
+  await expect.poll(() => page.evaluate(() => (window as any).pilotLostRequestCount ?? 0)).toBe(1);
+  const approval = page.getByRole("dialog", { name: "Pilot requests" });
+  await expect(approval).toContainText("Resend wants to take the wheel.", { timeout: 6_000 });
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestReceived by Ground Control/);
 });
 
 test("declining a second pilot preserves the current pilot; cancelling clears requests", async ({ page, context }) => {

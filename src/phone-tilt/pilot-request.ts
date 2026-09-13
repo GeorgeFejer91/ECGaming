@@ -37,6 +37,9 @@ export class PilotRequest {
   private runAttempt(name: string, id: string, attempt: number) {
     const lobby = this.lobby = new PilotLobby("pilot", this.hint);
     let requestSent = false;
+    let requestReceived = false;
+    let resendTimer: ReturnType<typeof setInterval> | undefined;
+    let sendCount = 0;
     const retrying = attempt > 0, attemptLabel = `${attempt + 1}/3`;
     this.lock(true); this.status.textContent = retrying ? `Retrying Ground Control request ${attemptLabel}…` : "Looking for Ground Control…";
     this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
@@ -80,11 +83,29 @@ export class PilotRequest {
       this.clearDiscoveryTimer();
       this.setDiagnostic("Discovery", this.hint ? `Ground Control ${this.hint} found` : "Ground Control selected");
       this.setDiagnostic("Channel", "Request channel open");
-      this.setDiagnostic("Request", "Sending");
-      if (lobby.send(e.detail, { kind: "request", id, name, mode: this.mode })) {
+      const sendRequest = () => {
+        ++sendCount;
+        this.setDiagnostic("Request", sendCount === 1 ? "Sending" : `Resending ${sendCount}/3`);
+        if (!lobby.send(e.detail, { kind: "request", id, name, mode: this.mode })) return false;
         requestSent = true;
         this.status.textContent = this.mode === "cockpit" ? "Waiting for Ground Control to open the cockpit…" : "Waiting for Ground Control to let you fly…";
-        this.setDiagnostic("Request", "Sent; check Ground Control");
+        this.setDiagnostic("Request", sendCount === 1 ? "Sent; check Ground Control" : `Resent ${sendCount}/3; waiting for receipt`);
+        return true;
+      };
+      if (sendRequest()) {
+        resendTimer = setInterval(() => {
+          if (this.lobby !== lobby || requestReceived) { clearInterval(resendTimer); resendTimer = undefined; return; }
+          if (sendCount >= 3) {
+            clearInterval(resendTimer); resendTimer = undefined;
+            this.setDiagnostic("Request", "Sent 3 times; still waiting");
+            return;
+          }
+          if (!sendRequest()) {
+            clearInterval(resendTimer); resendTimer = undefined;
+            this.setDiagnostic("Request", "Send failed");
+            this.stop("Could not send your request. Try again.");
+          }
+        }, 2_500);
       } else {
         this.setDiagnostic("Request", "Send failed");
         this.stop("Could not send your request. Try again.");
@@ -93,17 +114,24 @@ export class PilotRequest {
     lobby.addEventListener("message", ((e: CustomEvent<{ message: PilotMessage }>) => {
       if (this.lobby !== lobby || e.detail.message.id !== id) return;
       const message = e.detail.message;
-      if (message.kind === "accepted") {
+      if (message.kind === "received") {
+        requestReceived = true; clearInterval(resendTimer); resendTimer = undefined;
+        this.setDiagnostic("Request", "Received by Ground Control");
+      }
+      else if (message.kind === "accepted") {
+        clearInterval(resendTimer); resendTimer = undefined;
         this.setDiagnostic("Request", "Accepted");
         this.stop(""); this.accepted(message.invitation, name);
       }
       else if (message.kind === "declined") {
+        clearInterval(resendTimer); resendTimer = undefined;
         this.setDiagnostic("Request", "Declined");
         this.stop("Ground Control declined your request.");
       }
     }) as EventListener);
     lobby.addEventListener("closed", () => {
       if (this.lobby !== lobby) return;
+      clearInterval(resendTimer); resendTimer = undefined;
       this.setDiagnostic("Channel", "Closed");
       if (requestSent && attempt < 2) {
         this.setDiagnostic("Request", `Connection closed; retrying ${attempt + 2}/3`);
@@ -116,11 +144,13 @@ export class PilotRequest {
     });
     this.timer = setTimeout(() => {
       if (this.lobby !== lobby) return;
+      clearInterval(resendTimer); resendTimer = undefined;
       this.setDiagnostic("Request", "No answer after 60 seconds");
       this.stop("No response yet. Try again.");
     }, 60_000);
     void lobby.start().catch(() => {
       if (this.lobby !== lobby) return;
+      clearInterval(resendTimer); resendTimer = undefined;
       this.setDiagnostic("Discovery", "Connection failed");
       this.stop("Could not reach Ground Control. Try again.");
     });

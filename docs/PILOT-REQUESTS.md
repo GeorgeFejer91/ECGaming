@@ -17,9 +17,12 @@ found" from "request sent; check Ground Control". When no tower is discovered
 after a few seconds, the phone keeps the request form open and reports the
 website host it is scanning, with "Request: Not sent" so a stale tab, mixed
 domain, or closed Ground Control window is easier to spot.
-If the request channel opens and then drops before Ground Control answers, the
-phone automatically retries twice. The checklist reports the retry count first,
-then "Connection closed before answer" only after all attempts fail.
+Ground Control acknowledges receipt as soon as the request dialog is created. If
+the request channel opens but the phone does not receive that acknowledgement,
+the phone resends the request before reporting failure. If the request channel
+drops before Ground Control answers, the phone automatically retries twice. The
+checklist reports the retry count first, then "Connection closed before answer"
+only after all attempts fail.
 
 ## Transport and authority
 
