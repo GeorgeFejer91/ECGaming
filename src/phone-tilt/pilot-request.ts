@@ -32,6 +32,7 @@ export class PilotRequest {
   start(name: string) {
     if (this.lobby) return;
     const lobby = this.lobby = new PilotLobby("pilot", this.hint), id = randomToken(12);
+    let requestSent = false;
     this.lock(true); this.status.textContent = "Looking for Ground Control…";
     this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
     this.setDiagnostic("Channel", "Waiting for tower");
@@ -47,7 +48,11 @@ export class PilotRequest {
     lobby.addEventListener("status", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
       this.status.textContent = e.detail;
-      if (e.detail.startsWith("Connecting to Ground Control")) this.setDiagnostic("Channel", e.detail);
+      if (e.detail.startsWith("Connecting to Ground Control")) {
+        this.clearDiscoveryTimer();
+        this.setDiagnostic("Discovery", this.hint ? `Ground Control ${this.hint} found` : "Ground Control selected");
+        this.setDiagnostic("Channel", e.detail);
+      }
       else if (e.detail.startsWith("Could not")) this.setDiagnostic("Channel", e.detail);
       else if (e.detail.includes("Looking for Ground Control")) this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
     }) as EventListener);
@@ -68,9 +73,11 @@ export class PilotRequest {
     lobby.addEventListener("peer", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
       this.clearDiscoveryTimer();
+      this.setDiagnostic("Discovery", this.hint ? `Ground Control ${this.hint} found` : "Ground Control selected");
       this.setDiagnostic("Channel", "Request channel open");
       this.setDiagnostic("Request", "Sending");
       if (lobby.send(e.detail, { kind: "request", id, name, mode: this.mode })) {
+        requestSent = true;
         this.status.textContent = this.mode === "cockpit" ? "Waiting for Ground Control to open the cockpit…" : "Waiting for Ground Control to let you fly…";
         this.setDiagnostic("Request", "Sent; check Ground Control");
       } else {
@@ -93,6 +100,7 @@ export class PilotRequest {
     lobby.addEventListener("closed", () => {
       if (this.lobby !== lobby) return;
       this.setDiagnostic("Channel", "Closed");
+      if (requestSent) this.setDiagnostic("Request", "Connection closed before answer");
       this.stop("Connection closed. Try again.");
     });
     this.timer = setTimeout(() => {

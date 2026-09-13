@@ -17,6 +17,8 @@ found" from "request sent; check Ground Control". When no tower is discovered
 after a few seconds, the phone keeps the request form open and reports the
 website host it is scanning, with "Request: Not sent" so a stale tab, mixed
 domain, or closed Ground Control window is easier to spot.
+If the request channel opens and then drops before Ground Control answers, the
+checklist reports "Connection closed before answer".
 
 ## Transport and authority
 

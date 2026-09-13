@@ -49,6 +49,7 @@ test("direct URL requests a named pilot; only acceptance enables steering", asyn
   const approval = page.getByRole("dialog", { name: "Pilot requests" });
   await expect(approval).toContainText("Amelia wants to take the wheel.");
   await expect(phone.locator(".pilot-request-debug")).toContainText(/TargetAny open Ground Control/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryGround Control selected/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestSent; check Ground Control/);
   expect((await phoneState(page)).selected).toBe(false);
