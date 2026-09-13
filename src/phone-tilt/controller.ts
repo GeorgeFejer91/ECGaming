@@ -7,6 +7,8 @@ import { PolarSourceWidget } from "../flight-session/polar-source";
 import { cleanPilotName } from "./pilot-name";
 import { PracticeHeartbeat } from "./practice-heartbeat";
 import { PolarRrHaptics } from "./rr-haptics";
+import { PilotRequest } from "./pilot-request";
+import { validTower } from "./pilot-lobby";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pilotEntry = element<HTMLFormElement>("pilot-entry");
@@ -16,6 +18,7 @@ const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
 yoke.src = yokeUrl;
+const directVisit = !location.hash;
 let invitation = readTiltInvitation(location.hash);
 // The fragment is bearer pairing material. Keep it out of history and all subsequent navigation.
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
@@ -145,10 +148,10 @@ async function enableTilt(fromGesture = false) {
   return true;
 }
 
-function connect() {
+function connect(sensorsReady = false) {
   if (!invitation || link.active) return;
-  void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
-  element("setup").hidden = true; pilotEntry.hidden = false;
+  if (!sensorsReady) void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
+  element("setup").hidden = true; pilotEntry.hidden = pilotEntered;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
   loop = setInterval(publishInput, 1000 / 30);
   void link.start(invitation);
@@ -231,10 +234,17 @@ async function requestTilt() {
 }
 pilotEntry.addEventListener("submit", event => {
   event.preventDefault();
-  if (!invitation || pilotEntered) return;
+  if (pilotEntered) return;
   const field = element<HTMLInputElement>("controller-pilot-name");
   const name = cleanPilotName(field.value);
   if (!name) { field.value = ""; field.reportValidity(); return; }
+  if (!invitation) {
+    if (!pilotRequest) return;
+    void enableTilt(true).catch(error => useTouch(error instanceof Error ? error.message : "Tilt unavailable."));
+    if (navigator.maxTouchPoints > 0 && !document.fullscreenElement)
+      void document.documentElement.requestFullscreen?.().catch(() => {});
+    pilotRequest.start(name); return;
+  }
   link.pilotName = name; pilotEntered = true;
   field.blur(); pilotEntry.hidden = true; element("controls").hidden = false;
   void requestTilt();
@@ -312,4 +322,15 @@ document.addEventListener("visibilitychange", () => {
   else { if (mode === "tilt") setInputStatus("Hold the phone steady…"); void keepAwake(); }
 });
 
+let pilotRequest: PilotRequest | undefined;
 if (invitation && isSecureContext && window.top === window.self) connect();
+else if (directVisit && isSecureContext && window.top === window.self) {
+  const hint = new URLSearchParams(location.search).get("tower") ?? "";
+  if (!hint || validTower(hint)) {
+    element("setup").hidden = true; pilotEntry.hidden = false;
+    pilotRequest = new PilotRequest(pilotEntry, hint, (accepted, name) => {
+      invitation = accepted; link.pilotName = name; pilotEntered = true;
+      pilotEntry.hidden = true; element("controls").hidden = false; connect(true);
+    });
+  }
+}

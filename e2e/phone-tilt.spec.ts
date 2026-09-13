@@ -40,7 +40,11 @@ test("dedicated SVG widget opens a yoke-shaped QR popup without Polar or flight 
     const bounds = await dialog.boundingBox(); const qr = await dialog.locator("canvas").first().boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
     expect(bounds!.y).toBeGreaterThanOrEqual(0); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
-    expect(Math.abs(qr!.x + qr!.width / 2 - bounds!.x - bounds!.width / 2)).toBeLessThan(2);
+    const instructions = dialog.locator(".phone-chrome-instructions");
+    await expect(instructions).toContainText("Google Chrome on your phone");
+    const copy = await instructions.boundingBox();
+    if (viewport.width > 560) expect(copy!.x).toBeGreaterThan(qr!.x + qr!.width);
+    else expect(copy!.y).toBeGreaterThan(qr!.y + qr!.height);
     expect(qr!.y).toBeGreaterThanOrEqual(bounds!.y);
     expect(qr!.y + qr!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height - 8);
     await page.screenshot({ path: testInfo.outputPath(`yoke-pairing-${viewport.width}.png`), mask: [dialog.locator("canvas")], maskColor: "#ffffff" });

@@ -40,6 +40,20 @@ dialog.phone-tilt-dialog[open] .flight-relay-panel select { background: #fff7ec;
 .phone-yoke-console .phone-tilt-actions > :only-child { grid-column: 1 / -1; }
 .phone-yoke-console .flight-relay-panel { margin-top: 16px; padding-top: 12px; }
 .phone-yoke-console summary { cursor: pointer; min-height: 32px; font-size: 15px; }
+.phone-chrome-instructions { margin: 12px 0; border-top: 1px solid #8a9991; padding-top: 8px; }
+.phone-yoke-console:has(.phone-pairing-options) { width: min(620px, calc(100% - 180px)); }
+.phone-pairing-options { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 16px; }
+.phone-chrome-instructions p { margin: 4px 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.pilot-request-dialog { width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 20px; border: 1px solid #8a9991; border-radius: 6px; background: #263d3a; color: #fff4e6; font: inherit; }
+.pilot-request-dialog::backdrop { background: #07131faa; }
+.pilot-request-dialog h2 { margin: 0 0 16px; font-size: 20px; }
+.pilot-request-dialog section + section { border-top: 1px solid #8a9991; margin-top: 16px; padding-top: 8px; }
+.pilot-request-dialog p { overflow-wrap: anywhere; }
+.pilot-request-dialog section > div { display: flex; gap: 8px; }
+.pilot-request-dialog button { min-height: 44px; padding: 8px 14px; border: 1px solid #d6c4ab; border-radius: 4px; background: #d6c4ab; color: #132825; font: inherit; cursor: pointer; }
+.pilot-request-dialog button + button { background: transparent; color: #fff4e6; }
+.pilot-request-dialog .pilot-replacement { font-size: 13px; }
+.pilot-request-dialog button:disabled { opacity: .5; }
 .phone-yoke-console label, .phone-yoke-console p { font-size: 13px; }
 dialog.phone-tilt-dialog.cockpit-pairing-only[open] { width: min(440px, calc(100vw - 16px)); }
 dialog.phone-tilt-dialog.cockpit-pairing-only[open]::before { display: none; }
@@ -49,6 +63,8 @@ dialog.phone-tilt-dialog.cockpit-pairing-only[open] > .phone-yoke-console { disp
 .cockpit-pairing-only .phone-only-option { display: none; }
 .cockpit-pairing-only .phone-yoke-console .phone-tilt-actions { order: 1; }
 @media (max-width: 560px) {
+  .phone-yoke-console:has(.phone-pairing-options) { width: min(380px, max(248px, calc(100% - 100px))); }
+  .phone-pairing-options { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .phone-yoke-console { width: min(380px, max(248px, calc(100% - 100px))); padding: 14px; border-radius: 20px 20px 28px 28px; }
 }
 @media (max-height: 560px) {

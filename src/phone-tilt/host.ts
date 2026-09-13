@@ -5,6 +5,7 @@ import "./host.css";
 import { decoratePhoneButton } from "./button";
 import { getFlightSessionHub } from "../flight-session/hub";
 import type { SourceId } from "../flight-session/contract";
+import { getPilotReception } from "./pilot-reception";
 
 export class PhoneTiltHost {
   private readonly hub = getFlightSessionHub();
@@ -29,6 +30,7 @@ export class PhoneTiltHost {
   private readonly relayPanel = document.createElement("details");
 
   constructor(host: HTMLElement, private flying: () => boolean) {
+    this.selected = this.hub.phoneSelected;
     const buttonStatus = decoratePhoneButton(this.button);
     this.button.addEventListener("click", () => this.open());
     host.append(this.button);
@@ -57,7 +59,8 @@ export class PhoneTiltHost {
     });
     this.newButton.type = "button"; this.newButton.textContent = "New QR code";
     this.newButton.addEventListener("click", () => void this.pair());
-    this.stopButton.type = "button"; this.stopButton.textContent = "Stop phone control"; this.stopButton.hidden = true;
+    this.stopButton.type = "button"; this.stopButton.textContent = "Stop phone control"; this.stopButton.hidden = !this.selected;
+    if (this.link.ready) { this.status.textContent = `${this.link.pilotName || "Phone"} · Ready to steer`; buttonStatus.textContent = "Connected"; }
     this.stopButton.addEventListener("click", () => this.stop());
     const close = document.createElement("button"); close.type = "button"; close.textContent = "Back to flight";
     close.addEventListener("click", () => this.dialog.close());
@@ -67,10 +70,23 @@ export class PhoneTiltHost {
     phoneActions.append(this.copyButton, this.newButton, this.stopButton);
     this.relayPanel.append(speedLabel, phoneActions);
     this.console.append(title, copy, this.canvas, this.status, this.anchor, actions, this.relayPanel);
+    if (this.hub.coordinator) {
+      const instruction = document.createElement("div"); instruction.className = "phone-chrome-instructions";
+      const url = getPilotReception().url(), link = document.createElement("a");
+      link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.textContent = new URL(url).host + "/controller/";
+      const steps = document.createElement("p");
+      steps.append("Open ", link, " in Google Chrome on your phone. Enter your name and request the wheel.");
+      const tower = document.createElement("p"); tower.textContent = `Ground Control ${getPilotReception().lobby.towerId}`;
+      instruction.append(steps, tower);
+      const options = document.createElement("div"); options.className = "phone-pairing-options";
+      this.canvas.before(options); options.append(this.canvas, instruction);
+    }
     if (this.hub.coordinator) this.buildRelayPanel();
     document.body.append(this.dialog);
     this.link.addEventListener("status", (event: Event) => {
       const state = (event as CustomEvent).detail;
+      this.selected = this.hub.phoneSelected;
       this.status.textContent = state.message;
       this.stopButton.hidden = !this.selected;
       this.newButton.disabled = false;

@@ -1,0 +1,40 @@
+# Pilot requests
+
+Ground Control starts reception when its page opens. A direct visit to
+`/controller/` asks for a pilot name, discovers an open Ground Control and sends
+a request. With multiple towers, the phone asks which one to join. The URL next
+to the QR code includes `?tower=<id>` to choose that particular tower.
+
+Ground Control can accept or decline. Only acceptance replaces the current
+phone and supplies the new pilot with a fresh private invitation. The phone
+then opens its yoke automatically. Existing QR invitations still pair directly.
+Chrome instructions sit beside the QR code, stacking below it on narrow screens.
+
+## Transport and authority
+
+The public rendezvous uses pinned VDO.Ninja SDK 1.5.5 and a reliable ordered
+`ecg_pilot_request_v1` channel, in a room scoped to the website host. Discovery
+announces a random tower label. Pilot names travel only in point-to-point
+requests. Names are display labels, not verified identities.
+
+This rendezvous is separate from BRSP/1 flight control. It accepts only bounded
+request, cancel, declined and accepted messages. Requests expire after 60 seconds;
+there are at most eight application request peers, one request per peer, and
+messages are limited to 1,024 UTF-8 bytes. Accepted invitations use the existing
+random room/secret format and are sent only to the approved peer. No raw ECG,
+flight inputs, executable code or arbitrary URLs cross the public channel.
+
+After approval, existing BRSP/1 authentication, ECGaming tilt/companion scopes,
+state acknowledgements and target-enforced input freshness apply. A pending,
+declined or cancelled pilot has no flight authority. The selected ECG source
+continues to use the existing flight session router.
+
+## Validation
+
+Parser tests cover malformed, oversized and unexpected payloads. Browser tests
+cover named approval, pending authority, decline without replacing the current
+pilot, cancellation, accepted handover, multiple towers and responsive QR copy.
+An additional Chromium smoke test used the pinned SDK with real public signaling
+and WebRTC: direct URL, name request, approval, automatic yoke and acknowledged
+steering all passed without page errors. Sensor readings were injected for that
+test; it does not establish physical Motorola sensor or Bluetooth behavior.

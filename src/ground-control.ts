@@ -4,6 +4,7 @@ import { PracticeEcg } from "./signals/practice-ecg";
 import { createPracticeHeart } from "./ui/practice-heart";
 import { flightAssetUrl } from "./game/aircraft";
 import { getFlightSessionHub } from "./flight-session/hub";
+import { getPilotReception } from "./phone-tilt/pilot-reception";
 import {
   FlightFlags,
   SIGNAL_BEACON_METRICS,
@@ -2308,6 +2309,7 @@ setupCompactGround(() => cockpit.openRemoteCockpit());
 traceResizeObserver?.observe(element<HTMLCanvasElement>("raw-ecg-preview"));
 practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });
 const disposeTextFit = installPretextFit();
+getPilotReception().start();
 syncSourcePanels();
 showView(
   new URL(location.href).searchParams.get("view") === "cockpit"
