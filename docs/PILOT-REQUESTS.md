@@ -13,7 +13,10 @@ The controller name-entry screen includes a compact troubleshooting checklist
 showing the current site host, target tower, HTTPS state, tower discovery,
 request-channel state, and whether the request has been sent. If Ground Control
 does not show the approval dialog, the checklist distinguishes "target tower not
-found" from "request sent; check Ground Control".
+found" from "request sent; check Ground Control". When no tower is discovered
+after a few seconds, the phone keeps the request form open and reports the
+website host it is scanning, with "Request: Not sent" so a stale tab, mixed
+domain, or closed Ground Control window is easier to spot.
 
 ## Transport and authority
 

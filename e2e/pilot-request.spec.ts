@@ -32,6 +32,16 @@ test.beforeEach(async ({ context }) => {
   await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* deterministic test transport */" }));
 });
 
+test("controller explains when no Ground Control tower is found", async ({ page }) => {
+  await page.goto("./controller/");
+  await page.getByRole("textbox", { name: "Pilot name", exact: true }).fill("George");
+  await page.getByRole("button", { name: "Request wheel", exact: true }).click();
+  await expect(page.locator("#pilot-request-status")).toContainText("Still looking for Ground Control", { timeout: 6_000 });
+  await expect(page.locator(".pilot-request-debug")).toContainText(/DiscoveryNo tower found on/);
+  await expect(page.locator(".pilot-request-debug")).toContainText(/ChannelOpen Ground Control in this same site/);
+  await expect(page.locator(".pilot-request-debug")).toContainText(/RequestNot sent/);
+});
+
 test("direct URL requests a named pilot; only acceptance enables steering", async ({ page, context }) => {
   await ground(page);
   const phone = await context.newPage();

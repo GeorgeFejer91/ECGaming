@@ -5,6 +5,7 @@ import type { TiltInvitation } from "./invitation";
 export class PilotRequest {
   private lobby?: PilotLobby;
   private timer?: ReturnType<typeof setTimeout>;
+  private discoveryTimer?: ReturnType<typeof setTimeout>;
   private readonly status = document.createElement("p");
   private readonly choices = document.createElement("div");
   private readonly diagnostics = document.createElement("dl");
@@ -35,6 +36,14 @@ export class PilotRequest {
     this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
     this.setDiagnostic("Channel", "Waiting for tower");
     this.setDiagnostic("Request", "Ready to send");
+    this.discoveryTimer = setTimeout(() => {
+      if (this.lobby !== lobby) return;
+      const site = location.host || "this site";
+      this.status.textContent = `Still looking for Ground Control on ${site}…`;
+      this.setDiagnostic("Discovery", this.hint ? `No tower ${this.hint} found on ${site}` : `No tower found on ${site}`);
+      this.setDiagnostic("Channel", "Open Ground Control in this same site");
+      this.setDiagnostic("Request", "Not sent");
+    }, 4_000);
     lobby.addEventListener("status", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
       this.status.textContent = e.detail;
@@ -46,6 +55,7 @@ export class PilotRequest {
       if (this.lobby !== lobby) return;
       this.choices.replaceChildren();
       this.status.textContent = e.detail.length ? "Choose your Ground Control" : "Waiting for Ground Control to open…";
+      if (e.detail.length) this.clearDiscoveryTimer();
       this.setDiagnostic("Discovery", e.detail.length ? `${e.detail.length} Ground Control window${e.detail.length === 1 ? "" : "s"} found` :
         this.hint ? `Target ${this.hint} not found yet` : "No Ground Control found yet");
       this.setDiagnostic("Channel", e.detail.length ? "Choose a tower" : "Waiting");
@@ -57,6 +67,7 @@ export class PilotRequest {
     }) as EventListener);
     lobby.addEventListener("peer", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
+      this.clearDiscoveryTimer();
       this.setDiagnostic("Channel", "Request channel open");
       this.setDiagnostic("Request", "Sending");
       if (lobby.send(e.detail, { kind: "request", id, name, mode: this.mode })) {
@@ -109,8 +120,13 @@ export class PilotRequest {
     (this.form.querySelector("button[type=submit]") as HTMLButtonElement).disabled = pending;
     this.cancel.hidden = !pending;
   }
+  private clearDiscoveryTimer() {
+    clearTimeout(this.discoveryTimer);
+    this.discoveryTimer = undefined;
+  }
   stop(message: string) {
-    clearTimeout(this.timer); const lobby = this.lobby; this.lobby = undefined; lobby?.stop();
+    clearTimeout(this.timer); this.clearDiscoveryTimer();
+    const lobby = this.lobby; this.lobby = undefined; lobby?.stop();
     this.lock(false); this.choices.replaceChildren(); this.status.textContent = message;
   }
 }
