@@ -18,7 +18,8 @@ after a few seconds, the phone keeps the request form open and reports the
 website host it is scanning, with "Request: Not sent" so a stale tab, mixed
 domain, or closed Ground Control window is easier to spot.
 If the request channel opens and then drops before Ground Control answers, the
-checklist reports "Connection closed before answer".
+phone automatically retries twice. The checklist reports the retry count first,
+then "Connection closed before answer" only after all attempts fail.
 
 ## Transport and authority
 

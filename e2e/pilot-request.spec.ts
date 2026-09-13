@@ -66,6 +66,19 @@ test("direct URL requests a named pilot; only acceptance enables steering", asyn
   await expect(page.getByRole("dialog", { name: "Phone tilt controller" }).locator("canvas").first()).toBeHidden();
 });
 
+test("request channel closure retries before reporting failure", async ({ page, context }) => {
+  const url = await ground(page);
+  await page.evaluate(() => { (window as any).pilotDropNextRequestBeforeDelivery = true; });
+  const phone = await context.newPage();
+  await request(phone, url, "Retry");
+  await expect.poll(() => page.evaluate(() => (window as any).pilotDroppedRequestCount ?? 0)).toBe(1);
+  const approval = page.getByRole("dialog", { name: "Pilot requests" });
+  await expect(approval).toContainText("Retry wants to take the wheel.");
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryGround Control .* found|DiscoveryGround Control selected/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestSent; check Ground Control/);
+});
+
 test("declining a second pilot preserves the current pilot; cancelling clears requests", async ({ page, context }) => {
   const url = await ground(page), first = await context.newPage(), second = await context.newPage();
   await request(first, url, "First");

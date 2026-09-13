@@ -6,6 +6,7 @@ export class PilotRequest {
   private lobby?: PilotLobby;
   private timer?: ReturnType<typeof setTimeout>;
   private discoveryTimer?: ReturnType<typeof setTimeout>;
+  private retryTimer?: ReturnType<typeof setTimeout>;
   private readonly status = document.createElement("p");
   private readonly choices = document.createElement("div");
   private readonly diagnostics = document.createElement("dl");
@@ -30,13 +31,17 @@ export class PilotRequest {
     window.addEventListener("pagehide", () => this.stop(""));
   }
   start(name: string) {
-    if (this.lobby) return;
-    const lobby = this.lobby = new PilotLobby("pilot", this.hint), id = randomToken(12);
+    if (this.lobby || this.retryTimer) return;
+    this.runAttempt(name, randomToken(12), 0);
+  }
+  private runAttempt(name: string, id: string, attempt: number) {
+    const lobby = this.lobby = new PilotLobby("pilot", this.hint);
     let requestSent = false;
-    this.lock(true); this.status.textContent = "Looking for Ground Control…";
+    const retrying = attempt > 0, attemptLabel = `${attempt + 1}/3`;
+    this.lock(true); this.status.textContent = retrying ? `Retrying Ground Control request ${attemptLabel}…` : "Looking for Ground Control…";
     this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
     this.setDiagnostic("Channel", "Waiting for tower");
-    this.setDiagnostic("Request", "Ready to send");
+    this.setDiagnostic("Request", retrying ? `Retrying ${attemptLabel}` : "Ready to send");
     this.discoveryTimer = setTimeout(() => {
       if (this.lobby !== lobby) return;
       const site = location.host || "this site";
@@ -100,6 +105,12 @@ export class PilotRequest {
     lobby.addEventListener("closed", () => {
       if (this.lobby !== lobby) return;
       this.setDiagnostic("Channel", "Closed");
+      if (requestSent && attempt < 2) {
+        this.setDiagnostic("Request", `Connection closed; retrying ${attempt + 2}/3`);
+        this.status.textContent = "Request channel closed. Retrying…";
+        this.retry(name, id, lobby, attempt + 1);
+        return;
+      }
       if (requestSent) this.setDiagnostic("Request", "Connection closed before answer");
       this.stop("Connection closed. Try again.");
     });
@@ -113,6 +124,16 @@ export class PilotRequest {
       this.setDiagnostic("Discovery", "Connection failed");
       this.stop("Could not reach Ground Control. Try again.");
     });
+  }
+  private retry(name: string, id: string, lobby: PilotLobby, attempt: number) {
+    clearTimeout(this.timer); this.clearDiscoveryTimer();
+    if (this.lobby === lobby) this.lobby = undefined;
+    lobby.stop();
+    clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      if (!this.lobby) this.runAttempt(name, id, attempt);
+    }, 750);
   }
   private setDiagnostic(label: string, value: string) {
     let cell = this.diagnosticValues.get(label);
@@ -133,7 +154,7 @@ export class PilotRequest {
     this.discoveryTimer = undefined;
   }
   stop(message: string) {
-    clearTimeout(this.timer); this.clearDiscoveryTimer();
+    clearTimeout(this.timer); clearTimeout(this.retryTimer); this.retryTimer = undefined; this.clearDiscoveryTimer();
     const lobby = this.lobby; this.lobby = undefined; lobby?.stop();
     this.lock(false); this.choices.replaceChildren(); this.status.textContent = message;
   }

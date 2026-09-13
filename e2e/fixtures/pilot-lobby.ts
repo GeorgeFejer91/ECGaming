@@ -28,7 +28,14 @@ export function installPilotLobbyFixture() {
           const channel = new Channel(this, d.from, d.label); this.channels.set(d.from, channel);
           emit(this, "channelOpen", { uuid: d.from, streamID: d.stream, label: d.label, channel });
         }
-        if (d.kind === "data") this.channels.get(d.from)?.dispatchEvent(new MessageEvent("message", { data: d.data }));
+        if (d.kind === "data") {
+          const dropNext = (window as any).pilotDropNextRequestBeforeDelivery;
+          if (dropNext && JSON.parse(d.data)?.kind === "request") {
+            (window as any).pilotDropNextRequestBeforeDelivery = false;
+            (window as any).pilotDroppedRequestCount = ((window as any).pilotDroppedRequestCount ?? 0) + 1;
+            this.channels.get(d.from)?.close(); this.channels.delete(d.from); emit(this, "dataChannelClose", { uuid: d.from });
+          } else this.channels.get(d.from)?.dispatchEvent(new MessageEvent("message", { data: d.data }));
+        }
         if (d.kind === "close" || d.kind === "gone") {
           this.channels.get(d.from)?.close(); this.channels.delete(d.from); emit(this, "dataChannelClose", { uuid: d.from });
         }
