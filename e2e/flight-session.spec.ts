@@ -124,11 +124,11 @@ test("three browsers route only source-computed controls and switch source witho
   // Qualify the source change by a strong opposite-direction command. Full smoothing
   // convergence depends on how many fresh frames a busy renderer can produce.
   await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal.frame?.altitude), { timeout: 15_000 }).toBeLessThan(-.5);
-  await expect.poll(() => page.evaluate(async () =>
-    (await import("/src/flight-session/hub.ts")).getFlightSessionHub().signal.read(performance.now())?.altitude)).toBeLessThan(-.5);
-  // These pages represent separate visible devices. The tower's DOM preview uses RAF,
-  // so foreground it before checking painted text after interacting with the cockpit.
+  // These tabs stand in for separate visible devices. Foreground the receiver
+  // before sampling its short-lived lease, as well as checking its painted text.
   await page.bringToFront();
+  await expect.poll(() => page.evaluate(async () =>
+    (await import("/src/flight-session/hub.ts")).getFlightSessionHub().signal.read(performance.now())?.altitude), { timeout: 15_000 }).toBeLessThan(-.5);
   await expect.poll(() => page.locator("#command-altitude").textContent(), { timeout: 15_000 }).toMatch(/^-0\.[5-9]/);
   await dialog.locator("#flight-session-source").selectOption("ground");
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
