@@ -18,6 +18,13 @@
       </form>
       <h1 class="sr-only">Flight yoke</h1>
       <img id="steering-yoke" alt="Aircraft yoke surface with grips at both ends" width="1000" height="500" draggable="false" />
+      <div class="hold-arrow" aria-hidden="true">
+        <svg viewBox="0 0 160 42" focusable="false">
+          <path d="M18 22h110" />
+          <path d="M112 9l22 13-22 13" />
+          <path d="M44 9 22 22l22 13" />
+        </svg>
+      </div>
       <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke"></div>
       <div class="yoke-hub">
         <p id="connection-status" class="sr-only" role="status">Scan a flight QR code.</p>
@@ -52,6 +59,12 @@
             </svg>
           </button>
           <div id="yoke-polar" class="yoke-polar"></div>
+          <button id="exit-pilot" class="exit-pilot" type="button" aria-label="Exit pilot">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M13 7H7v18h6" />
+              <path d="M15 16h10M21 11l5 5-5 5" />
+            </svg>
+          </button>
           <div id="polar-status" class="sr-only"></div>
           <p id="input-status" class="sr-only" role="status">Hold the phone steady.</p>
           <p id="confirmed" class="sr-only">Waiting for the flight screen.</p>

@@ -3,7 +3,7 @@
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.controller { position: fixed; inset: 0; width: 100dvw; height: 100dvh; overflow: hidden; }
+.controller { position: fixed; inset: 0; width: 100dvw; height: 100dvh; overflow: hidden; transform-origin: center; }
 .pilot-entry { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 24px; background: #263d3a; }
 .pilot-entry label { width: min(360px, 100%); font-size: 22px; font-weight: 600; }
 .pilot-entry-row { display: flex; gap: 10px; width: min(360px, 100%); }
@@ -21,6 +21,9 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; overscroll-
 .tilt-pad { z-index: 1; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .tilt-pad:active { cursor: grabbing; }
 .tilt-pad:focus-visible { outline-offset: -5px; }
+.hold-arrow { position: absolute; z-index: 2; top: max(10px, env(safe-area-inset-top)); left: 50%; width: clamp(96px, 18vw, 160px); height: 42px; transform: translateX(-50%); color: #ffcf80; opacity: .88; pointer-events: none; }
+.hold-arrow svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.hold-arrow path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
 .yoke-hub { position: absolute; z-index: 2; inset: max(24px, env(safe-area-inset-top)) 29% max(24px, env(safe-area-inset-bottom)); display: grid; place-items: center; pointer-events: none; }
 #controls { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: clamp(10px, 3dvh, 24px); }
 button { touch-action: manipulation; cursor: pointer; pointer-events: auto; }
@@ -39,6 +42,8 @@ button:disabled { cursor: default; }
 .attitude[data-state="permission"] #attitude-horizon { opacity: .4; }
 .yoke-polar { display: flex; justify-content: center; }
 .yoke-polar .polar-source-button { width: 70px; height: 56px; border: 2px solid #d6c4ab; border-radius: 14px; padding: 10px 16px; font-size: 0; line-height: 0; background: #172d2a; color: #f5e8d5; }
+.exit-pilot { position: absolute; z-index: 3; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 54px; height: 54px; border: 2px solid #d6c4ab; border-radius: 8px; padding: 12px; background: #172d2a; color: #f5e8d5; }
+.exit-pilot svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .polar-source-button::before { content: ""; display: block; width: 100%; height: 100%; background: currentColor; mask: url("./heart-rate.svg") center / contain no-repeat; }
 .polar-source-button:disabled { opacity: .4; }
 .polar-source-button[data-connected="true"] { color: #91d8aa; border-color: #91d8aa; }
@@ -50,6 +55,9 @@ button:disabled { cursor: default; }
 .polar-source-button[data-state="connecting"] { color: #ffcf80; border-color: #ffcf80; }
 .polar-source-button[data-state="error"], .polar-source-button[data-state="unsupported"] { color: #ff958a; border-color: #ff958a; }
 @media (orientation: portrait) {
+  .controller { width: 100dvh; height: 100dvw; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
+  #controls { gap: 8px; }
+  .attitude { width: min(100%, 56dvw, 220px); }
   #rotate-cue { display: block; }
   .attitude #tilt-gesture, .attitude[data-state="touch"] #touch-cue { display: none; }
 }
@@ -58,4 +66,5 @@ button:disabled { cursor: default; }
   #controls { gap: 8px; }
   .attitude { width: min(100%, 48dvh); }
   .yoke-polar .polar-source-button { height: 48px; }
+  .exit-pilot { width: 48px; height: 48px; padding: 10px; }
 }

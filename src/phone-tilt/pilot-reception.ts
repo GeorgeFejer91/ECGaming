@@ -1,5 +1,6 @@
 import { getFlightSessionHub } from "../flight-session/hub";
 import { createTiltInvitation } from "./invitation";
+import type { TiltLink } from "./link";
 import { PilotLobby, type PilotMessage } from "./pilot-lobby";
 import "./host.css";
 
@@ -10,7 +11,10 @@ class PilotReception {
   private readonly dialog = document.createElement("dialog");
   private readonly requests = new Map<string, { id: string; row: HTMLElement }>();
   private readonly requested = new Set<string>();
+  private readonly cockpitViewers = new Map<string, TiltLink>();
   private started = false;
+  private starting = false;
+  private monitor?: ReturnType<typeof setInterval>;
   private busy = false;
   private accepting = "";
   constructor() {
@@ -34,17 +38,17 @@ class PilotReception {
       if (this.requests.size >= 8) { this.lobby.closePeer(peer); return; }
       this.requested.add(peer);
       const row = document.createElement("section"), text = document.createElement("p");
-      text.textContent = `${message.name} wants to take the wheel.`;
+      text.textContent = message.mode === "cockpit" ? `${message.name} wants to join the cockpit view.` : `${message.name} wants to take the wheel.`;
       const accept = document.createElement("button"), decline = document.createElement("button");
-      accept.type = decline.type = "button"; accept.textContent = "Let pilot fly"; decline.textContent = "Decline";
+      accept.type = decline.type = "button"; accept.textContent = message.mode === "cockpit" ? "Open cockpit view" : "Let pilot fly"; decline.textContent = "Decline";
       const controls = document.createElement("div"); controls.append(accept, decline);
-      if (this.hub.phone.ready) {
+      if (message.mode === "pilot" && this.hub.phone.ready) {
         const replacement = document.createElement("p"); replacement.className = "pilot-replacement";
         replacement.textContent = `This hands over from ${this.hub.phone.pilotName || "the current pilot"}.`; row.append(replacement);
       }
       row.prepend(text); row.append(controls);
       this.requests.set(peer, { id: message.id, row }); this.dialog.append(row);
-      accept.addEventListener("click", () => void this.accept(peer, message.id));
+      accept.addEventListener("click", () => void this.accept(peer, message.id, message.mode));
       decline.addEventListener("click", () => { if (!this.busy) this.decline(peer, message.id); });
       this.setBusy(this.busy);
       if (!this.dialog.open) this.dialog.showModal();
@@ -52,19 +56,39 @@ class PilotReception {
     this.lobby.addEventListener("closed", ((event: CustomEvent<string>) => {
       this.requested.delete(event.detail);
       if (this.accepting === event.detail) { this.accepting = ""; this.hub.stop("phone"); }
+      const viewer = this.cockpitViewers.get(event.detail);
+      if (viewer && this.requests.has(event.detail)) { this.cockpitViewers.delete(event.detail); this.hub.stopCockpitViewer(viewer); }
       this.remove(event.detail);
     }) as EventListener);
     window.addEventListener("pagehide", () => {
+      clearInterval(this.monitor); this.monitor = undefined;
+      for (const viewer of this.cockpitViewers.values()) this.hub.stopCockpitViewer(viewer);
+      this.cockpitViewers.clear();
       this.started = false; this.accepting = ""; this.lobby.stop(); this.hub.stop("phone");
     });
   }
   start() {
-    if (this.started || !this.hub.coordinator || !isSecureContext || window.top !== window.self) return;
-    this.started = true;
-    void this.lobby.start().catch(() => { this.started = false; });
+    if (!isSecureContext || window.top !== window.self) return;
+    if (!this.monitor) this.monitor = setInterval(() => this.ensureStarted(), 2500);
+    this.ensureStarted();
+  }
+  private ensureStarted() {
+    if (this.started || this.starting || !this.hub.coordinator) return;
+    this.starting = true;
+    void this.lobby.start().then(() => {
+      this.started = true;
+    }).catch(() => {
+      this.started = false;
+    }).finally(() => {
+      this.starting = false;
+    });
   }
   url() {
     const url = new URL("../controller/", location.href);
+    url.searchParams.set("tower", this.lobby.towerId); return url.href;
+  }
+  cockpitUrl() {
+    const url = new URL("../session-cockpit/", location.href);
     url.searchParams.set("tower", this.lobby.towerId); return url.href;
   }
   private setBusy(value: boolean) {
@@ -80,17 +104,30 @@ class PilotReception {
     // Allow the reliable response to reach the phone before dropping this peer.
     setTimeout(() => this.lobby.closePeer(peer), 1000);
   }
-  private async accept(peer: string, id: string) {
+  private async accept(peer: string, id: string, mode: "pilot" | "cockpit") {
     if (this.busy || this.requests.get(peer)?.id !== id) return;
     this.setBusy(true); this.accepting = peer;
     const invitation = createTiltInvitation();
     try {
-      await this.hub.pair("phone", invitation);
-      if (this.accepting !== peer || !this.requests.has(peer) || !this.hub.phone.active) return;
-      if (!this.lobby.send(peer, { kind: "accepted", id, invitation })) { this.hub.stop("phone"); return; }
+      const viewer = mode === "cockpit" ? await this.hub.pairCockpitViewer(invitation) : undefined;
+      if (viewer) this.cockpitViewers.set(peer, viewer);
+      else await this.hub.pair("phone", invitation);
+      if (this.accepting !== peer || !this.requests.has(peer) || (mode === "pilot" && !this.hub.phone.active)) {
+        if (viewer) this.hub.stopCockpitViewer(viewer);
+        return;
+      }
+      if (!this.lobby.send(peer, { kind: "accepted", id, invitation })) {
+        if (viewer) this.hub.stopCockpitViewer(viewer);
+        else this.hub.stop("phone");
+        return;
+      }
+      if (viewer) this.cockpitViewers.delete(peer);
       this.accepting = ""; this.remove(peer);
     } finally { this.accepting = ""; this.setBusy(false); }
   }
 }
-let reception: PilotReception | undefined;
-export const getPilotReception = () => reception ??= new PilotReception();
+const receptionKey = "__ecgamingPilotReception";
+export const getPilotReception = () => {
+  const global = globalThis as typeof globalThis & { [receptionKey]?: PilotReception };
+  return global[receptionKey] ??= new PilotReception();
+};

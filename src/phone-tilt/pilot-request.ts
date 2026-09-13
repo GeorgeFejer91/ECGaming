@@ -1,4 +1,4 @@
-import { PilotLobby, type PilotMessage, type Tower } from "./pilot-lobby";
+import { PilotLobby, type PilotMessage, type PilotRequestMode, type Tower } from "./pilot-lobby";
 import { randomToken } from "../vendor/brsp/src/brsp.js";
 import type { TiltInvitation } from "./invitation";
 
@@ -8,13 +8,14 @@ export class PilotRequest {
   private readonly status = document.createElement("p");
   private readonly choices = document.createElement("div");
   private readonly cancel = document.createElement("button");
-  constructor(private form: HTMLFormElement, private hint: string, private accepted: (invitation: TiltInvitation, name: string) => void) {
+  constructor(private form: HTMLFormElement, private hint: string, private accepted: (invitation: TiltInvitation, name: string) => void,
+    private mode: PilotRequestMode = "pilot") {
     this.status.id = "pilot-request-status"; this.status.setAttribute("role", "status");
     this.choices.className = "pilot-tower-choices";
     this.cancel.type = "button"; this.cancel.textContent = "Cancel request"; this.cancel.hidden = true;
     this.cancel.addEventListener("click", () => this.stop("Request cancelled."));
     form.append(this.status, this.choices, this.cancel);
-    form.querySelector("button[type=submit]")!.setAttribute("aria-label", "Request wheel");
+    form.querySelector("button[type=submit]")!.setAttribute("aria-label", this.mode === "cockpit" ? "Request cockpit" : "Request wheel");
     window.addEventListener("pagehide", () => this.stop(""));
   }
   start(name: string) {
@@ -34,7 +35,8 @@ export class PilotRequest {
     }) as EventListener);
     lobby.addEventListener("peer", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
-      if (lobby.send(e.detail, { kind: "request", id, name })) this.status.textContent = "Waiting for Ground Control to let you fly…";
+      if (lobby.send(e.detail, { kind: "request", id, name, mode: this.mode }))
+        this.status.textContent = this.mode === "cockpit" ? "Waiting for Ground Control to open the cockpit…" : "Waiting for Ground Control to let you fly…";
       else this.stop("Could not send your request. Try again.");
     }) as EventListener);
     lobby.addEventListener("message", ((e: CustomEvent<{ message: PilotMessage }>) => {

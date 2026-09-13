@@ -2318,4 +2318,4 @@ showView(
   false,
 );
 updateCommandLoop();
-setInterval(updateCommandLoop, 1000 / 30);
+setInterval(updateCommandLoop, 1000 / 60);

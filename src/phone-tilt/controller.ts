@@ -17,6 +17,7 @@ const centreButton = element<HTMLButtonElement>("centre");
 const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
+const exitPilot = element<HTMLButtonElement>("exit-pilot");
 yoke.src = yokeUrl;
 const directVisit = !location.hash;
 let invitation = readTiltInvitation(location.hash);
@@ -52,7 +53,7 @@ let wakeLock: WakeLockSentinel | undefined;
 let inputGeneration = 0;
 let pointerId: number | undefined;
 const heldKeys = new Set<string>();
-const screenAngle = () => screen.orientation?.angle ?? (window as Window & { orientation?: number }).orientation ?? 0;
+const fixedWheelAngle = () => 90;
 const setInputStatus = (text: string) => { if (inputStatus.textContent !== text) inputStatus.textContent = text; };
 
 if (!isSecureContext) connectionStatus.textContent = "Open the HTTPS controller link from your flight screen.";
@@ -97,7 +98,7 @@ function renderMode() {
 }
 function renderAttitude() {
   const fresh = reading && performance.now() - readingAt < SENSOR_STALE_MS;
-  const angles = fresh ? orientationAngles(reading!, screenAngle()) : undefined;
+  const angles = fresh ? orientationAngles(reading!, fixedWheelAngle()) : undefined;
   const origin = gyroCentre ?? angles;
   const wrap = (value: number) => ((value + 180) % 360 + 360) % 360 - 180;
   // This instrument represents physical attitude, including when touch steering is available.
@@ -134,7 +135,7 @@ async function enableTilt(fromGesture = false) {
   listeningAt = performance.now();
   window.addEventListener("deviceorientation", (event) => {
     const next = { beta: event.beta, gamma: event.gamma };
-    if (!orientationAngles(next, screenAngle())) return;
+    if (!orientationAngles(next, fixedWheelAngle())) return;
     reading = next; readingAt = performance.now();
     // Some browsers start supplying readings only after a settings change or a long startup.
     if (mode === "touch" && pointerId === undefined && heldKeys.size === 0) {
@@ -153,7 +154,7 @@ function connect(sensorsReady = false) {
   if (!sensorsReady) void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
   element("setup").hidden = true; pilotEntry.hidden = pilotEntered;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
-  loop = setInterval(publishInput, 1000 / 30);
+  loop = setInterval(publishInput, 1000 / 60);
   void link.start(invitation);
   void keepAwake();
 }
@@ -183,8 +184,8 @@ function publishInput() {
     } else if (autoCentrePending) {
       centreTilt();
     } else if (centred) {
-      input = calibration.read(reading, screenAngle(), now);
-      if (!input.active) { centred = false; setInputStatus("Phone rotated. Hold it comfortably and tap Centre again."); }
+      input = calibration.read(reading, fixedWheelAngle(), now);
+      if (!input.active) { centred = false; setInputStatus("Hold the phone sideways and tap Centre again."); }
     }
   }
   // The local gyro starts immediately; only fresh authenticated sessions receive steering.
@@ -202,6 +203,8 @@ function displayState(state: TiltState) {
 }
 function endSession() {
   pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
+  pilotEntered = false;
+  element("controls").hidden = true;
   practiceHeartbeat.pause(); practiceHeartbeatActive = false;
   polarSource.stop();
   polarSource.configure(null);
@@ -218,8 +221,8 @@ function endSession() {
 function centreTilt() {
   if (!reading || performance.now() - readingAt >= SENSOR_STALE_MS) return;
   autoCentrePending = false;
-  centred = calibration.calibrate(reading, screenAngle(), performance.now());
-  gyroCentre = orientationAngles(reading, screenAngle());
+  centred = calibration.calibrate(reading, fixedWheelAngle(), performance.now());
+  gyroCentre = orientationAngles(reading, fixedWheelAngle());
   input = { x: 0, y: 0, active: centred };
   if (link.fresh) link.send(input);
   setInputStatus("Tilt left/right to steer. Tip away to speed up, pull toward you to slow down.");
@@ -256,11 +259,17 @@ centreButton.addEventListener("click", () => {
   if (permissionPending || mode === "touch") void requestTilt();
   else centreTilt();
 });
+exitPilot.addEventListener("click", () => {
+  endSession();
+  void document.exitFullscreen?.().catch(() => {});
+});
 link.addEventListener("status", (event: Event) => {
   const status = (event as CustomEvent).detail;
   connectionStatus.textContent = status.message;
   if (!status.active && loop !== undefined) {
     pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
+    pilotEntered = false;
+    element("controls").hidden = true;
     practiceHeartbeat.pause(); practiceHeartbeatActive = false;
     polarSource.stop();
     polarSource.configure(null);
@@ -307,9 +316,6 @@ function rearmTilt() {
 pad.addEventListener("blur", rearmTilt);
 window.addEventListener("blur", rearmTilt);
 window.addEventListener("pagehide", endSession);
-const rotated = () => { rearmTilt(); if (mode === "tilt") setInputStatus("Hold the phone steady…"); };
-screen.orientation?.addEventListener("change", rotated);
-window.addEventListener("orientationchange", rotated);
 // Fullscreen needs a user gesture. Bubble after the gyro's motion-permission handler,
 // and avoid competing with the Polar device chooser in the heart button's gesture.
 document.addEventListener("click", event => {

@@ -85,7 +85,7 @@ export class TiltLink extends EventTarget {
           if (labelled) this.pilotName = controls.pilotName as string;
           this.authority.accept(TILT_SCOPE, controls.tilt, performance.now());
           if (controls.signal) this.acceptSource?.(controls.signal as SourceOffer);
-          // The 30 Hz state publisher coalesces all peers' latest values.
+          // The 60 Hz state publisher coalesces all peers' latest values.
         },
       });
       const listen = (target: EventTarget, name: string, fn: (event: CustomEvent) => void) =>
@@ -135,7 +135,7 @@ export class TiltLink extends EventTarget {
           this.fail("Could not reach the flight screen. Create and scan a new QR code.");
         else if ((!this.readyAt && now - this.startedAt > 10 * 60_000) || now - this.startedAt > 2 * 60 * 60_000)
           this.fail("This pairing has expired. Create and scan a new QR code.");
-      }, 1000 / 30);
+      }, 1000 / 60);
       await transport.start();
       if (current() && !this.ready) this.status(this.role === "target" ? "Scan the code with your phone." : "Waiting for the flight screen…");
     } catch {
