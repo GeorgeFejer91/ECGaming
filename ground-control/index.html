@@ -11,7 +11,7 @@
     <link rel="icon" href="../favicon.svg" />
     <title>Ground Control & Cockpit · EC Gaming</title>
   </head>
-  <body>
+  <body data-ecgaming-breath-visibility="cockpit">
     <a class="skip-link" href="#ground-view">Skip to Ground Control</a>
     <main id="main" class="app-shell control-shell unified-flight-shell">
       <header class="app-header unified-header">
@@ -1016,6 +1016,7 @@
       </section>
     </main>
     <script src="/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js"></script>
+    <script type="module" src="/games/ecgaming-breathing-visualizer.js"></script>
     <script type="module" src="/src/ground-control.ts"></script>
   </body>
 </html>

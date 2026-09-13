@@ -41,7 +41,7 @@ window.VDONinjaSDK=class extends EventTarget {
       setTimeout(()=>this.dispatchEvent(new CustomEvent('dataReceived',{detail:{uuid:this.uuid,streamID:this.source,data:config}})),0);
     }
     if(data?.kind==='ecgaming-signal-config-request'){
-      const config={kind:'ecgaming-signal-config',protocol:'ecgsignalv1',schemaVersion:1,sourceId:this.source,sessionId:'e2e-session',sessionToken:this.sessionToken,metricOrder:['excitement_score','excitometer','heart_rate','rr_interval','rmssd','ln_rmssd','sdnn','ecg_local_power','ecg_rms','ecg_peak_to_peak'],rawEcgIncluded:false};
+      const config={kind:'ecgaming-signal-config',protocol:'ecgsignalv1',schemaVersion:1,sourceId:this.source,sessionId:'e2e-session',sessionToken:this.sessionToken,metricOrder:['breathing_volume','excitement_score','excitometer','heart_rate','rr_interval','rmssd','ln_rmssd','sdnn','ecg_local_power','ecg_rms','ecg_peak_to_peak'],rawEcgIncluded:false};
       setTimeout(()=>this.dispatchEvent(new CustomEvent('dataReceived',{detail:{uuid:this.uuid,streamID:this.source,data:config}})),0);
     }
     return true;
@@ -52,8 +52,8 @@ window.VDONinjaSDK=class extends EventTarget {
     const flight=new ArrayBuffer(32),f=new DataView(flight);
     f.setUint32(0,this.sequence,true);f.setUint32(4,this.beat,true);f.setFloat32(8,.25,true);f.setFloat32(12,.5,true);f.setFloat32(16,.5,true);f.setFloat32(20,this.sequence%12===1?20:600,true);f.setFloat32(24,.9,true);f.setUint32(28,1|2|4,true);
     this.flightChannel.dispatchEvent(new MessageEvent('message',{data:flight}));
-    const beacon=new ArrayBuffer(88),b=new DataView(beacon),metrics=[.63,.72,74,811,42,3.7377,55,175000,750,1800];
-    b.setUint32(0,0x31474345,true);b.setUint16(4,1,true);b.setUint16(6,88,true);b.setUint32(8,this.sequence,true);b.setUint32(12,this.sessionToken,true);b.setUint32(16,0x3ff,true);b.setUint32(20,1|4|8|16,true);b.setUint32(24,this.beat,true);b.setUint32(28,this.beat,true);b.setFloat32(32,this.sequence%12===1?20:300,true);b.setFloat32(36,this.sequence%12===1?20:300,true);b.setFloat32(40,.92,true);b.setFloat32(44,.88,true);metrics.forEach((value,index)=>b.setFloat32(48+index*4,value,true));
+    const beacon=new ArrayBuffer(92),b=new DataView(beacon),metrics=[.58,.63,.72,74,811,42,3.7377,55,175000,750,1800];
+    b.setUint32(0,0x31474345,true);b.setUint16(4,2,true);b.setUint16(6,92,true);b.setUint32(8,this.sequence,true);b.setUint32(12,this.sessionToken,true);b.setUint32(16,0x7ff,true);b.setUint32(20,1|4|8|16|32,true);b.setUint32(24,this.beat,true);b.setUint32(28,this.beat,true);b.setFloat32(32,this.sequence%12===1?20:300,true);b.setFloat32(36,this.sequence%12===1?20:300,true);b.setFloat32(40,.92,true);b.setFloat32(44,.88,true);metrics.forEach((value,index)=>b.setFloat32(48+index*4,value,true));
     this.beaconChannel.dispatchEvent(new MessageEvent('message',{data:beacon}));
   }
 }`;
@@ -132,6 +132,47 @@ test("Pixel Hop accepts one fresh ECGaming heartbeat message", async ({
   await expect(page.locator("#ecgDetail")).toContainText("beat 42");
 });
 
+test("game overlay draws the live Polar ACC breathing value on a fixed 0-1 scale", async ({
+  page,
+}) => {
+  await page.goto("./games/pixel-hop/");
+  const visualizer = page.locator("#ecgaming-breathing-visualizer");
+  await expect(visualizer).toBeVisible();
+  await expect(visualizer).toHaveAttribute("data-state", "waiting");
+
+  await page.evaluate(async () => {
+    const channel = new BroadcastChannel("ecgaming-breathing-v1");
+    for (const volume01 of [0.42, 0.51, 0.63, 0.72]) {
+      channel.postMessage({
+        kind: "ecgaming-dive-intent",
+        version: 1,
+        route: "ground-control",
+        state: "inhale",
+        active: false,
+        volume01,
+        holdProgress01: 0,
+        activeRemainingMs: 0,
+        reason: "below-inspiratory-crest",
+        physicalPolar: true,
+        simulated: false,
+        signalAgeMs: 12,
+        sentAtEpochMs: Date.now(),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    setTimeout(() => channel.close(), 50);
+  });
+
+  await expect(visualizer).toHaveAttribute("data-state", "live");
+  await expect(visualizer).toHaveAttribute("data-value", "0.720");
+  await expect(visualizer).toHaveAttribute("data-direction", "inhale");
+  await expect(visualizer.locator("canvas")).toHaveAttribute(
+    "aria-label",
+    "Breathing waveform from zero to one",
+  );
+  await expect(visualizer).toHaveAccessibleName(/0\.72.*zero to one/i);
+});
+
 test("Smartphone Flight offers an honest fallback and a playable simulator", async ({
   page,
 }) => {
@@ -168,6 +209,10 @@ test("Smartphone Flight offers an honest fallback and a playable simulator", asy
   ).toBeEnabled();
   await page.getByRole("button", { name: "Start flight" }).click();
   await expect(page.locator("#mobile-state")).toHaveText("SIMULATED READY");
+  await expect(page.locator("#ecgaming-breathing-visualizer")).toHaveAttribute(
+    "data-state",
+    "simulated",
+  );
   await expect(page.locator("#mobile-controls")).not.toHaveClass(/is-open/);
   await expect(page.locator("#mobile-hr")).toHaveText("72");
   await expect(page.locator("#lives")).toHaveCount(0);
@@ -317,8 +362,12 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
   const ground = page.locator("#ground-view");
   const cockpit = page.locator("#cockpit-view");
   const start = page.locator("#start-flight-from-ground");
+  const breathingVisualizer = page.locator(
+    "#ecgaming-breathing-visualizer",
+  );
   await expect(ground).toBeVisible();
   await expect(cockpit).toBeHidden();
+  await expect(breathingVisualizer).toBeHidden();
   await expect(page.locator("#ground-view-toggle")).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -349,6 +398,7 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
 
   await expect(ground).toBeHidden();
   await expect(cockpit).toBeVisible();
+  await expect(breathingVisualizer).toBeVisible();
   await expect(page.locator("#cockpit-view-toggle")).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -622,6 +672,10 @@ test("Flight receives mocked commands without requesting Bluetooth or media", as
   await page.getByRole("button", { name: "Start flight" }).click();
   await expect(page.locator("#hud-excitement")).toHaveText("0.63");
   await expect(page.locator("#link-state")).toContainText("LINK LIVE");
+  await expect(page.locator("#ecgaming-breathing-visualizer")).toHaveAttribute(
+    "data-value",
+    "0.580",
+  );
 });
 
 

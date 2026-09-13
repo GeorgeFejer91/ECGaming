@@ -176,6 +176,26 @@ function updateConnection(state: FlightReceiverSnapshot, message?: string) {
 function acceptFrame(state: FlightReceiverSnapshot) {
   const frame = state.latest;
   if (!frame) return;
+  const breathingFlags = state.beacon.latest?.flags ?? 0;
+  const breathingVolume = state.beacon.latest?.metrics.breathing_volume;
+  if (Number.isFinite(breathingVolume))
+    window.dispatchEvent(
+      new CustomEvent("ecgaming:breathing-signal", {
+        detail: {
+          kind: "ecgaming-breathing-signal",
+          route: "flight-deck",
+          volume01: breathingVolume,
+          ready:
+            state.beacon.fresh &&
+            (breathingFlags & SignalBeaconFlags.accBreathingReady) !== 0,
+          physicalPolar:
+            (breathingFlags & SignalBeaconFlags.physicalPolar) !== 0,
+          simulated: (breathingFlags & SignalBeaconFlags.simulation) !== 0,
+          signalAgeMs: state.beacon.packetAgeMs ?? 999_999,
+          sentAtEpochMs: Date.now(),
+        },
+      }),
+    );
   game.setControls(frame);
   const signal = (frame.altitude + 1) / 2;
   const metric = state.config?.mappings.altitude.metric;

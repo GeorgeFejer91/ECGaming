@@ -22,6 +22,7 @@ type PolarEvent = {
   beatsPerMinute?: number;
   rrIntervalsMs?: number[];
   streamHealth?: { observedSampleRateHz?: number; sampleCount?: number };
+  breathing?: { ready?: boolean; volume01?: number };
 };
 
 type HeartbeatEnvelope = {
@@ -304,6 +305,21 @@ function handlePolarEvent(event: PolarEvent) {
     if (ecgReady && detector.ready && performance.now() - lastBeatAt > 900)
       setStatus("the link is awake", "Live 130 Hz ECG is local to this tab; the next detected R-peak requests a jump.");
   }
+  if (event.kind === "accelerometer" && Number.isFinite(event.breathing?.volume01))
+    window.dispatchEvent(
+      new CustomEvent("ecgaming:breathing-signal", {
+        detail: {
+          kind: "ecgaming-breathing-signal",
+          route: "moth-direct",
+          volume01: Number(event.breathing?.volume01),
+          ready: directConnected && event.breathing?.ready === true,
+          physicalPolar: directConnected,
+          simulated: false,
+          signalAgeMs: 0,
+          sentAtEpochMs: Date.now(),
+        },
+      }),
+    );
   if (event.kind === "warning") setStatus("the signal trembles", event.message ?? "A Polar signal needs attention.");
   if (event.kind === "error") setStatus("the signal was lost", event.message ?? "The Polar stream reported an error.");
   renderStatus();

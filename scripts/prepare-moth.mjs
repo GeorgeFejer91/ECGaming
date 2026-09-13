@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as viteBuild } from "vite";
@@ -12,7 +12,7 @@ const sourceRoot = resolve(cacheRoot, "source");
 const forkUrl = "https://github.com/GeorgeFejer91/moth-game.git";
 const upstreamUrl = "https://github.com/ahmedallam222/moth-game";
 const pinnedCommit = "a56fa97e7f8e2a6abb75634799e963d54ce4c750";
-const adapterRevision = "heart-link-v2";
+const adapterRevision = "heart-link-v3-breath-trail";
 
 function assertInside(root, target) {
   const path = relative(root, target);
@@ -71,9 +71,13 @@ async function stageBuild() {
   let html = await readFile(htmlPath, "utf8");
   html = html.replace(
     "</body>",
-    `  <script type="module" src="./ecgaming-moth-adapter.js?v=${adapterRevision}"></script>\n</body>`,
+    `  <script type="module" src="./ecgaming-breathing-visualizer.js?v=${adapterRevision}"></script>\n  <script type="module" src="./ecgaming-moth-adapter.js?v=${adapterRevision}"></script>\n</body>`,
   );
   await writeFile(htmlPath, html, "utf8");
+  await copyFile(
+    resolve(projectRoot, "public", "games", "ecgaming-breathing-visualizer.js"),
+    join(outputRoot, "ecgaming-breathing-visualizer.js"),
+  );
   await viteBuild({
     configFile: false,
     root: projectRoot,
@@ -96,7 +100,7 @@ async function stageBuild() {
     .replace("const CACHE = 'moth-v3';", `const CACHE = 'moth-ecgaming-${pinnedCommit.slice(0, 8)}-${adapterRevision}';`)
     .replace(
       "'./icon-512.png'];",
-      "'./icon-512.png', './ecgaming-moth-adapter.js'];",
+      "'./icon-512.png', './ecgaming-breathing-visualizer.js', './ecgaming-moth-adapter.js'];",
     );
   await writeFile(workerPath, worker, "utf8");
   await cp(join(sourceRoot, "LICENSE"), join(outputRoot, "LICENSE-MIT.txt"));
@@ -108,7 +112,7 @@ async function stageBuild() {
       `Original source: ${upstreamUrl}`,
       `ECGaming fork: ${forkUrl.replace(/\.git$/, "")}`,
       "Licence: MIT (copyright 2026 ahmedallam222).",
-      "ECGaming adds a direct Polar H10 heart-link and a same-origin R-peak to standard jump-input adapter.",
+      "ECGaming adds a direct Polar H10 heart-link, a live 0-1 ACC breathing trail, and a same-origin R-peak to standard jump-input adapter.",
       "",
     ].join("\n"),
     "utf8",

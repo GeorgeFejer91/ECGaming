@@ -27,6 +27,18 @@ The channel is same-origin `BroadcastChannel`, so the acquisition/game tabs must
 
 The active game adapters show whether they are waiting, receiving physical Polar beats, or receiving labelled simulation. They display the beat counter/source and retain keyboard input. Pixel Hop counts accepted messages. MOTH adds a visible ECG status bar over its original browser runtime.
 
+Every game display also loads `public/games/ecgaming-breathing-visualizer.js`.
+It follows Polar Stream's breathing-waveform presentation: a fixed vertical
+`0…1` scale, five seconds of recent derived values as a leftward trail, the
+latest value as a dot, and a rising/falling inhale/exhale cue. Ground Control
+and Smartphone Flight feed it through the existing same-origin
+`ecgaming-breathing-v1` messages. The standalone Flight Deck feeds the same
+component from fresh `ecgsignalv1` beacon telemetry so it also works when the
+game and sensor owner are on different devices. MOTH's direct H10 connector
+feeds it from the local Polar Stream-compatible ACC processor. The overlay
+fails visibly to waiting/stale and labels simulation; it never receives raw ACC
+samples or a device identifier.
+
 ## Hosted MOTH build
 
 `scripts/prepare-moth.mjs` fetches the exact pinned adaptation commit from the user's fork, verifies the checked-out commit, installs its lockfile dependencies with lifecycle scripts initially disabled, rebuilds the required local bundler binary, and creates the static browser bundle. It then stages that output at `dist/games/moth/`, injects the R-peak/ACC adapter, and retains the MIT licence and provenance record. The MOTH source and dependency tree remain in the ignored `.cache/moth/` build cache rather than being committed into ECGaming. The normal `npm run build` stays small and offline after dependencies are installed; `npm run build:hosted` additionally prepares the distributable MOTH runtime.
