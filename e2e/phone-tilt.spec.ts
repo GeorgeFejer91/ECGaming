@@ -30,6 +30,9 @@ test("dedicated SVG widget opens a yoke-shaped QR popup without Polar or flight 
   await widget.click();
   const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
   await expect(dialog).toBeVisible();
+  // Production CSS can load the shared Ground Control theme after the yoke.
+  await page.addStyleTag({ url: "/src/ui/compact-ground.css" });
+  expect(await dialog.evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
   await expect(dialog.locator("canvas").first()).toBeVisible();
   const url = new URL((await dialog.getByRole("link", { name: "Open controller" }).getAttribute("href"))!);
   expect(url.pathname).toBe("/controller/"); expect(url.search).toBe("");
