@@ -5,6 +5,7 @@ import { createPracticeHeart } from "./ui/practice-heart";
 import { flightAssetUrl } from "./game/aircraft";
 import { getFlightSessionHub } from "./flight-session/hub";
 import { getPilotReception } from "./phone-tilt/pilot-reception";
+import { CONTROL_RELAY_MS } from "./phone-tilt/link";
 import {
   FlightFlags,
   SIGNAL_BEACON_METRICS,
@@ -2318,4 +2319,4 @@ showView(
   false,
 );
 updateCommandLoop();
-setInterval(updateCommandLoop, 1000 / 60);
+setInterval(updateCommandLoop, CONTROL_RELAY_MS);

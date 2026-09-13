@@ -1,7 +1,7 @@
 import "./controller.css";
 import yokeUrl from "./yoke-surface.svg";
 import { readTiltInvitation } from "./invitation";
-import { TiltLink } from "./link";
+import { CONTROL_RELAY_MS, TiltLink } from "./link";
 import { neutralControls, orientationAngles, SENSOR_STALE_MS, TiltCalibration, type OrientationReading, type TiltState } from "./controls";
 import { PolarSourceWidget } from "../flight-session/polar-source";
 import { cleanPilotName } from "./pilot-name";
@@ -154,7 +154,7 @@ function connect(sensorsReady = false) {
   if (!sensorsReady) void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
   element("setup").hidden = true; pilotEntry.hidden = pilotEntered;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
-  loop = setInterval(publishInput, 1000 / 60);
+  loop = setInterval(publishInput, CONTROL_RELAY_MS);
   void link.start(invitation);
   void keepAwake();
 }

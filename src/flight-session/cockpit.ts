@@ -1,5 +1,5 @@
 import "./cockpit.css";
-import { TiltLink } from "../phone-tilt/link";
+import { CONTROL_RELAY_MS, TiltLink } from "../phone-tilt/link";
 import { readTiltInvitation } from "../phone-tilt/invitation";
 import { neutralControls } from "../phone-tilt/controls";
 import { getFlightSessionHub } from "./hub";
@@ -79,7 +79,7 @@ function connect() {
   if (!invitation || link.active) return;
   element("session-entry").hidden = true;
   element("session-flight-status").hidden = element("session-sensor").hidden = element("session-disconnect").hidden = false;
-  loop = setInterval(tick, 1000 / 60); void link.start(invitation); void keepAwake();
+  loop = setInterval(tick, CONTROL_RELAY_MS); void link.start(invitation); void keepAwake();
 }
 start.addEventListener("click", () => { tick(); if (!ready) return; started = true; game.restart(); start.hidden = true; });
 element("session-disconnect").addEventListener("click", stop);
