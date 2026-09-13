@@ -179,8 +179,15 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
   await phone.getByRole("button", { name: "Connect Polar H10" }).click();
   await expect(phone.locator(".polar-source-status")).toContainText("H10 is unavailable in this browser");
   expect(await phone.locator(".yoke-hub").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
-  await phone.locator("#tilt-pad").focus(); await phone.keyboard.down("ArrowLeft");
-  await expect(phone.locator("#confirmed")).toContainText("Left 100%"); await phone.keyboard.up("ArrowLeft");
+  await phone.bringToFront(); await phone.locator("#tilt-pad").focus();
+  // A held physical key repeats. Playwright's single keydown does not, so repeat
+  // while waiting for fresh target state instead of racing the first snapshot.
+  await expect.poll(async () => {
+    await phone.keyboard.down("ArrowLeft");
+    return phone.locator("#confirmed").textContent();
+  }).toContain("Left 100%");
+  await phone.keyboard.up("ArrowLeft");
+  await expect(phone.locator("#confirmed")).toContainText("Centred");
 });
 
 
