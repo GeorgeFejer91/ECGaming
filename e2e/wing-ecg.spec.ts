@@ -60,6 +60,46 @@ const hub = {
 export function getPolarBrowserHub(){return hub;}
 `;
 
+test("hangar projects live and practice ECG on both aircraft before flight, and clears lost signals", async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(String(error)));
+  page.on("console", message => {
+    if (message.type() === "error" && /THREE|WebGL|shader|compile/i.test(message.text())) errors.push(message.text());
+  });
+  await page.route("**/src/polar/browser-hub.ts*", route => route.fulfill({ contentType: "application/javascript", body: localPolar }));
+  await page.goto("./ground-control/");
+  const preview = page.locator("#ground-aircraft-preview");
+  await page.locator("#connect-polar").click();
+  await page.evaluate(() => {
+    const start = performance.now(); let n = 0;
+    (window as any).previewEcgTimer = setInterval(() => {
+      const end = Math.floor((performance.now() - start) * 130 / 1000);
+      const microvolts = Array.from({ length: Math.max(0, end - n) }, () => {
+        const phase = n++ % 104; return phase === 0 ? 1000 : phase === 4 ? -200 : 25 * Math.sin(phase / 8);
+      });
+      (window as any).__localEcgEmit({ kind: "ecg", microvolts,
+        sensorTimestampNs: String(BigInt(Math.round(n / 130 * 1e9))), streamHealth: { observedSampleRateHz: 130 } });
+    }, 50);
+  });
+  for (const id of ["cardiac-ventricle", "cardiac-aorta"]) {
+    await page.locator("#ground-aircraft").selectOption(id);
+    await expect(preview).toHaveAttribute("data-aircraft", id);
+    await expect(preview).toHaveAttribute("data-ecg-preview", "live");
+    await expect(page.locator("#ground-view")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`hangar-ecg-${id}.png`) });
+  }
+  await page.evaluate(() => clearInterval((window as any).previewEcgTimer));
+  await expect(preview).toHaveAttribute("data-ecg-preview", "stale");
+  await page.locator("#disconnect-polar").click();
+  await expect(preview).toHaveAttribute("data-ecg-preview", "waiting");
+  await page.locator("#practice-heart").click();
+  await expect(preview).toHaveAttribute("data-ecg-preview", "simulated");
+  await page.locator("#practice-heart").click();
+  await expect(preview).toHaveAttribute("data-ecg-preview", "waiting");
+  expect(errors).toEqual([]);
+});
+
 for (const entry of ["ground-control", "mobile"]) {
   test(`${entry} feeds local Polar samples to the wings and clears them on disconnect`, async ({ page }) => {
     await page.route("**/src/polar/browser-hub.ts*", route => route.fulfill({ contentType: "application/javascript", body: localPolar }));

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { WingEcgProjection } from "./wing-ecg-projection";
+import type { WingEcgFrame } from "../signals/wing-ecg-signal";
 import { cardiacEnvelope, RrBeatClock, type RrHeartbeatSignal } from "./flight-mechanics";
 import {
   createProceduralAircraftVisual,
@@ -70,6 +72,7 @@ export class AircraftPreview {
   private readonly modelMount = new THREE.Group();
   private readonly pulseRoot = new THREE.Group();
   private readonly beatClock = new RrBeatClock();
+  private readonly wingEcg = new WingEcgProjection();
   private readonly pulseLabel = document.createElement("span");
   private pulseParts: { object: THREE.Object3D; scale: THREE.Vector3; roll: number }[] = [];
   private pulseMaterials: THREE.MeshStandardMaterial[] = [];
@@ -203,6 +206,7 @@ export class AircraftPreview {
       return visual.id;
     }
     if (this.visual) {
+      this.wingEcg.unbind();
       this.modelMount.remove(this.visual.root);
       disposeAircraftVisual(this.visual.root);
     }
@@ -238,6 +242,7 @@ export class AircraftPreview {
       .map((value) => value.toFixed(4))
       .join(",");
     this.host.dataset.previewEnvelopeRadius = envelope.radius.toFixed(4);
+    this.wingEcg.bind(visual.root);
     return visual.id;
   }
 
@@ -257,6 +262,7 @@ export class AircraftPreview {
     const delta = Math.min(50, Math.max(0, time - this.lastTime));
     this.lastTime = time;
     this.animateHeartbeat(delta, time);
+    this.host.dataset.ecgPreview = this.wingEcg.update(performance.now());
     if (!this.reduceMotion) {
       this.turntable.rotation.y += delta * 0.00042;
       for (const propeller of this.visual?.propellers ?? [])
@@ -267,6 +273,7 @@ export class AircraftPreview {
   };
 
   private practiceHeartbeat = false;
+  setEcgSignal(frame: WingEcgFrame | null) { this.wingEcg.accept(frame); }
   setHeartbeatSignal(signal: RrHeartbeatSignal, practice = false) {
     this.practiceHeartbeat = practice && signal.simulated === true;
     const fresh = signal.ready && (!signal.simulated || this.practiceHeartbeat) && Number.isFinite(signal.ageMs) && signal.ageMs >= 0 && signal.ageMs <= 1500;
@@ -316,6 +323,7 @@ export class AircraftPreview {
   dispose() {
     this.setActive(false);
     this.resizeObserver?.disconnect();
+    this.wingEcg.dispose();
     if (this.visual) disposeAircraftVisual(this.visual.root);
     this.renderer?.dispose();
     this.renderer?.domElement.remove();

@@ -448,7 +448,10 @@ export class GroundCockpit extends EventTarget {
     if (telemetry.heartbeat) this.game.setHeartbeatSignal({ ...telemetry.heartbeat, ready: telemetry.heartbeat.ready && this.effectiveReady });
   }
 
-  setEcgSignal(frame: WingEcgFrame | null) { this.game?.setEcgSignal(frame); }
+  setEcgSignal(frame: WingEcgFrame | null) {
+    this.preview.setEcgSignal(frame);
+    this.game?.setEcgSignal(frame);
+  }
   setPreviewHeartbeat(signal: RrHeartbeatSignal, practice = false) { this.preview.setHeartbeatSignal(signal, practice); }
 
   setVisible(visible: boolean) {

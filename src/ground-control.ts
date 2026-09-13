@@ -1007,7 +1007,7 @@ function handlePolarEvent(event: any) {
         event.snapshot.breathing.diagnostics?.confidence01 ?? 0,
       );
     }
-    if (sourceMode === "polar" && !simulated)
+    if (flightSession.signal.source === "ground" && sourceMode === "polar" && !simulated)
       observeMetrics(polarMetrics, now, polarSessionId);
   }
   if (event.kind === "heart-rate") {
@@ -1142,7 +1142,12 @@ function simulatedSignals(now: number) {
   if (!simulationSessionId) simulationSessionId = sessionId("simulation");
   observeMetrics(polarMetrics, now, simulationSessionId);
   const frame = practiceEcg.sample(now, bpm);
-  if (frame.microvolts.length) ecgTrace.pushFrame(frame.microvolts, frame.sensorTimestampNs, now);
+  if (frame.microvolts.length) {
+    ecgTrace.pushFrame(frame.microvolts, frame.sensorTimestampNs, now);
+    if (practiceFlight && flightSession.signal.source === "ground")
+      cockpit.setEcgSignal({ microvolts: frame.microvolts, sensorTimestampNs: String(frame.sensorTimestampNs),
+        sourceId: simulationSessionId, simulated: true });
+  }
   for (const at of frame.beats) {
     registerBeat("polar-rr", 1, at);
     registerBeat("ecg-rpeak", 1, at);
@@ -1744,7 +1749,7 @@ function updateCommandLoop() {
     ? { ...runtime.frame, beatCounter: runtime.active.rrBeatCounter, beatAgeMs: runtime.active.rrBeatAgeMs }
     : runtime.frame, now);
   latestRuntime = runtime;
-  if (flightSession.signal.source !== "ground" || sourceMode !== "polar" || simulated || !physicalConnected) cockpit.setEcgSignal(null);
+  if (flightSession.signal.source !== "ground" || (!practiceFlight && (sourceMode !== "polar" || simulated || !physicalConnected))) cockpit.setEcgSignal(null);
   offerBroadcast(runtime, now);
   sampleScopeMetrics(runtime.active, now);
   if (!commandPaintPending) {
