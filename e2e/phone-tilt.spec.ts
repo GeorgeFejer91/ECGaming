@@ -69,6 +69,8 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   await enterPilot(phone);
   expect(new URL(phone.url()).hash).toBe("");
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await expect(phone.locator("#controller-feedback")).toBeVisible();
+  await expect(phone.locator("#controller-feedback")).toContainText("Connected");
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await phone.evaluate(() => {
     (window as any).fullscreenRequests = 0;
@@ -148,6 +150,7 @@ test("QR pairing runs during name entry and the submit gesture immediately opens
   await phone.addInitScript(() => Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 1 }));
   await phone.goto((await invitation.getAttribute("href"))!);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await expect(phone.locator("#pilot-entry-feedback")).toHaveText("Connected");
   await expect(phone.locator("#pilot-entry")).toBeVisible();
   await expect(phone.locator("#controls")).toBeHidden();
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(0);

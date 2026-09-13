@@ -17,6 +17,7 @@ const centreButton = element<HTMLButtonElement>("centre");
 const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
+const entryFeedback = element("pilot-entry-feedback");
 const exitPilot = element<HTMLButtonElement>("exit-pilot");
 yoke.src = yokeUrl;
 const directVisit = !location.hash;
@@ -151,6 +152,7 @@ async function enableTilt(fromGesture = false) {
 
 function connect(sensorsReady = false) {
   if (!invitation || link.active) return;
+  entryFeedback.textContent = "Pairing with the flight screen while you enter your name.";
   if (!sensorsReady) void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
   element("setup").hidden = true; pilotEntry.hidden = pilotEntered;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
@@ -266,6 +268,7 @@ exitPilot.addEventListener("click", () => {
 link.addEventListener("status", (event: Event) => {
   const status = (event as CustomEvent).detail;
   connectionStatus.textContent = status.message;
+  if (!pilotEntered && invitation) entryFeedback.textContent = status.message;
   if (!status.active && loop !== undefined) {
     pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
     pilotEntered = false;
@@ -333,8 +336,12 @@ if (invitation && isSecureContext && window.top === window.self) connect();
 else if (directVisit && isSecureContext && window.top === window.self) {
   const hint = new URLSearchParams(location.search).get("tower") ?? "";
   if (!hint || validTower(hint)) {
+    entryFeedback.textContent = hint
+      ? `Enter your name to ask Ground Control ${hint} for wheel access.`
+      : "Enter your name to ask an open Ground Control for wheel access.";
     element("setup").hidden = true; pilotEntry.hidden = false;
     pilotRequest = new PilotRequest(pilotEntry, hint, (accepted, name) => {
+      entryFeedback.textContent = "Ground Control accepted. Opening the yoke.";
       invitation = accepted; link.pilotName = name; pilotEntered = true;
       pilotEntry.hidden = true; element("controls").hidden = false; connect(true);
     });

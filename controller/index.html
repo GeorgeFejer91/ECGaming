@@ -15,6 +15,7 @@
           <input id="controller-pilot-name" name="pilot" type="text" maxlength="32" autocomplete="given-name" enterkeyhint="go" placeholder="Your name" required />
           <button type="submit" aria-label="Take control"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16h21M18 7l9 9-9 9" /></svg></button>
         </div>
+        <p id="pilot-entry-feedback" class="pilot-entry-feedback" role="status">Enter your name to start pairing.</p>
       </form>
       <h1 class="sr-only">Flight yoke</h1>
       <img id="steering-yoke" alt="Aircraft yoke surface with grips at both ends" width="1000" height="500" draggable="false" />
@@ -27,7 +28,6 @@
       </div>
       <div id="tilt-pad" class="tilt-pad" role="group" aria-label="Airplane steering yoke"></div>
       <div class="yoke-hub">
-        <p id="connection-status" class="sr-only" role="status">Scan a flight QR code.</p>
         <section id="setup" class="sr-only" aria-label="Pair your phone"><p>Scan a fresh QR code on your flight screen.</p></section>
         <section id="controls" aria-label="Flight controls" hidden>
           <button id="centre" class="attitude" type="button" aria-label="Centre" aria-describedby="input-status" disabled>
@@ -66,9 +66,12 @@
             </svg>
           </button>
           <div id="polar-status" class="sr-only"></div>
-          <p id="input-status" class="sr-only" role="status">Hold the phone steady.</p>
-          <p id="confirmed" class="sr-only">Waiting for the flight screen.</p>
-          <p id="wake-status" class="sr-only"></p>
+          <div id="controller-feedback" class="controller-feedback" aria-label="Controller feedback">
+            <p id="connection-status" role="status">Scan a flight QR code.</p>
+            <p id="input-status" role="status">Hold the phone steady.</p>
+            <p id="confirmed">Waiting for the flight screen.</p>
+            <p id="wake-status"></p>
+          </div>
         </section>
       </div>
     </main>

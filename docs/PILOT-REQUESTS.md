@@ -9,6 +9,11 @@ Ground Control can accept or decline. Only acceptance replaces the current
 phone and supplies the new pilot with a fresh private invitation. The phone
 then opens its yoke automatically. Existing QR invitations still pair directly.
 Chrome instructions sit beside the QR code, stacking below it on narrow screens.
+The controller name-entry screen includes a compact troubleshooting checklist
+showing the current site host, target tower, HTTPS state, tower discovery,
+request-channel state, and whether the request has been sent. If Ground Control
+does not show the approval dialog, the checklist distinguishes "target tower not
+found" from "request sent; check Ground Control".
 
 ## Transport and authority
 

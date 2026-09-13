@@ -38,6 +38,9 @@ test("direct URL requests a named pilot; only acceptance enables steering", asyn
   await request(phone, new URL("/controller/", page.url()).href, "Amelia");
   const approval = page.getByRole("dialog", { name: "Pilot requests" });
   await expect(approval).toContainText("Amelia wants to take the wheel.");
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/TargetAny open Ground Control/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/RequestSent; check Ground Control/);
   expect((await phoneState(page)).selected).toBe(false);
   await expect(phone.locator("#pilot-entry")).toBeVisible();
   await approval.getByRole("button", { name: "Let pilot fly" }).click();
@@ -82,6 +85,8 @@ test("multiple towers require a choice and route the request only to that tower"
   const phone = await context.newPage();
   await request(phone, new URL("/controller/", firstUrl).href, "Pilot");
   await expect(phone.locator(".pilot-tower-choices button")).toHaveCount(2);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/Discovery2 Ground Control windows found/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelChoose a tower/);
   const id = new URL(firstUrl).searchParams.get("tower")!;
   await phone.getByRole("button", { name: `Ground Control ${id}`, exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Pilot requests" })).toBeVisible();
