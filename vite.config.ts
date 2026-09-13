@@ -18,7 +18,6 @@ export default defineConfig({
         controller: resolve(import.meta.dirname, "controller/index.html"),
         sessionCockpit: resolve(import.meta.dirname, "session-cockpit/index.html"),
         pixelHop: resolve(import.meta.dirname, "games/pixel-hop/index.html"),
-        superTux: resolve(import.meta.dirname, "games/supertux/index.html"),
         moth: resolve(import.meta.dirname, "games/moth/index.html"),
         breathSonification: resolve(
           import.meta.dirname,

@@ -98,17 +98,16 @@ Polar Heart Rate Service RR notifications are available as an alternate beat sou
 - Integrated Cockpit requires three continuous ready seconds before resuming after a loss. The standalone Flight Deck first requires three fresh command frames, then shows its three-second resume countdown.
 - Heartbeat events older than 250 ms are never replayed as late or stacked actions.
 
-## Open-source game library
+## Optional Game Adapters
 
-The landing-page game menu presents four browser-playable ECG experiences while keeping signal ownership, upstream attribution, and licences visible:
+The app root opens Ground Control directly so the hangar deck is the only main menu. Optional browser-game adapters remain available by explicit route while keeping signal ownership, upstream attribution, and licences visible:
 
 - **Pixel Hop Twins ECG edition** is a vendored static snapshot of [stm1978/retro-platformer](https://github.com/stm1978/retro-platformer) at commit `9835295888c7cb8afa795ca2a31707a65167c2ea`. Its MIT code and CC0 procedural sprites, audio, and levels are retained under `games/pixel-hop/` and `public/games/pixel-hop/`. A fresh selected beat queues the game's normal buffered jump.
-- **SuperTux heartbeat trial** uses the official SuperTux v0.6.3 WebAssembly release. `npm run build:hosted` downloads the official archive, verifies SHA-256 `f9fa6eed36d403a283f3c544540b8a45b6c110375c1824e137ce1b4357e2d5df`, and stages it under the built site. The runtime is not committed because its data file is about 246 MB. A scoped MIT service-worker shim supplies the cross-origin isolation required on GitHub Pages, and a small adapter maps fresh beats to SuperTux's standard Space-key input.
 - **MOTH heartbeat + dive trial** is built from the user's English-only [MOTH adaptation branch](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) at commit `a56fa97e7f8e2a6abb75634799e963d54ce4c750`, based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game). All five chapters are immediately selectable, and the repaired title moth keeps both wings attached throughout its flap animation. Fresh R-peaks jump on land. Underwater R-peak paddles are accepted only while fresh physical Polar ACC breathing input is at a stable calibrated upper crest. Keyboard, touch, and gamepad remain available as a safety fallback.
 
 Open Ground Control, Smartphone Flight, or Flight Deck in one same-origin tab and the selected game in another. The acquisition tab publishes only a versioned beat event containing timing, confidence, readiness, and simulated/physical labels. It never publishes raw ECG or a Polar identifier. Keyboard controls remain available.
 
-The source forks are [GeorgeFejer91/retro-platformer](https://github.com/GeorgeFejer91/retro-platformer), [GeorgeFejer91/supertux](https://github.com/GeorgeFejer91/supertux), and [GeorgeFejer91/moth-game](https://github.com/GeorgeFejer91/moth-game). See [Game integrations](docs/GAME-INTEGRATIONS.md) for the adapter contract and limitations.
+The source forks are [GeorgeFejer91/retro-platformer](https://github.com/GeorgeFejer91/retro-platformer) and [GeorgeFejer91/moth-game](https://github.com/GeorgeFejer91/moth-game). See [Game integrations](docs/GAME-INTEGRATIONS.md) for the adapter contract and limitations.
 
 ## Run locally
 
@@ -125,7 +124,7 @@ Then open the printed `/ECGaming/` URL. Open Ground Control for the unified Grou
 npm test          # codecs, mapping, detector, transport, rules, privacy
 npm run test:browser
 npm run build
-npm run build:hosted # stage the browser builds for SuperTux and MOTH
+npm run build:hosted # stage the hosted MOTH browser build
 ```
 
 Use `?remote-force-turn=1` on both pages to request a TURN-relayed WebRTC path for qualification.

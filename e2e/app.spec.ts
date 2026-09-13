@@ -98,32 +98,12 @@ test("an expired QR session cannot unlock a different flight", async ({ page }) 
   await expect(page.getByRole("button", { name: "Start flight", exact: true })).toBeHidden();
 });
 
-test("landing opens directly on compact game choices", async ({ page }) => {
+test("home opens Ground Control without the retired game menu", async ({ page }) => {
   await page.goto("./");
-  await expect(page.locator(".hero-grid")).toHaveCount(0);
-  await expect(page.locator(".topbar + #games")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /pick a game.*know its source/i }),
-  ).toBeVisible();
-  const cards = page.locator(".game-menu-card");
-  await expect(cards).toHaveCount(5);
-
-  const expectedCards = [
-    [".flight-game-card", "./ground-control/", "ECGaming repository"],
-    [".pixel-hop-card", "./games/pixel-hop/", "stm1978/retro-platformer"],
-    [".supertux-card", "./games/supertux/", "SuperTux v0.6.3"],
-    [".moth-card", "./games/moth/?v=a56fa97e", "ahmedallam222/moth-game"],
-    [".breath-mirror-card", "./breath-sonification/", "ECGaming repository"],
-  ] as const;
-
-  for (const [selector, href, sourceName] of expectedCards) {
-    const card = page.locator(selector);
-    await expect(card.locator(".game-card-target")).toHaveAttribute("href", href);
-    await expect(card.locator(".game-card-cover img")).toBeVisible();
-    await expect(card.locator(".game-provenance")).toContainText("Original source");
-    await expect(card.locator(".game-provenance")).toContainText("Licence");
-    await expect(card.getByRole("link", { name: sourceName })).toBeVisible();
-  }
+  await expect(page).toHaveURL(/\/ground-control\/$/);
+  await expect(page.locator("#ground-view")).toBeVisible();
+  await expect(page.locator(".game-menu-card")).toHaveCount(0);
+  await expect(page.locator(".landing-shell")).toHaveCount(0);
 });
 
 test("Pixel Hop accepts one fresh ECGaming heartbeat message", async ({
