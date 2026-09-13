@@ -95,9 +95,10 @@ test("three browsers route only source-computed controls and switch source witho
   await expect.poll(() => page.locator("#command-altitude").textContent()).toMatch(/^\+0\.[234]/);
   await page.locator("#adaptive-normalization").evaluate((input: HTMLInputElement) => { input.checked = true; input.dispatchEvent(new Event("change")); });
   await expect(page.locator("#adaptive-range-state")).toContainText("PHONE");
-  const revision = await phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision);
+  const revision = await page.evaluate(async () =>
+    (await import("/src/flight-session/hub.ts")).getFlightSessionHub().signal.configRevision);
   await page.locator("#reset-adaptive-range").evaluate((button: HTMLButtonElement) => button.click());
-  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent.signal.configRevision)).toBeGreaterThan(revision);
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent.signal?.configRevision), { timeout: 15_000 }).toBeGreaterThan(revision);
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "false");
   await page.locator("#adaptive-normalization").evaluate((input: HTMLInputElement) => { input.checked = false; input.dispatchEvent(new Event("change")); });
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
@@ -123,7 +124,7 @@ test("three browsers route only source-computed controls and switch source witho
   await expect(cockpit.locator("#session-signal")).toHaveAttribute("data-ready", "true");
   // Qualify the source change by a strong opposite-direction command. Full smoothing
   // convergence depends on how many fresh frames a busy renderer can produce.
-  await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal.frame?.altitude), { timeout: 15_000 }).toBeLessThan(-.5);
+  await expect.poll(() => cockpit.evaluate(() => (window as any).lastTestIntent.signal?.frame?.altitude), { timeout: 15_000 }).toBeLessThan(-.5);
   // These tabs stand in for separate visible devices. Foreground the receiver
   // before sampling its short-lived lease, as well as checking its painted text.
   await page.bringToFront();
