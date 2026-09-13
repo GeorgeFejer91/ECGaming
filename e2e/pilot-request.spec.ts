@@ -5,7 +5,11 @@ import { installPilotLobbyFixture } from "./fixtures/pilot-lobby";
 async function ground(page: Page) {
   await page.goto("./ground-control/");
   await expect(page.locator("#connect-phone-controller")).toBeVisible();
-  return page.evaluate(async () => (await import("/src/phone-tilt/pilot-reception.ts")).getPilotReception().url());
+  const url = await page.evaluate(async () => (await import("/src/phone-tilt/pilot-reception.ts")).getPilotReception().url());
+  const stream = `ecg_pilot_${new URL(url).searchParams.get("tower")}`;
+  await expect.poll(() => page.evaluate(stream => Object.keys(localStorage).some(key =>
+    key.startsWith("pilot-test-") && key.endsWith("-sources") && Boolean(JSON.parse(localStorage.getItem(key)!)[stream])), stream)).toBe(true);
+  return url;
 }
 async function request(phone: Page, url: string, name: string) {
   await phone.goto(url);

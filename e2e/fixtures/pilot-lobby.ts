@@ -14,13 +14,14 @@ export function installPilotLobbyFixture() {
   class SDK extends EventTarget {
     id = crypto.randomUUID(); stream = ""; bus?: BroadcastChannel;
     sources = new Map<string, string>(); channels = new Map<string, Channel>();
+    registry = "";
     async connect() { (window as any).testSdkStarts++; }
     post(message: Record<string, unknown>) { this.bus?.postMessage({ ...message, from: this.id }); }
     async joinRoom({ room }: { room: string }) {
       this.bus = new BroadcastChannel(`pilot-test-${room}`);
+      this.registry = `pilot-test-${room}-sources`;
       this.bus.onmessage = ({ data: d }) => {
         if (d.to && d.to !== this.id) return;
-        if (d.kind === "find" && this.stream) this.post({ kind: "listing", stream: this.stream, to: d.from });
         if (d.kind === "listing") { this.sources.set(d.stream, d.from); emit(this, "listing", { list: [{ streamID: d.stream, UUID: d.from }] }); }
         if (d.kind === "view") emit(this, "dataChannelOpen", { uuid: d.from });
         if (d.kind === "channel") {
@@ -32,15 +33,30 @@ export function installPilotLobbyFixture() {
           this.channels.get(d.from)?.close(); this.channels.delete(d.from); emit(this, "dataChannelClose", { uuid: d.from });
         }
       };
-      this.post({ kind: "find" });
+      // The signaling server returns one complete listing. Reading its simulated
+      // registry avoids racing replies from background, WebGL-heavy tower tabs.
+      const list = Object.entries(JSON.parse(localStorage.getItem(this.registry) ?? "{}"))
+        .map(([streamID, UUID]) => { this.sources.set(streamID, UUID as string); return { streamID, UUID }; });
+      emit(this, "listing", { list });
     }
-    async announce({ streamID }: { streamID: string }) { this.stream = streamID; this.post({ kind: "listing", stream: this.stream }); }
+    async announce({ streamID }: { streamID: string }) {
+      this.stream = streamID;
+      const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); sources[streamID] = this.id;
+      localStorage.setItem(this.registry, JSON.stringify(sources));
+      this.post({ kind: "listing", stream: this.stream });
+    }
     async view(stream: string) { this.post({ kind: "view", to: this.sources.get(stream) }); }
     async openChannel(peer: string, label: string) {
       const channel = new Channel(this, peer, `x-${label}`); this.channels.set(peer, channel);
       this.post({ kind: "channel", to: peer, label: channel.label, stream: this.stream }); return channel;
     }
-    async disconnect() { this.post({ kind: "gone" }); this.bus?.close(); this.bus = undefined; }
+    async disconnect() {
+      if (this.registry && this.stream) {
+        const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); delete sources[this.stream];
+        localStorage.setItem(this.registry, JSON.stringify(sources));
+      }
+      this.post({ kind: "gone" }); this.bus?.close(); this.bus = undefined;
+    }
   }
   (window as any).VDONinjaSDK = function(options: { password?: unknown }) {
     return options.password === false ? new SDK() : new PrivateSDK(options);
