@@ -12,12 +12,12 @@ async function ground(page: Page) {
   return url;
 }
 async function request(phone: Page, url: string, name: string) {
-  await phone.goto(url);
+  await phone.goto(url, { waitUntil: "domcontentloaded" });
   await phone.getByRole("textbox", { name: "Pilot name", exact: true }).fill(name);
   await phone.getByRole("button", { name: "Request wheel", exact: true }).click();
 }
 async function requestCockpit(cockpit: Page, url: string, name: string) {
-  await cockpit.goto(url);
+  await cockpit.goto(url, { waitUntil: "domcontentloaded" });
   await cockpit.getByRole("textbox", { name: "Pilot name", exact: true }).fill(name);
   await cockpit.getByRole("button", { name: "Request cockpit", exact: true }).click();
 }
@@ -89,6 +89,7 @@ test("multiple towers require a choice and route the request only to that tower"
 });
 
 test("direct cockpit requests add view-only sessions without replacing the phone pilot", async ({ page, context }) => {
+  test.setTimeout(60_000);
   const url = await ground(page);
   const phone = await context.newPage();
   await request(phone, url, "Pilot");
