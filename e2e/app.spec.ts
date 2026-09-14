@@ -112,9 +112,10 @@ test("home opens the EC Games menu without entering Ground Control", async ({ pa
   await page.goto("./");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".landing-shell")).toBeVisible();
-  await expect(page.locator(".game-menu-card")).toHaveCount(5);
+  await expect(page.locator(".game-menu-card")).toHaveCount(6);
   await expect(page.getByRole("link", { name: "Open Polar Plane Ground Control" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Phone Breather" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Play Other Side" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Smartphone Flight" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open Flight Deck" })).toHaveCount(0);
   await expect(page.locator("#ground-view")).toHaveCount(0);
@@ -309,7 +310,7 @@ test("Ground Control shows only source, aircraft, altitude buttons and the selec
   await expect(page.locator(".control-panel #connect-polar")).toBeVisible();
   await expect(page.locator(".control-panel .aircraft-showcase")).toBeVisible();
   await expect(page.locator(".control-panel #start-flight-from-ground")).toBeVisible();
-  await expect(page.locator(".altitude-metric-panel [data-scope-metric]")).toHaveCount(6);
+  await expect(page.locator(".altitude-metric-panel [data-scope-metric]")).toHaveCount(7);
   await expect(page.locator("#ecg-preview")).toBeVisible();
   await expect(page.locator("#raw-ecg-preview")).toBeVisible();
 });
@@ -327,7 +328,7 @@ test("Ground Control metric buttons drive altitude and persist the selected sign
   const breathing = page.locator(
     '[data-scope-metric="breathing_volume"]',
   );
-  await expect(widgets).toHaveCount(6);
+  await expect(widgets).toHaveCount(7);
   await breathing.click();
   await expect(breathing).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#scope-metric-label")).toHaveText(
