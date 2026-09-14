@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#030305" />
+    <meta
+      name="description"
+      content="Other Side — hold your breath in the dark. The light at the end of the tunnel only draws nearer while you hold. The whole crossing takes about three minutes."
+    />
+    <link rel="icon" href="../../favicon.svg" />
+    <title>Other Side · Breathing Through · EC Games</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#tunnel">Skip to the tunnel</a>
+
+    <main id="app" class="app-shell">
+      <header class="app-header">
+        <a class="brand brand-light" href="../../" aria-label="EC Games home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>EC GAMES</span>
+        </a>
+        <p class="brand-title">BREATHING THROUGH TO THE OTHER SIDE</p>
+        <div class="header-actions">
+          <button id="mute-btn" class="hud-button" type="button" aria-pressed="false">
+            SOUND ON
+          </button>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="The tunnel">
+        <canvas id="tunnel" class="tunnel-canvas" aria-label="A dark tunnel with a light at the far end"></canvas>
+
+        <div id="hud" class="hud" hidden>
+          <div class="hud-legend">
+            <span id="state-label" class="state-label">BREATH</span>
+            <span id="hold-hint" class="hold-hint">release the breath</span>
+          </div>
+          <div id="progress-track" class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Distance to the light">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div class="hud-metrics">
+            <span id="elapsed-label">00:00 elapsed</span>
+            <span id="hold-timer">00:00 held</span>
+            <span id="journey-pct">0% of the way</span>
+          </div>
+          <button id="hold-btn" class="hold-button" type="button">H O L D<br /><small>your breath</small></button>
+        </div>
+      </section>
+
+      <section id="start-screen" class="overlay start-overlay" aria-label="Begin the crossing">
+        <div class="overlay-card">
+          <p class="eyebrow">AN ECG · BREATH GAME</p>
+          <h1>the other side</h1>
+          <p class="lede">
+            There is a light at the far end of this tunnel. It only draws
+            nearer while you hold your breath. Let go and it waits for you.
+            The whole crossing takes about three minutes of holding.
+          </p>
+
+          <fieldset class="input-mode">
+            <legend>Choose how to hold your breath</legend>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="manual" checked />
+              <span><b>Hold key / button</b><small>Spacebar or the big HOLD button — works everywhere.</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="phone" />
+              <span><b>Belly breathing sensor</b><small>Hear your breath still with the phone on your belly.</small></span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="simulate" />
+              <span><b>Auto-play showcase</b><small>The full crossing plays itself, no sensor needed.</small></span>
+            </label>
+          </fieldset>
+
+          <p id="sense-note" class="sense-note"></p>
+
+          <button id="begin-btn" class="begin-button" type="button">BEGIN THE CROSSING</button>
+          <p class="fine-print">
+            A meditative art piece. Never hold until you feel faint — breathe
+            whenever you need to and continue again.
+          </p>
+        </div>
+      </section>
+
+      <section id="end-screen" class="overlay end-overlay" aria-hidden="true" hidden>
+        <div class="overlay-card">
+          <p class="eyebrow">YOU HELD THROUGH</p>
+          <h1>you are here</h1>
+          <p class="lede">
+            The light reached you and you passed through to the other side.
+            Stay in the brightness as long as you like — then begin again.
+          </p>
+          <div class="end-actions">
+            <button id="again-btn" class="begin-button" type="button">CROSS AGAIN</button>
+            <a class="back-link" href="../../">BACK TO EC GAMES</a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <span>DARKNESS IS THE DOOR — THE BREATH IS THE KEY</span>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

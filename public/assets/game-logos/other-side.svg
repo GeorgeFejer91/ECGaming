@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="title desc">
+  <title id="title">Breathing Through to the Other Side</title>
+  <desc id="desc">A tiny moth silhouette drifts inside a dark tunnel toward a warm light at the far end.</desc>
+  <defs>
+    <radialGradient id="glow" cx="74%" cy="42%" r="60%">
+      <stop stop-color="#fffbe6" stop-opacity=".95"/>
+      <stop offset=".22" stop-color="#eee5ae" stop-opacity=".5"/>
+      <stop offset=".5" stop-color="#8d875e" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#030305" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tunnelClip">
+      <path d="M-40 180 L260 130 A84 118 0 0 1 260 230 Z"/>
+    </clipPath>
+  </defs>
+  <rect width="720" height="360" rx="24" fill="#030305"/>
+  <g opacity=".55" clip-path="url(#tunnelClip)">
+    <circle cx="330" cy="180" r="150" fill="none" stroke="#1a1820" stroke-width="14"/>
+    <circle cx="398" cy="180" r="110" fill="none" stroke="#1a1820" stroke-width="12"/>
+    <circle cx="452" cy="180" r="78" fill="none" stroke="#1a1820" stroke-width="10"/>
+    <circle cx="494" cy="180" r="52" fill="none" stroke="#1a1820" stroke-width="8"/>
+    <circle cx="526" cy="180" r="34" fill="none" stroke="#1a1820" stroke-width="6"/>
+  </g>
+  <rect width="720" height="360" rx="24" fill="url(#glow)"/>
+  <circle cx="538" cy="180" r="9" fill="#fffbe6"/>
+  <circle cx="538" cy="180" r="22" fill="#fff6b0" opacity=".25"/>
+  <circle cx="538" cy="180" r="46" fill="none" stroke="#f3e7a8" stroke-width="2" stroke-dasharray="8 18" opacity=".55" transform="rotate(-20 538 180)"/>
+  <g fill="#020204">
+    <path d="M404 170c-8-9-19-7-20 1-1 8 8 15 18 16-9 4-11 12-6 16 5 5 15-1 17-13z"/>
+    <path d="M412 170c8-9 19-7 20 1 1 8-8 15-18 16 9 4 11 12 6 16-5 5-15-1-17-13z"/>
+    <circle cx="408" cy="172" r="5"/>
+  </g>
+  <text x="42" y="70" fill="#c8bf8d" font-family="Georgia,serif" font-size="18" font-weight="700" letter-spacing="5">ECG + BREATH EDITION</text>
+  <text x="42" y="160" fill="#e6e3d5" font-family="Georgia,serif" font-size="60" letter-spacing="6">THE OTHER</text>
+  <text x="42" y="212" fill="#c8bf8d" font-family="Georgia,serif" font-size="60" letter-spacing="6">SIDE</text>
+  <text x="46" y="252" fill="#8d8b80" font-family="Georgia,serif" font-size="18" letter-spacing="4">BREATHING THROUGH TO THE OTHER SIDE</text>
+  <text x="380" y="320" fill="#7df4cf" font-family="Georgia,serif" font-size="14" letter-spacing="3">HOLD YOUR BREATH · THE LIGHT DRAWS NEARER</text>
+</svg>

@@ -27,6 +27,10 @@ export default defineConfig({
           import.meta.dirname,
           "phone-breather/index.html",
         ),
+        otherSide: resolve(
+          import.meta.dirname,
+          "games/other-side/index.html",
+        ),
       },
     },
   },
