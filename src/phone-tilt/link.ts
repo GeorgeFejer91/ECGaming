@@ -94,11 +94,14 @@ export class TiltLink extends EventTarget {
         target.addEventListener(name, ((e: Event) => { if (current()) fn(e as CustomEvent); }) as EventListener, { signal: abort.signal });
       listen(connection, "phasechange", e => {
         if (e.detail.phase === "authenticating") this.authenticatingAt = performance.now();
-        if (["error", "disconnected"].includes(e.detail.phase)) this.fail("Phone connection ended. Create and scan a new QR code.");
+        if (["error", "disconnected"].includes(e.detail.phase)) {
+          const reason = typeof e.detail.message === "string" ? e.detail.message : "";
+          this.fail("Phone connection ended. Create and scan a new QR code.", e.detail.phase === "disconnected" && reason !== "Peer ended the session.");
+        }
       });
       listen(connection, "ready", () => {
         if (!connection.acceptedScopes.includes(COMPANION_SCOPE) || !connection.negotiatedCapabilities.includes("latest-intent")) {
-          this.fail("This controller is incompatible. Reload both pages and pair again."); return;
+          this.fail("This controller is incompatible. Reload both pages and pair again.", false); return;
         }
         this.readyAt = performance.now();
         this.status("Connected"); dispatch(this, "ready", undefined);
@@ -109,7 +112,7 @@ export class TiltLink extends EventTarget {
         const { relay, pilotName, ...tilt } = wire;
         const labelled = connection.negotiatedCapabilities.includes(PILOT_LABEL_CAPABILITY);
         if ((labelled ? !validPilotName(pilotName) : pilotName !== undefined) || !validTiltState(tilt) || (relay !== null && !validRelay(relay)) || wire.revision !== e.detail.revision) {
-          this.fail("The flight screen sent incompatible controls. Pair again."); return;
+          this.fail("The flight screen sent incompatible controls. Pair again.", false); return;
         }
         if (e.detail.revision < this.lastRevision) return;
         this.state = tilt; this.relay = relay; this.lastRevision = e.detail.revision; this.lastStateAt = performance.now();
@@ -117,10 +120,10 @@ export class TiltLink extends EventTarget {
         dispatch(this, "state", this.state);
       };
       listen(connection, "state", receive); listen(connection, "snapshot", receive);
-      listen(connection, "intenterror", () => this.fail("Invalid phone controls. Pair again."));
+      listen(connection, "intenterror", () => this.fail("Invalid phone controls. Pair again.", false));
       listen(transport, "quality", e => dispatch(this, "quality", { route: e.detail.route, rttMs: e.detail.rttMs }));
       listen(transport, "status", e => {
-        if (e.detail.phase === "selection-required") this.fail("More than one flight screen was found. Create a new QR code.");
+        if (e.detail.phase === "selection-required") this.fail("More than one flight screen was found. Create a new QR code.", false);
       });
       // Poll the lease independently of game pause; game frames also check it before applying input.
       this.tick = setInterval(() => {
@@ -136,7 +139,7 @@ export class TiltLink extends EventTarget {
             (this.role === "controller" && !this.ready && now - this.startedAt > 30_000))
           this.fail("Could not reach the flight screen. Create and scan a new QR code.");
         else if ((!this.readyAt && now - this.startedAt > 10 * 60_000) || now - this.startedAt > 2 * 60 * 60_000)
-          this.fail("This pairing has expired. Create and scan a new QR code.");
+          this.fail("This pairing has expired. Create and scan a new QR code.", false);
       }, CONTROL_RELAY_MS);
       await transport.start();
       if (current() && !this.ready) this.status(this.role === "target" ? "Scan the code with your phone." : "Waiting for the flight screen…");
@@ -157,9 +160,12 @@ export class TiltLink extends EventTarget {
     if (serialized !== this.previousWire) { this.previousWire = serialized; this.wireRevision++; }
     return { ...state, revision: this.wireRevision };
   }
-  private status(message: string) { dispatch(this, "status", { message, active: this.active, ready: this.ready }); }
-  private fail(message: string) { this.stop(); this.status(message); }
-  stop() {
+  private status(message: string, reconnectable = false) { dispatch(this, "status", { message, active: this.active, ready: this.ready, reconnectable }); }
+  private fail(message: string, reconnectable = true) {
+    this.stop({ emitStatus: false });
+    this.status(message, reconnectable);
+  }
+  stop(options: { emitStatus?: boolean } = {}) {
     ++this.generation;
     this.stopped = true;
     if (this.tick !== undefined) clearInterval(this.tick);
@@ -168,6 +174,6 @@ export class TiltLink extends EventTarget {
     this.pilotName = this.confirmedPilotName = "";
     const connection = this.connection; this.connection = undefined;
     void connection?.close().catch(() => { /* Producers and input already stopped. */ });
-    this.status("Disconnected");
+    if (options.emitStatus !== false) this.status("Disconnected");
   }
 }

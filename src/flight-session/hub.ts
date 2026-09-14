@@ -15,6 +15,7 @@ export class FlightSessionHub extends EventTarget {
   phoneSelected = false;
   speedEnabled = true;
   flying = false;
+  private readonly invitations: Partial<Record<"phone" | "cockpit", TiltInvitation>> = {};
   private localSequence = 0;
   constructor() {
     super();
@@ -31,8 +32,12 @@ export class FlightSessionHub extends EventTarget {
   }
   async pair(role: "phone" | "cockpit", invitation: TiltInvitation) {
     if (this[role].active) this[role].stop();
+    this.invitations[role] = invitation;
     if (role === "phone") this.phoneSelected = true;
     await this[role].start(invitation);
+  }
+  invitation(role: "phone" | "cockpit") {
+    return this.invitations[role];
   }
   async pairCockpitViewer(invitation: TiltInvitation) {
     const link = new TiltLink("target");
@@ -47,7 +52,12 @@ export class FlightSessionHub extends EventTarget {
     await link.start(invitation);
     return link;
   }
+  async reconnectCockpitViewer(link: TiltLink, invitation: TiltInvitation) {
+    this.cockpitViewers.add(link);
+    await link.start(invitation);
+  }
   stop(role: "phone" | "cockpit") {
+    delete this.invitations[role];
     if (role === "phone") this.phoneSelected = false;
     this[role].stop();
   }

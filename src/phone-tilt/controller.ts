@@ -9,6 +9,8 @@ import { PracticeHeartbeat } from "./practice-heartbeat";
 import { PolarRrHaptics } from "./rr-haptics";
 import { PilotRequest } from "./pilot-request";
 import { cleanTowerName, validTower } from "./pilot-lobby";
+import { ReconnectBackoff } from "./reconnect";
+import { ScreenWakeLock } from "./screen-wake-lock";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pilotEntry = element<HTMLFormElement>("pilot-entry");
@@ -26,6 +28,10 @@ let invitation = readTiltInvitation(location.hash);
 // The fragment is bearer pairing material. Keep it out of history and all subsequent navigation.
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 const link = new TiltLink("controller");
+let pilotName = "";
+let endingSession = false;
+const reconnect = new ReconnectBackoff();
+const wakeLock = new ScreenWakeLock(() => link.active && !endingSession);
 let heartbeatAt = -Infinity;
 let practiceHeartbeatActive = false;
 const heartbeatOutput = (duration: number) => {
@@ -51,7 +57,6 @@ let gyroCentre: ReturnType<typeof orientationAngles>;
 let input = neutralControls();
 let sensorAbort: AbortController | undefined;
 let loop: ReturnType<typeof setInterval> | undefined;
-let wakeLock: WakeLockSentinel | undefined;
 let inputGeneration = 0;
 let pointerId: number | undefined;
 const heldKeys = new Set<string>();
@@ -76,19 +81,8 @@ function stopSensors() {
   releaseInput(); centreButton.disabled = true;
 }
 async function keepAwake() {
-  if (!link.active || document.hidden || wakeLock) return;
-  const generation = inputGeneration;
-  try {
-    const lock = await navigator.wakeLock?.request("screen");
-    if (!lock) { element("wake-status").textContent = "Keep the phone awake while flying."; return; }
-    if (!link.active || document.hidden || generation !== inputGeneration) { await lock.release(); return; }
-    wakeLock = lock;
-    element("wake-status").textContent = "";
-    lock.addEventListener("release", () => {
-      if (wakeLock === lock) wakeLock = undefined;
-      element("wake-status").textContent = "Keep the phone awake while flying.";
-    });
-  } catch { element("wake-status").textContent = "Keep the phone awake while flying."; }
+  element("wake-status").textContent = "";
+  await wakeLock.request();
 }
 function renderMode() {
   centreButton.setAttribute("aria-label", permissionPending || mode === "touch" ? "Enable tilt" : "Centre");
@@ -153,13 +147,27 @@ async function enableTilt(fromGesture = false) {
 
 function connect(sensorsReady = false) {
   if (!invitation || link.active) return;
+  endingSession = false;
   entryFeedback.textContent = "Pairing with the flight screen while you enter your name.";
   if (!sensorsReady) void enableTilt().catch(error => { if (link.active) useTouch(error instanceof Error ? error.message : "Tilt unavailable. Use touch."); });
   element("setup").hidden = true; pilotEntry.hidden = pilotEntered;
   // Opening the scanned invitation starts pairing. Sensor permissions remain separate tap actions.
-  loop = setInterval(publishInput, CONTROL_RELAY_MS);
+  if (loop === undefined) loop = setInterval(publishInput, CONTROL_RELAY_MS);
+  link.pilotName = pilotName;
   void link.start(invitation);
   void keepAwake();
+}
+function scheduleReconnect() {
+  if (!invitation || endingSession || loop === undefined) return false;
+  connectionStatus.textContent = "Reconnecting…";
+  if (!pilotEntered) entryFeedback.textContent = "Reconnecting…";
+  return reconnect.schedule(() => {
+    if (!invitation || endingSession || link.active) return;
+    if (document.hidden) return;
+    link.pilotName = pilotName;
+    void link.start(invitation);
+    void keepAwake();
+  });
 }
 
 function publishInput() {
@@ -219,6 +227,7 @@ function displayState(state: TiltState) {
   confirmed.textContent = `${steering} · ${speed}`;
 }
 function endSession() {
+  endingSession = true; reconnect.clear(); pilotName = "";
   pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
   pilotEntered = false;
   element("controls").hidden = true;
@@ -227,7 +236,7 @@ function endSession() {
   polarSource.configure(null);
   if (loop !== undefined) clearInterval(loop);
   loop = undefined; stopSensors(); link.stop(); invitation = undefined;
-  void wakeLock?.release(); wakeLock = undefined;
+  void wakeLock.release();
   centreButton.disabled = true;
   pad.dataset.steering = "centre";
   confirmed.textContent = "Controls released.";
@@ -260,12 +269,13 @@ pilotEntry.addEventListener("submit", event => {
   if (!name) { field.value = ""; field.reportValidity(); return; }
   if (!invitation) {
     if (!pilotRequest) return;
+    pilotName = name;
     void enableTilt(true).catch(error => useTouch(error instanceof Error ? error.message : "Tilt unavailable."));
     if (navigator.maxTouchPoints > 0 && !document.fullscreenElement)
       void document.documentElement.requestFullscreen?.().catch(() => {});
     pilotRequest.start(name); return;
   }
-  link.pilotName = name; pilotEntered = true;
+  pilotName = name; link.pilotName = pilotName; pilotEntered = true;
   field.blur(); pilotEntry.hidden = true; element("controls").hidden = false;
   void requestTilt();
   if (navigator.maxTouchPoints > 0 && !document.fullscreenElement)
@@ -281,10 +291,19 @@ exitPilot.addEventListener("click", () => {
   void document.exitFullscreen?.().catch(() => {});
 });
 link.addEventListener("status", (event: Event) => {
-  const status = (event as CustomEvent).detail;
+  const status = (event as CustomEvent<{ message: string; active: boolean; ready: boolean; reconnectable?: boolean }>).detail;
   connectionStatus.textContent = status.message;
   if (!pilotEntered && invitation) entryFeedback.textContent = status.message;
   if (!status.active && loop !== undefined) {
+    if (status.reconnectable && scheduleReconnect()) {
+      practiceHeartbeat.pause(); practiceHeartbeatActive = false; rrHaptics.pause();
+      pad.dataset.steering = "centre";
+      confirmed.textContent = "Waiting for flight confirmation · controls released.";
+      renderAttitude();
+      void wakeLock.release();
+      return;
+    }
+    endingSession = true; reconnect.clear(); pilotName = "";
     pilotEntry.hidden = true; element<HTMLInputElement>("controller-pilot-name").value = "";
     pilotEntered = false;
     element("controls").hidden = true;
@@ -294,13 +313,13 @@ link.addEventListener("status", (event: Event) => {
     // Do not call link.stop recursively from its own status event.
     clearInterval(loop); loop = undefined; stopSensors(); invitation = undefined;
     centreButton.disabled = true;
-    void wakeLock?.release(); wakeLock = undefined;
+    void wakeLock.release();
     pad.dataset.steering = "centre"; confirmed.textContent = "Controls released.";
     renderAttitude();
     setInputStatus("Create a new QR code on the flight screen to pair again.");
   }
 });
-link.addEventListener("ready", () => { if (!centred) autoCentrePending = mode === "tilt"; renderMode(); void keepAwake(); });
+link.addEventListener("ready", () => { reconnect.clear(); if (!centred) autoCentrePending = mode === "tilt"; renderMode(); void keepAwake(); });
 link.addEventListener("state", (event: Event) => { refreshHeartbeatFeedback(); displayState((event as CustomEvent<TiltState>).detail); });
 
 const moveTouch = (event: PointerEvent) => {
@@ -342,8 +361,20 @@ document.addEventListener("click", event => {
 });
 document.addEventListener("visibilitychange", () => {
   rearmTilt();
-  if (document.hidden) { practiceHeartbeat.pause(); practiceHeartbeatActive = false; rrHaptics.pause(); void wakeLock?.release(); wakeLock = undefined; }
-  else { if (mode === "tilt") setInputStatus("Hold the phone steady…"); void keepAwake(); }
+  if (document.hidden) { practiceHeartbeat.pause(); practiceHeartbeatActive = false; rrHaptics.pause(); void wakeLock.release(); }
+  else {
+    if (mode === "tilt") setInputStatus("Hold the phone steady…");
+    if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+    else void keepAwake();
+  }
+});
+window.addEventListener("focus", () => {
+  if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+  else void keepAwake();
+});
+window.addEventListener("pageshow", () => {
+  if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+  else void keepAwake();
 });
 
 let pilotRequest: PilotRequest | undefined;
@@ -359,7 +390,7 @@ else if (directVisit && isSecureContext && window.top === window.self) {
     element("setup").hidden = true; pilotEntry.hidden = false;
     pilotRequest = new PilotRequest(pilotEntry, hint, towerName, (accepted, name) => {
       entryFeedback.textContent = "Ground Control accepted. Opening the yoke.";
-      invitation = accepted; link.pilotName = name; pilotEntered = true;
+      invitation = accepted; pilotName = name; link.pilotName = pilotName; pilotEntered = true;
       pilotEntry.hidden = true; element("controls").hidden = false; connect(true);
     });
   }

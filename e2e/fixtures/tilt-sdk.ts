@@ -24,17 +24,25 @@ export function installTiltSdkFixture(options: { motionPermissionRequired?: bool
     }
     close() { if (this.readyState === "closed") return; this.readyState = "closed"; emit(this, "close", {}); }
   }
+  const sdks: SDK[] = [];
   class SDK extends EventTarget {
     role = "controller";
     bus?: BroadcastChannel;
     streamId = "";
     channels = new Map<string, Channel>();
+    constructor() {
+      super();
+      sdks.push(this);
+    }
     async connect() {
       (window as any).testSdkStarts++;
       if (options.pausePhonePairing && location.pathname.includes("/controller/"))
         await new Promise<void>(resolve => { (window as any).resumeTestPairing = resolve; });
     }
-    post(message: Record<string, unknown>) { this.bus?.postMessage({ ...message, from: this.role }); }
+    post(message: Record<string, unknown>) {
+      try { this.bus?.postMessage({ ...message, from: this.role }); }
+      catch { /* Tests may close a local channel and the SDK in the same simulated drop. */ }
+    }
     async joinRoom({ room }: { room: string }) {
       this.bus = new BroadcastChannel(`tilt-test-${room}`);
       this.bus.onmessage = ({ data }) => {
@@ -63,6 +71,12 @@ export function installTiltSdkFixture(options: { motionPermissionRequired?: bool
     async getPeerQuality() { return { relayed: false, rttMs: 1 }; }
     async disconnect() { this.post({ kind: "gone" }); this.bus?.close(); }
   }
+  (window as any).dropTiltTestTransport = async () => {
+    for (const sdk of [...sdks]) {
+      for (const channel of sdk.channels.values()) channel.close();
+      await sdk.disconnect();
+    }
+  };
   Object.defineProperty(window, "VDONinjaSDK", { configurable: true, writable: true, value: SDK });
   if (typeof DeviceOrientationEvent === "undefined") return; // Initial about:blank has no secure motion API.
   (window as any).orientationSample = { beta: 0, gamma: -40 };

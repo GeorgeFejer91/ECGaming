@@ -12,6 +12,8 @@ import { AIRCRAFT_CATALOG } from "../game/aircraft";
 import { PilotRequest } from "../phone-tilt/pilot-request";
 import { cleanPilotName } from "../phone-tilt/pilot-name";
 import { cleanTowerName, validTower } from "../phone-tilt/pilot-lobby";
+import { ReconnectBackoff } from "../phone-tilt/reconnect";
+import { ScreenWakeLock } from "../phone-tilt/screen-wake-lock";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const directVisit = !location.hash;
@@ -27,8 +29,11 @@ const start = element<HTMLButtonElement>("session-start");
 const xr = element<HTMLButtonElement>("session-xr");
 let started = false, ready = false, aircraftReady = false, beat = -1, configKey = "";
 let loop: ReturnType<typeof setInterval> | undefined;
-let wakeLock: WakeLockSentinel | undefined;
 let cockpitRequest: PilotRequest | undefined;
+let cockpitName = "";
+let endingSession = false;
+const reconnect = new ReconnectBackoff();
+const wakeLock = new ScreenWakeLock(() => link.active && !endingSession);
 const select = document.createElement("select"); select.setAttribute("aria-label", "Aircraft");
 for (const aircraft of AIRCRAFT_CATALOG) { const option = document.createElement("option"); option.value = aircraft.id; option.textContent = aircraft.label; select.append(option); }
 select.value = game.snapshot().aircraftId;
@@ -37,13 +42,7 @@ element("session-flight-status").append(select);
 void game.setAircraft(game.snapshot().aircraftId).then(() => { aircraftReady = true; }, () => { element("session-link").textContent = "Aircraft could not load. Reload to retry."; });
 
 async function keepAwake() {
-  if (document.hidden || !link.active || wakeLock) return;
-  try {
-    const lock = await navigator.wakeLock?.request("screen");
-    if (!lock) return;
-    if (document.hidden || !link.active) { await lock.release(); return; }
-    wakeLock = lock; lock.addEventListener("release", () => { if (wakeLock === lock) wakeLock = undefined; });
-  } catch { /* Signal leases also protect browsers without a wake lock. */ }
+  await wakeLock.request();
 }
 function tick() {
   const now = performance.now(), relay = link.relay;
@@ -69,27 +68,62 @@ function tick() {
   status.dataset.ready = String(ready); status.dataset.source = relay?.source ?? "";
 }
 function stop() {
+  endingSession = true; reconnect.clear();
   if (loop !== undefined) clearInterval(loop); loop = undefined;
   source.stop(); source.configure(null); ready = started = false; game.setPaused(true); link.stop(); invitation = undefined;
-  void wakeLock?.release(); wakeLock = undefined;
+  void wakeLock.release();
   element("session-disconnect").hidden = true; start.disabled = true;
   element("session-signal").textContent = "Disconnected. Create a new cockpit QR code on Ground Control.";
 }
 function connect() {
   if (!invitation || link.active) return;
+  endingSession = false;
   element("session-entry").hidden = true;
   element("session-flight-status").hidden = element("session-sensor").hidden = element("session-disconnect").hidden = false;
-  loop = setInterval(tick, CONTROL_RELAY_MS); void link.start(invitation); void keepAwake();
+  if (loop === undefined) loop = setInterval(tick, CONTROL_RELAY_MS);
+  link.pilotName = cockpitName;
+  void link.start(invitation); void keepAwake();
+}
+function scheduleReconnect() {
+  if (!invitation || endingSession || loop === undefined) return false;
+  return reconnect.schedule(() => {
+    if (!invitation || endingSession || link.active || document.hidden) return;
+    link.pilotName = cockpitName;
+    void link.start(invitation);
+    void keepAwake();
+  });
 }
 start.addEventListener("click", () => { tick(); if (!ready) return; started = true; game.restart(); start.hidden = true; });
 element("session-disconnect").addEventListener("click", stop);
 link.addEventListener("status", (event: Event) => {
-  const detail = (event as CustomEvent).detail; element("session-link").textContent = detail.message;
-  if (!detail.active && loop !== undefined) stop();
+  const detail = (event as CustomEvent<{ message: string; active: boolean; ready: boolean; reconnectable?: boolean }>).detail;
+  element("session-link").textContent = detail.message;
+  if (!detail.active && loop !== undefined) {
+    if (detail.reconnectable && scheduleReconnect()) {
+      element("session-link").textContent = "Reconnecting…";
+      ready = false; start.disabled = true; game.setPaused(true); void wakeLock.release();
+      return;
+    }
+    stop();
+  }
 });
+link.addEventListener("ready", () => { reconnect.clear(); void keepAwake(); });
 void game.immersiveSupported().then(supported => { xr.hidden = !supported; }, () => {});
 xr.addEventListener("click", () => { void game.enterImmersive().catch(() => { element("session-link").textContent = "Immersive mode could not start."; }); });
-document.addEventListener("visibilitychange", () => { tick(); if (document.hidden) void wakeLock?.release(); else void keepAwake(); });
+document.addEventListener("visibilitychange", () => {
+  tick();
+  if (document.hidden) void wakeLock.release();
+  else if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+  else void keepAwake();
+});
+window.addEventListener("focus", () => {
+  if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+  else void keepAwake();
+});
+window.addEventListener("pageshow", () => {
+  if (invitation && !link.active && loop !== undefined) scheduleReconnect();
+  else void keepAwake();
+});
 window.addEventListener("pagehide", () => { stop(); releaseSteering(); game.dispose(); });
 
 if (invitation && isSecureContext && window.top === window.self) connect();
@@ -100,15 +134,15 @@ else if (directVisit && isSecureContext && window.top === window.self) {
   if (!hint || validTower(hint)) {
     const form = element<HTMLFormElement>("cockpit-entry");
     form.hidden = false;
-    cockpitRequest = new PilotRequest(form, hint, towerName, accepted => {
-      invitation = accepted; form.hidden = true; connect();
+    cockpitRequest = new PilotRequest(form, hint, towerName, (accepted, name) => {
+      invitation = accepted; cockpitName = name; link.pilotName = cockpitName; form.hidden = true; connect();
     }, "cockpit");
     form.addEventListener("submit", event => {
       event.preventDefault();
       const field = element<HTMLInputElement>("cockpit-pilot-name");
       const name = cleanPilotName(field.value);
       if (!name) { field.value = ""; field.reportValidity(); return; }
-      cockpitRequest?.start(name);
+      cockpitName = name; cockpitRequest?.start(name);
     });
   }
 }

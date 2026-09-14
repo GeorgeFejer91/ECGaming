@@ -119,6 +119,7 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
 });
 
 test("opening the QR link connects without a tap, releases keys and revokes on stop", async ({ page, context }) => {
+  test.setTimeout(60_000);
   await sceneHarness(page);
   const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
   const anchor = dialog.getByRole("link", { name: "Open controller" });
@@ -145,6 +146,29 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   await dialog.getByRole("button", { name: "Stop phone control" }).click();
   await expect(phone.locator("#connection-status")).toContainText("connection ended");
   await expect(phone.locator("#centre")).toBeDisabled();
+});
+
+test("phone steering reconnects after a transient browser transport drop", async ({ page, context }) => {
+  await sceneHarness(page);
+  const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
+  const anchor = dialog.getByRole("link", { name: "Open controller" });
+  await expect(anchor).toBeVisible();
+  const phone = await context.newPage();
+  await phone.setViewportSize({ width: 844, height: 390 });
+  await phone.goto((await anchor.getAttribute("href"))!, { waitUntil: "domcontentloaded" });
+  await enterPilot(phone, "Major Tester");
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+
+  await phone.evaluate(() => (window as any).dropTiltTestTransport());
+  await expect(phone.locator("#pilot-entry")).toBeHidden();
+  await expect(phone.locator("#controls")).toBeVisible();
+  await expect(phone.locator("#connection-status")).toHaveText("Connected", { timeout: 15_000 });
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent?.pilotName), { timeout: 15_000 }).toBe("Major Tester");
+
+  await phone.locator("#tilt-pad").focus();
+  await phone.keyboard.down("ArrowLeft");
+  await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x), { timeout: 15_000 }).toBe(-1);
+  await phone.keyboard.up("ArrowLeft");
 });
 
 test("QR pairing runs during name entry and the submit gesture immediately opens the wheel", async ({ page, context }, testInfo) => {
@@ -356,4 +380,19 @@ test("Remote cockpit pairs independently and leaves phone pairing behind its own
   await page.getByRole("button", { name: "Phone steering wheel" }).click();
   const phone = page.getByRole("dialog", { name: "Phone tilt controller" });
   await expect(phone.getByRole("link", { name: "Open controller" })).toBeVisible();
+});
+
+test("Remote cockpit reconnects after a transient browser transport drop", async ({ page, context }) => {
+  await openGroundControl(page);
+  await page.getByRole("button", { name: "Remote cockpit", exact: true }).click();
+  const cockpitDialog = page.getByRole("dialog", { name: "Remote cockpit", exact: true });
+  const link = cockpitDialog.getByRole("link", { name: "Open cockpit", exact: true });
+  await expect(link).toBeVisible();
+  const cockpit = await context.newPage();
+  await cockpit.goto((await link.getAttribute("href"))!);
+  await expect(cockpit.locator("#session-link")).toHaveText("Connected");
+
+  await cockpit.evaluate(() => (window as any).dropTiltTestTransport());
+  await expect(cockpit.locator("#session-entry")).toBeHidden();
+  await expect(cockpit.locator("#session-link")).toHaveText("Connected", { timeout: 15_000 });
 });

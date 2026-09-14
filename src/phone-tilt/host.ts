@@ -1,11 +1,12 @@
 import QRCode from "qrcode";
-import { createTiltInvitation, tiltControllerUrl } from "./invitation";
+import { createTiltInvitation, tiltControllerUrl, type TiltInvitation } from "./invitation";
 import type { TiltState } from "./controls";
 import "./host.css";
 import { decoratePhoneButton } from "./button";
 import { getFlightSessionHub } from "../flight-session/hub";
 import type { SourceId } from "../flight-session/contract";
 import { getPilotReception } from "./pilot-reception";
+import { ReconnectBackoff } from "./reconnect";
 
 export class PhoneTiltHost {
   private readonly hub = getFlightSessionHub();
@@ -25,6 +26,8 @@ export class PhoneTiltHost {
   private url = "";
   private qrRequest = 0;
   private monitor?: ReturnType<typeof setInterval>;
+  private phoneInvitation?: TiltInvitation;
+  private readonly phoneReconnect = new ReconnectBackoff();
   private clearCockpitQr = () => {};
   private pairCockpit?: HTMLButtonElement;
   private readonly relayPanel = document.createElement("details");
@@ -98,10 +101,14 @@ export class PhoneTiltHost {
       this.status.textContent = state.message;
       this.stopButton.hidden = !this.selected;
       this.newButton.disabled = false;
-      if (!state.active) this.clearQr();
-      buttonStatus.textContent = this.selected ? (state.active ? "Pairing…" : "Disconnected · pair again") : "Scan QR · tilt to fly";
+      const reconnecting = !state.active && state.reconnectable && this.schedulePhoneReconnect();
+      if (!state.active && !reconnecting) this.clearQr();
+      if (reconnecting) this.status.textContent = "Reconnecting phone…";
+      buttonStatus.textContent = reconnecting ? "Reconnecting…" :
+        this.selected ? (state.active ? "Pairing…" : "Disconnected · pair again") : "Scan QR · tilt to fly";
     });
     this.link.addEventListener("ready", () => {
+      this.phoneReconnect.clear();
       this.clearQr();
       this.status.textContent = "Phone connected. Ready to steer.";
       buttonStatus.textContent = "Connected";
@@ -164,12 +171,16 @@ export class PhoneTiltHost {
     const anchor = document.createElement("a"); anchor.textContent = "Open cockpit"; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.hidden = true;
     const status = document.createElement("p"); status.setAttribute("role", "status");
     let request = 0;
+    let cockpitInvitation: TiltInvitation | undefined;
+    const cockpitReconnect = new ReconnectBackoff();
     this.clearCockpitQr = () => { ++request; canvas.hidden = anchor.hidden = true; anchor.removeAttribute("href"); canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); };
     pair.addEventListener("click", async () => {
       this.hub.stop("cockpit");
       this.clearCockpitQr();
+      cockpitReconnect.clear();
       const generation = ++request;
       const invitation = createTiltInvitation();
+      cockpitInvitation = invitation;
       const url = new URL(tiltControllerUrl(location.href, invitation));
       url.pathname = url.pathname.replace(/controller\/$/, "session-cockpit/");
       pair.disabled = true; stop.hidden = false;
@@ -180,10 +191,20 @@ export class PhoneTiltHost {
       catch { status.textContent = "Use the Open cockpit link."; }
       pair.disabled = false;
     });
-    stop.addEventListener("click", () => { this.clearCockpitQr(); this.hub.stop("cockpit"); stop.hidden = true; });
+    stop.addEventListener("click", () => {
+      cockpitInvitation = undefined; cockpitReconnect.clear();
+      this.clearCockpitQr(); this.hub.stop("cockpit"); stop.hidden = true;
+    });
     this.hub.cockpit.addEventListener("status", (event: Event) => {
       const detail = (event as CustomEvent).detail; status.textContent = detail.message;
-      if (detail.ready || !detail.active) this.clearCockpitQr();
+      if (detail.ready) cockpitReconnect.clear();
+      const reconnecting = !detail.active && detail.reconnectable && (cockpitInvitation ?? this.hub.invitation("cockpit")) && cockpitReconnect.schedule(() => {
+        const nextInvitation = cockpitInvitation ?? this.hub.invitation("cockpit");
+        if (!nextInvitation || this.hub.cockpit.active) return;
+        void this.hub.pair("cockpit", nextInvitation).catch(() => {});
+      });
+      if (reconnecting) status.textContent = "Reconnecting cockpit…";
+      if (detail.ready || (!detail.active && !reconnecting)) this.clearCockpitQr();
     }, { signal: this.abort.signal });
     section.append(label, source, info, pair, requestLink, stop, canvas, anchor, status); this.relayPanel.append(section);
   }
@@ -199,6 +220,8 @@ export class PhoneTiltHost {
     this.selected = true; this.stopButton.hidden = false;
     this.newButton.disabled = true; this.copyButton.textContent = "Copy link";
     const invitation = createTiltInvitation();
+    this.phoneInvitation = invitation;
+    this.phoneReconnect.clear();
     const url = tiltControllerUrl(location.href, invitation);
     this.url = url;
     const request = ++this.qrRequest;
@@ -215,9 +238,21 @@ export class PhoneTiltHost {
       this.status.textContent = "Local preview: use the hosted website for a QR code your phone can reach.";
   }
   stop() {
+    this.phoneReconnect.clear();
+    this.phoneInvitation = undefined;
     this.selected = false;
     if (this.monitor !== undefined) clearInterval(this.monitor);
     this.monitor = undefined; this.clearQr(); this.hub.stop("phone");
+  }
+  private schedulePhoneReconnect() {
+    const invitation = this.phoneInvitation ?? this.hub.invitation("phone");
+    if (!invitation || !this.selected) return false;
+    return this.phoneReconnect.schedule(() => {
+      const nextInvitation = this.phoneInvitation ?? this.hub.invitation("phone");
+      if (!nextInvitation || !this.selected || this.link.active) return;
+      this.monitor ??= setInterval(() => this.read(), 100);
+      void this.hub.pair("phone", nextInvitation).catch(() => {});
+    });
   }
   dispose() { this.stop(); this.clearCockpitQr(); this.hub.stop("cockpit"); this.abort.abort(); this.dialog.remove(); this.button.remove(); }
 }

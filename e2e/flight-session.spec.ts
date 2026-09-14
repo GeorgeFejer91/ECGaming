@@ -141,6 +141,7 @@ test("three browsers route only source-computed controls and switch source witho
 });
 
 test("the phone vibrates for local Polar RR notifications and stops on hide or disconnect", async ({ page, context }) => {
+  test.setTimeout(60_000);
   await openGroundControl(page); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);

@@ -1,7 +1,8 @@
 import { getFlightSessionHub } from "../flight-session/hub";
-import { createTiltInvitation } from "./invitation";
+import { createTiltInvitation, type TiltInvitation } from "./invitation";
 import type { TiltLink } from "./link";
 import { cleanTowerName, PilotLobby, type PilotMessage } from "./pilot-lobby";
+import { ReconnectBackoff } from "./reconnect";
 import "./host.css";
 
 /** One reception desk per Ground Control page, independent of the 3D cockpit. */
@@ -14,7 +15,8 @@ class PilotReception extends EventTarget {
   private readonly towerStatus = document.createElement("p");
   private readonly requests = new Map<string, { id: string; row: HTMLElement }>();
   private readonly requested = new Set<string>();
-  private readonly cockpitViewers = new Map<string, TiltLink>();
+  private readonly cockpitViewers = new Map<string, { viewer: TiltLink; invitation: TiltInvitation; reconnect: ReconnectBackoff }>();
+  private phoneSession?: { invitation: TiltInvitation; reconnect: ReconnectBackoff };
   private started = false;
   private starting = false;
   private monitor?: ReturnType<typeof setInterval>;
@@ -67,15 +69,27 @@ class PilotReception extends EventTarget {
       this.requested.delete(event.detail);
       if (this.accepting === event.detail) { this.accepting = ""; this.hub.stop("phone"); }
       const viewer = this.cockpitViewers.get(event.detail);
-      if (viewer && this.requests.has(event.detail)) { this.cockpitViewers.delete(event.detail); this.hub.stopCockpitViewer(viewer); }
+      if (viewer && this.requests.has(event.detail)) this.stopCockpitViewer(event.detail);
       this.remove(event.detail);
     }) as EventListener);
     window.addEventListener("pagehide", () => {
       clearInterval(this.monitor); this.monitor = undefined;
-      for (const viewer of this.cockpitViewers.values()) this.hub.stopCockpitViewer(viewer);
-      this.cockpitViewers.clear();
+      for (const peer of [...this.cockpitViewers.keys()]) this.stopCockpitViewer(peer);
       this.started = false; this.accepting = ""; this.lobby.stop(); this.hub.stop("phone");
     });
+    this.hub.phone.addEventListener("status", ((event: CustomEvent<{ active: boolean; ready: boolean; reconnectable?: boolean }>) => {
+      const detail = event.detail;
+      if (detail.ready) this.phoneSession?.reconnect.clear();
+      if (!detail.active && this.phoneSession) {
+        const session = this.phoneSession;
+        if (detail.reconnectable && this.hub.phoneSelected && session.reconnect.schedule(() => {
+          if (this.phoneSession !== session || this.hub.phone.active || !this.hub.phoneSelected) return;
+          void this.hub.pair("phone", session.invitation).catch(() => {});
+        })) return;
+        session.reconnect.clear();
+        this.phoneSession = undefined;
+      }
+    }) as EventListener);
   }
   start() {
     if (!isSecureContext || window.top !== window.self) { this.revealConsole(); return; }
@@ -164,24 +178,58 @@ class PilotReception extends EventTarget {
     // Allow the reliable response to reach the phone before dropping this peer.
     setTimeout(() => this.lobby.closePeer(peer), 1000);
   }
+  private trackCockpitViewer(peer: string, viewer: TiltLink, invitation: TiltInvitation) {
+    const reconnect = new ReconnectBackoff();
+    const record = { viewer, invitation, reconnect };
+    this.cockpitViewers.set(peer, record);
+    viewer.addEventListener("status", ((event: CustomEvent<{ active: boolean; ready: boolean; reconnectable?: boolean }>) => {
+      if (this.cockpitViewers.get(peer) !== record) return;
+      const detail = event.detail;
+      if (detail.ready) reconnect.clear();
+      if (!detail.active) {
+        if (detail.reconnectable && reconnect.schedule(() => {
+          if (this.cockpitViewers.get(peer) !== record || viewer.active) return;
+          void this.hub.reconnectCockpitViewer(viewer, invitation).catch(() => {});
+        })) return;
+        this.cockpitViewers.delete(peer);
+        reconnect.clear();
+      }
+    }) as EventListener);
+  }
+  private trackPhoneSession(invitation: TiltInvitation) {
+    this.phoneSession?.reconnect.clear();
+    this.phoneSession = { invitation, reconnect: new ReconnectBackoff() };
+  }
+  private stopPhoneSession() {
+    this.phoneSession?.reconnect.clear();
+    this.phoneSession = undefined;
+    this.hub.stop("phone");
+  }
+  private stopCockpitViewer(peer: string) {
+    const record = this.cockpitViewers.get(peer);
+    if (!record) return;
+    this.cockpitViewers.delete(peer);
+    record.reconnect.clear();
+    this.hub.stopCockpitViewer(record.viewer);
+  }
   private async accept(peer: string, id: string, mode: "pilot" | "cockpit") {
     if (this.busy || this.requests.get(peer)?.id !== id) return;
     this.setBusy(true); this.accepting = peer;
     const invitation = createTiltInvitation();
     try {
       const viewer = mode === "cockpit" ? await this.hub.pairCockpitViewer(invitation) : undefined;
-      if (viewer) this.cockpitViewers.set(peer, viewer);
-      else await this.hub.pair("phone", invitation);
+      if (viewer) this.trackCockpitViewer(peer, viewer, invitation);
+      else { this.trackPhoneSession(invitation); await this.hub.pair("phone", invitation); }
       if (this.accepting !== peer || !this.requests.has(peer) || (mode === "pilot" && !this.hub.phone.active)) {
-        if (viewer) this.hub.stopCockpitViewer(viewer);
+        if (viewer) this.stopCockpitViewer(peer);
+        else this.stopPhoneSession();
         return;
       }
       if (!this.lobby.send(peer, { kind: "accepted", id, invitation })) {
-        if (viewer) this.hub.stopCockpitViewer(viewer);
-        else this.hub.stop("phone");
+        if (viewer) this.stopCockpitViewer(peer);
+        else this.stopPhoneSession();
         return;
       }
-      if (viewer) this.cockpitViewers.delete(peer);
       this.accepting = ""; this.remove(peer);
     } finally { this.accepting = ""; this.setBusy(false); }
   }

@@ -3,7 +3,7 @@ import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 import { installPilotLobbyFixture } from "./fixtures/pilot-lobby";
 
 async function ground(page: Page, towerName = "Major Tom") {
-  await page.goto("./ground-control/");
+  await page.goto("./ground-control/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("dialog", { name: "Name this Ground Control" })).toBeVisible();
   await page.getByRole("textbox", { name: "Ground Control callsign" }).fill(towerName);
   await page.getByRole("button", { name: "Transmit callsign" }).click();
@@ -61,6 +61,7 @@ test("controller ignores legacy unnamed Ground Control codes", async ({ page }) 
 });
 
 test("direct URL requests a named pilot; only acceptance enables steering", async ({ page, context }) => {
+  test.setTimeout(60_000);
   await ground(page);
   const phone = await context.newPage();
   await request(phone, new URL("/controller/", page.url()).href, "Amelia");
@@ -78,6 +79,15 @@ test("direct URL requests a named pilot; only acceptance enables steering", asyn
   await expect.poll(async () => (await phoneState(page)).name).toBe("Amelia");
   await phone.evaluate(() => { (window as any).orientationSample = { beta: -24, gamma: -65 }; });
   await expect.poll(async () => (await phoneState(page)).tilt?.x).toBeGreaterThan(.7);
+  await phone.evaluate(() => (window as any).dropTiltTestTransport());
+  await expect(phone.locator("#pilot-entry")).toBeHidden();
+  await expect(phone.locator("#controls")).toBeVisible();
+  await expect(phone.locator("#connection-status")).toHaveText("Connected", { timeout: 15_000 });
+  await expect.poll(async () => (await phoneState(page)).name, { timeout: 15_000 }).toBe("Amelia");
+  await phone.locator("#tilt-pad").focus();
+  await phone.keyboard.down("ArrowLeft");
+  await expect.poll(async () => (await phoneState(page)).tilt?.x, { timeout: 15_000 }).toBe(-1);
+  await phone.keyboard.up("ArrowLeft");
   // Opening the lazy 3D phone widget must retain an externally approved pilot.
   await page.locator("#connect-phone-controller").click();
   await expect.poll(async () => (await phoneState(page)).ready).toBe(true);
@@ -161,6 +171,9 @@ test("direct cockpit requests add view-only sessions without replacing the phone
   await expect(approval).toContainText("Observer One wants to join the cockpit view.");
   await approval.getByRole("button", { name: "Open cockpit view" }).click();
   await expect(firstView.locator("#session-link")).toHaveText("Connected");
+  await firstView.evaluate(() => (window as any).dropTiltTestTransport());
+  await expect(firstView.locator("#session-entry")).toBeHidden();
+  await expect(firstView.locator("#session-link")).toHaveText("Connected", { timeout: 15_000 });
 
   await requestCockpit(secondView, cockpitUrl, "Observer Two");
   await expect(approval).toContainText("Observer Two wants to join the cockpit view.");
