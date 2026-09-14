@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { nameGroundControl, openGroundControl } from "./fixtures/ground-control";
 
 test("the mechanical heart starts a local practice flight and stops its clearance when switched off", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
@@ -6,7 +7,7 @@ test("the mechanical heart starts a local practice flight and stops its clearanc
     (window as any).bluetoothRequests = 0;
     Object.defineProperty(navigator, "bluetooth", { configurable: true, value: { requestDevice: () => { (window as any).bluetoothRequests++; throw new Error("No sensor expected"); } } });
   });
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const heart = page.getByRole("button", { name: "Practice heartbeat", exact: true });
   await expect(heart).toBeVisible(); await expect(heart).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#start-flight-from-ground")).toBeDisabled();
@@ -34,7 +35,7 @@ test("the mechanical heart starts a local practice flight and stops its clearanc
 });
 
 test("the practice heart fits beside Polar and remains off after a reload", async ({ page }, testInfo) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const heart = page.locator("#practice-heart");
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
@@ -49,6 +50,6 @@ test("the practice heart fits beside Polar and remains off after a reload", asyn
     if (viewport.width === 390) await page.screenshot({ path: testInfo.outputPath("clockwork-heart-phone.png") });
   }
   await heart.click(); await expect(heart).toHaveAttribute("aria-pressed", "true");
-  await page.reload(); await expect(heart).toHaveAttribute("aria-pressed", "false");
+  await page.reload(); await nameGroundControl(page); await expect(heart).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#start-flight-from-ground")).toBeDisabled();
 });

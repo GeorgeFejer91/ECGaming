@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { nameGroundControl, openGroundControl } from "./fixtures/ground-control";
 
 test("ECG paints both curved wings without emitting smoke; Polar RR fires both exhausts", async ({ page }) => {
   const errors: string[] = [];
@@ -68,7 +69,7 @@ test("hangar projects live and practice ECG on both aircraft before flight, and 
     if (message.type() === "error" && /THREE|WebGL|shader|compile/i.test(message.text())) errors.push(message.text());
   });
   await page.route("**/src/polar/browser-hub.ts*", route => route.fulfill({ contentType: "application/javascript", body: localPolar }));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const preview = page.locator("#ground-aircraft-preview");
   await page.locator("#connect-polar").click();
   await page.evaluate(() => {
@@ -105,6 +106,7 @@ for (const entry of ["ground-control", "mobile"]) {
     await page.route("**/src/polar/browser-hub.ts*", route => route.fulfill({ contentType: "application/javascript", body: localPolar }));
     await page.goto(`./${entry}/`);
     if (entry === "ground-control") {
+      await nameGroundControl(page);
       await page.locator("#connect-polar").click();
       await page.locator("#cockpit-view-toggle").click();
     } else {

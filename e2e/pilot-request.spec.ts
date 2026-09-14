@@ -5,13 +5,14 @@ import { installPilotLobbyFixture } from "./fixtures/pilot-lobby";
 async function ground(page: Page, towerName = "Major Tom") {
   await page.goto("./ground-control/");
   await expect(page.getByRole("dialog", { name: "Name this Ground Control" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Ground Control callsign" }).fill(towerName);
+  await page.getByRole("textbox", { name: "Ground Control callsign" }).fill(towerName);
   await page.getByRole("button", { name: "Transmit callsign" }).click();
   await expect(page.locator("#connect-phone-controller")).toBeVisible();
   const url = await page.evaluate(async () => (await import("/src/phone-tilt/pilot-reception.ts")).getPilotReception().url());
-  const stream = `ecg_pilot_${new URL(url).searchParams.get("tower")}`;
-  await expect.poll(() => page.evaluate(stream => Object.keys(localStorage).some(key =>
-    key.startsWith("pilot-test-") && key.endsWith("-sources") && Boolean(JSON.parse(localStorage.getItem(key)!)[stream])), stream)).toBe(true);
+  const tower = new URL(url).searchParams.get("tower")!;
+  await expect.poll(() => page.evaluate(tower => Object.keys(localStorage).some(key =>
+    key.startsWith("pilot-test-") && key.endsWith("-sources") &&
+    Object.keys(JSON.parse(localStorage.getItem(key)!)).some(stream => stream.startsWith(`ecg_pilot_${tower}_`))), tower)).toBe(true);
   return url;
 }
 async function request(phone: Page, url: string, name: string) {

@@ -100,7 +100,10 @@ Polar Heart Rate Service RR notifications are available as an alternate beat sou
 
 ## Optional Game Adapters
 
-The app root opens Ground Control directly so the hangar deck is the only main menu. Optional browser-game adapters remain available by explicit route while keeping signal ownership, upstream attribution, and licences visible:
+The app root opens the EC Games menu. Use Ground Control for the unified
+Heartbeat Flight hangar/cockpit flow, or choose an optional browser-game
+adapter directly while keeping signal ownership, upstream attribution, and
+licences visible:
 
 - **Pixel Hop Twins ECG edition** is a vendored static snapshot of [stm1978/retro-platformer](https://github.com/stm1978/retro-platformer) at commit `9835295888c7cb8afa795ca2a31707a65167c2ea`. Its MIT code and CC0 procedural sprites, audio, and levels are retained under `games/pixel-hop/` and `public/games/pixel-hop/`. A fresh selected beat queues the game's normal buffered jump.
 - **MOTH heartbeat + dive trial** is built from the user's English-only [MOTH adaptation branch](https://github.com/GeorgeFejer91/moth-game/tree/codex/ecgaming-dive-bridge) at commit `a56fa97e7f8e2a6abb75634799e963d54ce4c750`, based on [ahmedallam222/moth-game](https://github.com/ahmedallam222/moth-game). All five chapters are immediately selectable, and the repaired title moth keeps both wings attached throughout its flap animation. Fresh R-peaks jump on land. Underwater R-peak paddles are accepted only while fresh physical Polar ACC breathing input is at a stable calibrated upper crest. Keyboard, touch, and gamepad remain available as a safety fallback.

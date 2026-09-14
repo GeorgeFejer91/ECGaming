@@ -29,8 +29,33 @@ export function parsePilotMessage(data: unknown): PilotMessage | undefined {
   } catch { /* Invalid public request. */ }
 }
 export const cleanTowerName = cleanDisplayName;
-export interface Tower { id: string; label: string }
+export interface Tower { id: string; label: string; stream: string }
 const emit = (target: EventTarget, name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail }));
+const encodedLabel = /^[A-Za-z0-9_-]{1,96}$/;
+const encodeTowerLabel = (value: string) => {
+  const bytes = new TextEncoder().encode(cleanTowerName(value));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+const decodeTowerLabel = (value: string) => {
+  if (!encodedLabel.test(value)) return "";
+  try {
+    const binary = atob(value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4));
+    return cleanTowerName(new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0))));
+  } catch { return ""; }
+};
+const towerStream = (id: string, label = "") => {
+  const encoded = encodeTowerLabel(label);
+  return `${PREFIX}${id}${encoded ? `_${encoded}` : ""}`;
+};
+const parseTowerStream = (stream: string): Tower | undefined => {
+  if (typeof stream !== "string" || !stream.startsWith(PREFIX)) return;
+  const body = stream.slice(PREFIX.length), id = body.slice(0, 8);
+  if (!validTower(id)) return;
+  const label = body[8] === "_" ? decodeTowerLabel(body.slice(9)) : "";
+  return { id, label: label || `Ground Control ${id}`, stream };
+};
 
 export class PilotLobby extends EventTarget {
   readonly towerId = randomToken(8).slice(0, 8).replace(/-/g, "_");
@@ -67,12 +92,12 @@ export class PilotLobby extends EventTarget {
     }) as EventListener, { signal: abort.signal });
     const source = (item: any) => {
       const stream = item?.streamID ?? item?.streamId ?? "";
-      if (typeof stream !== "string" || !stream.startsWith(PREFIX) || !validTower(stream.slice(PREFIX.length)) || this.sources.size >= 32) return;
-      const id = stream.slice(PREFIX.length);
-      const fallback = `Ground Control ${id}`;
-      const label = cleanTowerName(typeof item?.label === "string" ? item.label : "") || fallback;
+      const tower = parseTowerStream(stream);
+      if (!tower || (!this.sources.has(tower.id) && this.sources.size >= 32)) return;
+      const id = tower.id;
+      const label = cleanTowerName(typeof item?.label === "string" ? item.label : "") || tower.label;
       const fresh = !this.sources.has(id);
-      this.sources.set(id, { id, label });
+      this.sources.set(id, { id, label, stream: tower.stream });
       if (this.role !== "pilot" || this.selected || !fresh) return;
       clearTimeout(this.settle);
       this.settle = setTimeout(() => {
@@ -93,8 +118,9 @@ export class PilotLobby extends EventTarget {
       }).catch(() => { if (current()) this.closePeer(peer); });
     });
     listen("channelOpen", d => {
+      const stream = typeof d?.streamID === "string" ? d.streamID : typeof d?.streamId === "string" ? d.streamId : "";
       if (this.role !== "pilot" || !this.selected || ![CHANNEL, `x-${CHANNEL}`].includes(d?.label) ||
-        (d.streamID && d.streamID !== PREFIX + this.selected) || typeof d.uuid !== "string" ||
+        (stream && parseTowerStream(stream)?.id !== this.selected) || typeof d.uuid !== "string" ||
         (this.selectedPeer && this.selectedPeer !== d.uuid) || this.peers.size) return;
       this.selectedPeer = d.uuid; this.bind(d.uuid, d.channel);
     });
@@ -116,10 +142,11 @@ export class PilotLobby extends EventTarget {
   }
   async select(id: string) {
     if (!this.sdk || this.selected || !this.sources.has(id) || (this.hint && id !== this.hint)) return;
+    const source = this.sources.get(id)!;
     this.selected = id;
-    emit(this, "status", `Connecting to ${this.sources.get(id)!.label}…`);
+    emit(this, "status", `Connecting to ${source.label}…`);
     const sdk = this.sdk;
-    const view = () => sdk.view(PREFIX + id, { audio: false, video: false, downloads: false, allowresources: false });
+    const view = () => sdk.view(source.stream, { audio: false, video: false, downloads: false, allowresources: false });
     clearInterval(this.reconnect);
     this.reconnect = setInterval(() => {
       if (!this.sdk || this.peers.size || this.selected !== id) { clearInterval(this.reconnect); return; }
@@ -148,7 +175,7 @@ export class PilotLobby extends EventTarget {
   }
   private async announce() {
     if (this.role !== "tower" || !this.sdk || !this.towerName) return;
-    await this.sdk.announce({ streamID: PREFIX + this.towerId, label: this.towerName }).catch(() => {});
+    await this.sdk.announce({ streamID: towerStream(this.towerId, this.towerName), label: this.towerName }).catch(() => {});
   }
   closePeer(peer: string) {
     if (!this.peers.has(peer)) return;

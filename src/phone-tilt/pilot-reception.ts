@@ -11,7 +11,6 @@ class PilotReception extends EventTarget {
   private readonly dialog = document.createElement("dialog");
   private readonly towerDialog = document.createElement("dialog");
   private readonly towerInput = document.createElement("input");
-  private readonly towerSuggestions = document.createElement("datalist");
   private readonly towerStatus = document.createElement("p");
   private readonly requests = new Map<string, { id: string; row: HTMLElement }>();
   private readonly requested = new Set<string>();
@@ -79,9 +78,10 @@ class PilotReception extends EventTarget {
     });
   }
   start() {
-    if (!isSecureContext || window.top !== window.self) return;
+    if (!isSecureContext || window.top !== window.self) { this.revealConsole(); return; }
     this.showTowerNamePrompt();
     if (!this.nameConfirmed) return;
+    this.revealConsole();
     if (!this.monitor) this.monitor = setInterval(() => this.ensureStarted(), 2500);
     this.ensureStarted();
   }
@@ -118,21 +118,16 @@ class PilotReception extends EventTarget {
     this.towerDialog.setAttribute("aria-label", "Name this Ground Control");
     const form = document.createElement("form"); form.method = "dialog";
     const title = document.createElement("h2"); title.textContent = "Name this Ground Control";
-    const copy = document.createElement("p"); copy.textContent = "Pilots will choose this callsign from the steering wheel screen.";
+    const copy = document.createElement("p"); copy.textContent = "Assign this Ground Control a callsign before using the console.";
     const label = document.createElement("label");
     const labelText = document.createElement("span"); labelText.textContent = "Ground Control callsign";
     this.towerInput.type = "text"; this.towerInput.maxLength = 32; this.towerInput.required = true;
     this.towerInput.autocomplete = "organization"; this.towerInput.placeholder = "Major Tom"; this.towerInput.value = this.name;
-    this.towerInput.setAttribute("list", "tower-callsign-suggestions");
-    this.towerSuggestions.id = "tower-callsign-suggestions";
-    for (const value of ["Major Tom", "Starman", "Ziggy Station", "Blackstar Control", "Low Orbit"]) {
-      const option = document.createElement("option"); option.value = value; this.towerSuggestions.append(option);
-    }
     const save = document.createElement("button"); save.type = "submit"; save.textContent = "Transmit callsign";
     this.towerStatus.setAttribute("role", "status");
     if (this.name) this.towerStatus.textContent = "Confirm this callsign to broadcast this Ground Control.";
     label.append(labelText, this.towerInput);
-    form.append(title, copy, label, this.towerSuggestions, save, this.towerStatus);
+    form.append(title, copy, label, save, this.towerStatus);
     form.addEventListener("submit", event => {
       event.preventDefault();
       const next = cleanTowerName(this.towerInput.value);
@@ -149,9 +144,12 @@ class PilotReception extends EventTarget {
   }
   private showTowerNamePrompt() {
     if (this.nameConfirmed || this.towerDialog.open) return;
-    try { this.towerDialog.show(); }
+    try { this.towerDialog.showModal(); }
     catch { this.towerDialog.open = true; }
     this.towerInput.focus();
+  }
+  private revealConsole() {
+    document.body.classList.remove("ground-control-identity-pending");
   }
   private setBusy(value: boolean) {
     this.busy = value;

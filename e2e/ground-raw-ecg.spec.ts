@@ -1,5 +1,6 @@
 import { enterPilot } from "./fixtures/pilot-entry";
 import { test, expect, type Page } from "@playwright/test";
+import { openGroundControl } from "./fixtures/ground-control";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
 const ink = (page: Page, id: string) => page.locator(id).evaluate((canvas: HTMLCanvasElement) => {
@@ -15,7 +16,7 @@ test("raw ECG stays below the selected metric, with independent live and paused 
     const hub = {async connect(callback){window.emitEcg=callback;callback({kind:'connection',connected:true});},
       async disconnect(){window.emitEcg({kind:'connection',connected:false});},diagnosticSnapshot(){return{};},subscribeStatus(){return()=>{};}};
     export function getPolarBrowserHub(){return hub;}` }));
-  await page.goto("./ground-control/"); await page.locator("#connect-polar").click();
+  await openGroundControl(page); await page.locator("#connect-polar").click();
   await page.evaluate(() => {
     let n = 0; const start = performance.now();
     (window as any).ecgTimer = setInterval(() => {
@@ -63,7 +64,7 @@ test("practice ECG pulses the paired steering wheel without Bluetooth and stops 
     Object.defineProperty(navigator, "bluetooth", { configurable: true, value: undefined });
   });
   await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* fixture */" }));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.locator("#practice-heart").click();
   await expect(page.locator("#raw-ecg-state")).toHaveText("Practice");
   await expect.poll(() => ink(page, "#raw-ecg-preview")).toBeGreaterThan(100);

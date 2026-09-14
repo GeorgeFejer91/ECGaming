@@ -6,23 +6,179 @@
     <meta name="theme-color" content="#07131f" />
     <meta
       name="description"
-      content="Open EC Gaming Ground Control and the integrated ECG flight cockpit."
+      content="Open-source browser games and flight tools powered by live ECG signals."
     />
-    <meta property="og:title" content="EC Gaming Ground Control" />
+    <meta property="og:title" content="EC Games" />
     <meta
       property="og:description"
-      content="Configure live ECG flight and launch the hangar cockpit."
+      content="Choose a heart-signal game, Ground Control, or a companion flight view."
     />
     <meta property="og:image" content="./og-card.png" />
     <link rel="icon" href="./favicon.svg" />
-    <title>EC Gaming · Ground Control</title>
-    <script>
-      location.replace("./ground-control/");
-    </script>
+    <title>EC Games</title>
   </head>
   <body>
-    <main>
-      <p><a href="./ground-control/">Open Ground Control</a></p>
+    <a class="skip-link" href="#games">Skip to games</a>
+    <main id="main" class="landing-shell">
+      <nav class="topbar" aria-label="Main navigation">
+        <a class="brand" href="./" aria-label="EC Games home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>EC GAMES</span>
+        </a>
+        <div class="nav-actions">
+          <a class="nav-link" href="./ground-control/">Ground Control</a>
+          <a class="nav-link" href="https://github.com/GeorgeFejer91/ECGaming"
+            >GitHub</a
+          >
+        </div>
+      </nav>
+
+      <section id="games" class="game-library" aria-labelledby="games-title">
+        <div class="game-library-heading">
+          <div>
+            <p class="eyebrow">Heart Signal Game Menu</p>
+            <h1 id="games-title">EC Games</h1>
+          </div>
+          <p>
+            Pick the surface you need. Use Ground Control for Heartbeat Flight
+            and shared Polar routing, or open one of the standalone game
+            adapters.
+          </p>
+        </div>
+
+        <div class="game-menu-grid">
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./ground-control/"
+              aria-label="Open Heartbeat Flight Ground Control"
+            ></a>
+            <div class="game-card-cover">
+              <img src="./assets/game-logos/heartbeat-flight.svg" alt="" />
+              <span class="game-availability">Main flight app</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Flight control</p>
+              <h2>Heartbeat Flight</h2>
+              <p>
+                Name Ground Control, connect a Polar H10 or remote tower, then
+                launch the cockpit.
+              </p>
+              <div class="game-route-links">
+                <a href="./mobile/">Phone edition</a>
+                <a href="./flight/">Flight deck</a>
+              </div>
+              <span class="game-card-cta">Open Ground Control <b>-&gt;</b></span>
+            </div>
+          </article>
+
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./mobile/"
+              aria-label="Open Smartphone Flight"
+            ></a>
+            <div class="game-card-cover">
+              <img src="./assets/game-logos/heartbeat-flight.svg" alt="" />
+              <span class="game-availability">Phone route</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Mobile flight</p>
+              <h2>Smartphone Flight</h2>
+              <p>
+                A compact phone-first flight surface for direct Polar H10 play
+                or simulator fallback.
+              </p>
+              <span class="game-card-cta">Open phone flight <b>-&gt;</b></span>
+            </div>
+          </article>
+
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./flight/"
+              aria-label="Open Flight Deck"
+            ></a>
+            <div class="game-card-cover">
+              <img src="./assets/game-logos/heartbeat-flight.svg" alt="" />
+              <span class="game-availability">Receiver</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Browser / Quest deck</p>
+              <h2>Flight Deck</h2>
+              <p>
+                Receive a Ground Control beacon and fly from a separate browser
+                or headset-capable device.
+              </p>
+              <span class="game-card-cta">Open flight deck <b>-&gt;</b></span>
+            </div>
+          </article>
+
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./games/pixel-hop/"
+              aria-label="Play Pixel Hop Twins ECG edition"
+            ></a>
+            <div class="game-card-cover">
+              <img src="./assets/game-logos/pixel-hop-twins.svg" alt="" />
+              <span class="game-availability">Playable</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Platformer</p>
+              <h2>Pixel Hop Twins</h2>
+              <p>
+                Fresh heartbeats queue the game jump while keyboard controls
+                remain available.
+              </p>
+              <span class="game-card-cta">Play ECG edition <b>-&gt;</b></span>
+            </div>
+          </article>
+
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./games/moth/?v=a56fa97e"
+              aria-label="Play MOTH ECG edition"
+            ></a>
+            <div class="game-card-cover">
+              <img src="./assets/game-logos/moth.svg" alt="" />
+              <span class="game-availability">Experimental</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Puzzle</p>
+              <h2>MOTH</h2>
+              <p>
+                R-peaks jump on land, and stable physical breathing controls
+                underwater paddling.
+              </p>
+              <span class="game-card-cta">Play MOTH <b>-&gt;</b></span>
+            </div>
+          </article>
+
+          <article class="game-menu-card">
+            <a
+              class="game-card-target"
+              href="./breath-sonification/"
+              aria-label="Open Breath Mirror"
+            ></a>
+            <div class="game-card-cover breath-cover">
+              <img src="./assets/game-logos/breath-mirror.svg" alt="" />
+              <span class="game-availability">Prototype</span>
+            </div>
+            <div class="game-card-copy">
+              <p class="game-menu-meta">Sonification</p>
+              <h2>Breath Mirror</h2>
+              <p>
+                A realtime breath sonification lab for paced, normalized chest
+                motion input.
+              </p>
+              <span class="game-card-cta">Open lab <b>-&gt;</b></span>
+            </div>
+          </article>
+        </div>
+      </section>
     </main>
+    <script type="module" src="/src/landing.ts"></script>
   </body>
 </html>

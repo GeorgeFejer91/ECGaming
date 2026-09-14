@@ -1,7 +1,8 @@
 # Pilot requests
 
-Ground Control asks for a session callsign, such as `Major Tom`, before it
-announces itself. A direct visit to `/controller/` asks for a pilot name,
+Ground Control first shows a centered callsign prompt, such as `Major Tom`, and
+keeps the console hidden until that name is confirmed. Only then does it
+announce itself. A direct visit to `/controller/` asks for a pilot name,
 discovers open Ground Control pages, displays their callsigns, and sends a
 request to the chosen tower. External cockpit requests ask for a cockpit name.
 With multiple towers, the phone asks which one to join by callsign. Direct links
@@ -32,8 +33,11 @@ only after all attempts fail.
 The public rendezvous uses pinned VDO.Ninja SDK 1.5.5 and a reliable ordered
 `ecg_pilot_request_v1` channel, in a room scoped to the website host. Discovery
 uses a hidden random stream ID for routing and a user-entered Ground Control
-callsign for display. Pilot and cockpit names travel only in point-to-point
-requests. Names are display labels, not verified identities.
+callsign for display. The callsign is also encoded into the public stream name
+as a display fallback, so steering wheels can still show `Major Tom` instead of
+`Ground Control <id>` when signaling listings omit label metadata. Pilot and
+cockpit names travel only in point-to-point requests. Names are display labels,
+not verified identities.
 
 This rendezvous is separate from BRSP/1 flight control. It accepts only bounded
 request, cancel, declined and accepted messages. Requests expire after 60 seconds;

@@ -1,5 +1,6 @@
 import { enterPilot } from "./fixtures/pilot-entry";
 import { test, expect, type Page } from "@playwright/test";
+import { openGroundControl } from "./fixtures/ground-control";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
 /** Synthetic hardware boundary; no physical Bluetooth qualification is claimed by this test. */
@@ -36,7 +37,7 @@ test("three browsers route only source-computed controls and switch source witho
   test.setTimeout(180_000);
   const errors: string[] = []; context.on("page", p => p.on("pageerror", error => errors.push(error.message)));
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.locator("#connect-phone-controller").click();
   const dialog = page.getByRole("dialog", { name: "Phone tilt controller" });
   const phoneLink = dialog.getByRole("link", { name: "Open controller" }); await expect(phoneLink).toBeVisible();
@@ -138,7 +139,7 @@ test("three browsers route only source-computed controls and switch source witho
 });
 
 test("the phone vibrates for local Polar RR notifications and stops on hide or disconnect", async ({ page, context }) => {
-  await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
+  await openGroundControl(page); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
   await enterPilot(phone);
@@ -169,7 +170,7 @@ test("the phone vibrates for local Polar RR notifications and stops on hide or d
 });
 
 test("unsupported H10 browser retains the paired touch controller", async ({ page, context }) => {
-  await page.goto("./ground-control/"); await page.locator("#connect-phone-controller").click();
+  await openGroundControl(page); await page.locator("#connect-phone-controller").click();
   const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
   const phone = await context.newPage(); await phone.goto((await link.getAttribute("href"))!);
   await enterPilot(phone);
@@ -192,7 +193,7 @@ test("unsupported H10 browser retains the paired touch controller", async ({ pag
 
 
 test("the local Polar button restores an existing sensor after remote tower selection", async ({ page }) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await installSyntheticPolar(page);
   await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();

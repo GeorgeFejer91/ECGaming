@@ -8,10 +8,16 @@
       name="description"
       content="Connect a Polar H10 or a Ground Control beacon, configure heart-driven flight, and enter the EC Gaming cockpit."
     />
+    <style>
+      body.ground-control-identity-pending .skip-link,
+      body.ground-control-identity-pending .app-shell {
+        visibility: hidden;
+      }
+    </style>
     <link rel="icon" href="../favicon.svg" />
     <title>Ground Control & Cockpit · EC Gaming</title>
   </head>
-  <body data-ecgaming-breath-visibility="cockpit">
+  <body class="ground-control-identity-pending" data-ecgaming-breath-visibility="cockpit">
     <a class="skip-link" href="#ground-view">Skip to Ground Control</a>
     <main id="main" class="app-shell control-shell unified-flight-shell">
       <header class="app-header unified-header">
@@ -87,17 +93,7 @@
       >
         <section class="control-workspace">
           <aside class="control-panel" aria-label="Ground Control settings">
-            <div class="public-warning" role="note">
-              <strong data-fit-text data-fit-min="9" data-fit-max="13"
-                >PUBLIC DATA ROOM</strong
-              ><span data-fit-text data-fit-min="9" data-fit-max="13" data-fit-lines="3" data-fit-line="1.35"
-                >Ground Control beacons use a fixed, unauthenticated room. Pick
-                only a source you recognize. Raw ECG never leaves the browser
-                that is connected to the Polar.</span
-              >
-            </div>
-
-            <div id="accordion" class="accordion">
+            <div id="ground-control-setup-internals" class="ground-control-setup-internals" hidden aria-hidden="true">
               <section class="accordion-item is-open" data-section="polar">
                 <button
                   id="signal-source-trigger"

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openGroundControl } from "./fixtures/ground-control";
 
 test("hangar pulses both cardiac models only from connected Polar RR beats", async ({ page }) => {
   await page.route("**/src/polar/browser-hub.ts*", route => route.fulfill({ contentType: "application/javascript", body: `
@@ -7,7 +8,7 @@ test("hangar pulses both cardiac models only from connected Polar RR beats", asy
       async disconnect(){window.emitPolar({kind:'connection',connected:false});},diagnosticSnapshot(){return {};},subscribeStatus(){return ()=>{};}};
     export function getPolarBrowserHub(){return hub;}
   ` }));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const preview = page.locator("#ground-aircraft-preview");
   await expect(preview).toHaveAttribute("data-heartbeat-mode", "waiting");
   await expect(preview).toHaveAttribute("data-heartbeat-pulse", "0.0000");

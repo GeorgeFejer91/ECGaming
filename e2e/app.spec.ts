@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { nameGroundControl, openGroundControl } from "./fixtures/ground-control";
 
 const fakeVdo = `
 class FakeChannel extends EventTarget {
@@ -59,7 +60,7 @@ window.VDONinjaSDK=class extends EventTarget {
 }`;
 
 test("remote connection actions sit below the tower and cockpit switch", async ({ page }) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await expect(page.getByRole("group", { name: "View mode" }).getByRole("button")).toHaveCount(2);
   const remotes = page.getByRole("group", { name: "Connect a remote device" });
   await expect(remotes.getByRole("button")).toHaveCount(3);
@@ -68,6 +69,15 @@ test("remote connection actions sit below the tower and cockpit switch", async (
   await expect(remotes.getByRole("button", { name: "Phone steering wheel" })).toBeVisible();
 });
 
+test("Ground Control asks for a callsign before showing the console", async ({ page }) => {
+  await page.goto("./ground-control/");
+  await expect(page.getByRole("dialog", { name: "Name this Ground Control" })).toBeVisible();
+  await expect(page.locator("#main")).toHaveCSS("visibility", "hidden");
+  await expect(page.getByRole("combobox", { name: "Ground Control callsign" })).toHaveCount(0);
+  await nameGroundControl(page, "Major Tom");
+  await expect(page.locator("#main")).toHaveCSS("visibility", "visible");
+  await expect(page.locator("#connect-phone-controller")).toBeVisible();
+});
 
 test("QR phone view connects to its tower with touch steering and no page-load connection", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -98,12 +108,13 @@ test("an expired QR session cannot unlock a different flight", async ({ page }) 
   await expect(page.getByRole("button", { name: "Start flight", exact: true })).toBeHidden();
 });
 
-test("home opens Ground Control without the retired game menu", async ({ page }) => {
+test("home opens the EC Games menu without entering Ground Control", async ({ page }) => {
   await page.goto("./");
-  await expect(page).toHaveURL(/\/ground-control\/$/);
-  await expect(page.locator("#ground-view")).toBeVisible();
-  await expect(page.locator(".game-menu-card")).toHaveCount(0);
-  await expect(page.locator(".landing-shell")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".landing-shell")).toBeVisible();
+  await expect(page.locator(".game-menu-card")).toHaveCount(6);
+  await expect(page.getByRole("link", { name: "Open Heartbeat Flight Ground Control" })).toBeVisible();
+  await expect(page.locator("#ground-view")).toHaveCount(0);
 });
 
 test("Pixel Hop accepts one fresh ECGaming heartbeat message", async ({
@@ -287,8 +298,9 @@ test("every catalog aircraft loads without falling back", async ({ page }) => {
 });
 
 test("Ground Control shows only source, aircraft, altitude buttons and the selected signal", async ({ page }) => {
-  await page.goto("./ground-control/");
-  await expect(page.locator("#accordion")).toBeHidden();
+  await openGroundControl(page);
+  await expect(page.locator("#accordion")).toHaveCount(0);
+  await expect(page.locator("#ground-control-setup-internals")).toBeHidden();
   await expect(page.locator(".beacon-instrument")).toBeHidden();
   await expect(page.locator(".command-console")).toBeHidden();
   await expect(page.locator(".control-panel #connect-polar")).toBeVisible();
@@ -306,7 +318,7 @@ test("Ground Control metric buttons drive altitude and persist the selected sign
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
 
   const widgets = page.locator("[data-scope-metric]");
   const breathing = page.locator(
@@ -330,6 +342,7 @@ test("Ground Control metric buttons drive altitude and persist the selected sign
   await expect(page.locator("#scope-metric-value")).toHaveText("0.50");
 
   await page.reload();
+  await nameGroundControl(page);
   await expect(breathing).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#scope-metric-label")).toHaveText(
     "ACC BREATHING",
@@ -343,7 +356,7 @@ test("Connect Polar requests Bluetooth only after the visible button is tapped",
       requestDevice() { (window as any).polarRequests++; return Promise.reject(new DOMException("Cancelled", "NotFoundError")); },
     } });
   });
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   expect(await page.evaluate(() => (window as any).polarRequests)).toBe(0);
   await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).polarRequests)).toBe(1);
@@ -357,7 +370,7 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
 
   const ground = page.locator("#ground-view");
   const cockpit = page.locator("#cockpit-view");
@@ -421,7 +434,7 @@ test("Ground Control and Cockpit are explicit views and preview does not launch"
 test("compact Ground Control fits the viewport and selects only cardiac aircraft", async ({ page }) => {
   await page.route("**/vendor/vdoninja/**", route => route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
   await page.addInitScript(() => localStorage.setItem("ecgaming-aircraft-v1", "styloo-planeazer"));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await expect(page.locator("#ground-aircraft-preview")).toHaveAttribute("data-aircraft", "cardiac-ventricle");
   await expect(page.locator("#ground-aircraft option")).toHaveCount(2);
   for (const viewport of [{width:1440,height:900},{width:1280,height:720},{width:390,height:844}]) {
@@ -463,7 +476,7 @@ test("every hangar aircraft stays centered at one preview scale", async ({
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const preview = page.locator("#ground-aircraft-preview");
 
   const ids = await page
@@ -506,7 +519,7 @@ test("unified Cockpit exposes hold steering on a phone viewport", async ({
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.locator("#cockpit-view-toggle").click();
 
   const left = page.getByRole("button", {
@@ -535,7 +548,7 @@ test("Ground Control simulator never grants production runway clearance", async 
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   // Exercise the retained diagnostic input without exposing it in the menu.
   await page.locator("#sim-enabled").evaluate((input: HTMLInputElement) => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
 
@@ -548,7 +561,7 @@ test("Ground Control simulator never grants production runway clearance", async 
 });
 
 test("altitude buttons apply their matching metric ranges and keep RR heartbeat pulses", async ({ page }) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const altitude = page.locator('[data-command="altitude"]');
   for (const [metric, minimum, maximum] of [["breathing_volume", "0", "1"], ["heart_rate", "45", "160"], ["rr_interval", "400", "1300"]]) {
     await page.locator('[data-scope-metric="'+metric+'"]').click();
@@ -589,7 +602,7 @@ test("fresh physical derived beacon grants Start and launches in place without d
   await page.route("**/vendor/vdoninja/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
   );
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.evaluate(() => {
     (window as any).__groundRuntimeMarker = "same-document";
   });
@@ -687,7 +700,7 @@ test("fresh beacon clearance uses receipt time even when animation callbacks are
   });
   await page.route("**/vendor/vdoninja/**", route =>
     route.fulfill({ contentType: "application/javascript", body: fakeVdo }));
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.getByRole("button", { name: "Remote tower", exact: true }).click();
   await page.locator("#scan-beacons").click();
   await expect(page.locator("#beacon-radar-state")).toHaveText("BEACON LOCK");

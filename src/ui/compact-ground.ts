@@ -12,10 +12,9 @@ const el = (id: string) => document.getElementById(id)!;
 /** Reuse the actual inputs and handlers in the aircraft and signal setup screen. */
 export function setupCompactGround(openRemoteCockpit: () => void) {
   document.body.classList.add("compact-ground");
-  const internals = document.createElement("div");
-  internals.id = "setup-internals"; internals.hidden = true; document.body.append(internals);
+  const internals = el("ground-control-setup-internals");
+  internals.hidden = true;
   const sourceControls = el("polar-source-controls"), beaconControls = el("beacon-source-controls");
-  internals.append(el("accordion"), document.querySelector(".public-warning")!);
   const left = document.querySelector(".control-panel")!;
   left.prepend(sourceControls); sourceControls.hidden = false;
   el("polar-connect-nudge").hidden = true;

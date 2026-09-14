@@ -1,5 +1,6 @@
 import { enterPilot } from "./fixtures/pilot-entry";
 import { expect, test, type Page } from "@playwright/test";
+import { openGroundControl } from "./fixtures/ground-control";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
 async function sceneHarness(page: Page) {
@@ -22,7 +23,7 @@ test.beforeEach(async ({ context }) => {
 
 test("dedicated SVG widget opens a yoke-shaped QR popup without Polar or flight clearance", async ({ page }, testInfo) => {
   test.setTimeout(60_000);
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   const widget = page.locator("#connect-phone-controller");
   await expect(widget).toBeVisible();
   await expect(widget).toContainText("Phone steering");
@@ -131,9 +132,12 @@ test("opening the QR link connects without a tap, releases keys and revokes on s
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await phone.bringToFront();
   await expect(phone.locator("#confirmed")).toContainText("Centred");
-  await phone.locator("#tilt-pad").focus();
-  await phone.keyboard.down("ArrowLeft");
-  await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(-1);
+  await expect.poll(async () => {
+    await phone.bringToFront();
+    await phone.locator("#tilt-pad").focus();
+    await phone.keyboard.down("ArrowLeft");
+    return page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x);
+  }, { timeout: 15_000 }).toBe(-1);
   await phone.keyboard.up("ArrowLeft");
   // Releasing the key resumes the already enabled, centred physical tilt input.
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBe(0);
@@ -334,7 +338,7 @@ test("denied motion access keeps the automatic connection and touch steering", a
 });
 
 test("Remote cockpit pairs independently and leaves phone pairing behind its own button", async ({ page }) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await page.getByRole("button", { name: "Remote cockpit", exact: true }).click();
   const cockpit = page.getByRole("dialog", { name: "Remote cockpit", exact: true });
   await expect(cockpit).toBeVisible();

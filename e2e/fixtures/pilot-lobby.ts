@@ -23,8 +23,8 @@ export function installPilotLobbyFixture() {
       this.bus.onmessage = ({ data: d }) => {
         if (d.to && d.to !== this.id) return;
         if (d.kind === "listing") {
-          this.sources.set(d.stream, { uuid: d.from, label: d.label });
-          emit(this, "listing", { list: [{ streamID: d.stream, UUID: d.from, label: d.label }] });
+          this.sources.set(d.stream, { uuid: d.from, label: "" });
+          emit(this, "listing", { list: [{ streamID: d.stream, UUID: d.from }] });
         }
         if (d.kind === "view") emit(this, "dataChannelOpen", { uuid: d.from });
         if (d.kind === "channel") {
@@ -52,16 +52,17 @@ export function installPilotLobbyFixture() {
       const list = Object.entries(JSON.parse(localStorage.getItem(this.registry) ?? "{}"))
         .map(([streamID, value]) => {
           const source = typeof value === "string" ? { uuid: value, label: "" } : value as { uuid: string; label?: string };
-          this.sources.set(streamID, { uuid: source.uuid, label: source.label ?? "" });
-          return { streamID, UUID: source.uuid, label: source.label ?? "" };
+          this.sources.set(streamID, { uuid: source.uuid, label: "" });
+          return { streamID, UUID: source.uuid };
         });
       emit(this, "listing", { list });
     }
     async announce({ streamID, label }: { streamID: string; label?: string }) {
       this.stream = streamID;
-      const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); sources[streamID] = { uuid: this.id, label: label ?? "" };
+      void label;
+      const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); sources[streamID] = { uuid: this.id };
       localStorage.setItem(this.registry, JSON.stringify(sources));
-      this.post({ kind: "listing", stream: this.stream, label: label ?? "" });
+      this.post({ kind: "listing", stream: this.stream });
     }
     async view(stream: string) { this.post({ kind: "view", to: this.sources.get(stream)?.uuid }); }
     async openChannel(peer: string, label: string) {

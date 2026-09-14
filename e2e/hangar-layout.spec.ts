@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { openGroundControl } from "./fixtures/ground-control";
 
 test("hangar keeps a full-width preview when shared styles load last", async ({ page }) => {
-  await page.goto("./ground-control/");
+  await openGroundControl(page);
   await expect(page.locator("[data-aircraft-choice]").first()).toBeEnabled();
   // Production CSS bundling can put shared responsive rules after compact styles.
   await page.addStyleTag({ url: "/src/styles.css" });
