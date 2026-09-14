@@ -1,0 +1,214 @@
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource/inter/400.css";
+
+:root {
+  --ink: #050505;
+  --panel: #0d1117;
+  --panel-2: #161b22;
+  --line: rgba(139, 148, 158, 0.22);
+  --cream: #f0f6fc;
+  --amber: #f0883e;
+  --cyan: #58a6ff;
+  --green: #3fb950;
+  --muted: #8b949e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--cream);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(88, 166, 255, 0.12), transparent 46%),
+    var(--ink);
+  font: 16px/1.5 Inter, system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.breath-phone {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+.breath-phone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem clamp(1.25rem, 5vw, 3.25rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font: 700 1rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.18em;
+}
+
+.brand span {
+  color: var(--amber);
+}
+
+.lab-label {
+  color: var(--muted);
+  font: 700 0.72rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.breath-phone-card {
+  align-self: center;
+  width: min(420px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.7);
+}
+
+.breath-phone-card h1 {
+  display: block;
+  margin: 0;
+  font: 700 clamp(2.4rem, 6vw, 3.4rem) / 0.9 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.breath-phone-card h1 em {
+  color: transparent;
+  font-style: normal;
+  -webkit-text-stroke: 1px var(--cyan);
+}
+
+.breath-phone-subtitle {
+  margin: 0.7rem 0 1.5rem;
+  color: var(--amber);
+  font: 700 0.9rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.breath-phone-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.stream-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  transition: 0.3s;
+}
+
+.stream-dot[data-state="live"] {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 22px rgba(63, 185, 80, 0.6);
+  animation: breath-pulse 1.4s ease-in-out infinite alternate;
+}
+
+.stream-label {
+  position: absolute;
+  bottom: -1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font: 700 0.62rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+@keyframes breath-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.35);
+  }
+}
+
+.breath-phone-connection {
+  min-height: 1.4em;
+  margin: 0 0 1rem;
+  color: var(--cream);
+  font-size: 0.9rem;
+}
+
+.breath-phone-button {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.7rem 1.1rem;
+  color: var(--ink);
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--amber);
+  cursor: pointer;
+  font: 800 0.8rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: 0.2s;
+}
+
+.breath-phone-button:disabled {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+  cursor: default;
+}
+
+.breath-phone-button[aria-pressed="true"] {
+  color: var(--amber);
+  background: transparent;
+}
+
+.breath-phone-input {
+  min-height: 1.4em;
+  margin: 1.2rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.breath-phone-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+  .breath-phone-card {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 0;
+    border-radius: 0;
+  }
+}
