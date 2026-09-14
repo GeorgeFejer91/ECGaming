@@ -112,10 +112,9 @@ test("home opens the EC Games menu without entering Ground Control", async ({ pa
   await page.goto("./");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".landing-shell")).toBeVisible();
-  await expect(page.locator(".game-menu-card")).toHaveCount(6);
+  await expect(page.locator(".game-menu-card")).toHaveCount(5);
   await expect(page.getByRole("link", { name: "Open Polar Plane Ground Control" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Phone Breather" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Play Other Side" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Smartphone Flight" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open Flight Deck" })).toHaveCount(0);
   await expect(page.locator("#ground-view")).toHaveCount(0);
