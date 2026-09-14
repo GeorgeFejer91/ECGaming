@@ -46,6 +46,20 @@ test("controller explains when no Ground Control tower is found", async ({ page 
   await expect(page.locator(".pilot-request-debug")).toContainText(/RequestNot sent/);
 });
 
+test("controller ignores legacy unnamed Ground Control codes", async ({ page }) => {
+  await page.goto("./controller/");
+  await page.evaluate(() => {
+    const room = `ecgaming_pilot_requests_v1_${location.host.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 48)}`;
+    localStorage.setItem(`pilot-test-${room}-sources`, JSON.stringify({
+      ecg_pilot_Buplbrz8: { uuid: "legacy-peer", label: "Ground Control Buplbrz8" },
+    }));
+  });
+  await page.getByRole("textbox", { name: "Pilot name", exact: true }).fill("George");
+  await page.getByRole("button", { name: "Request wheel", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ground Control Buplbrz8" })).toHaveCount(0);
+  await expect(page.locator("#pilot-request-status")).toContainText("Still looking for Ground Control", { timeout: 6_000 });
+});
+
 test("direct URL requests a named pilot; only acceptance enables steering", async ({ page, context }) => {
   await ground(page);
   const phone = await context.newPage();

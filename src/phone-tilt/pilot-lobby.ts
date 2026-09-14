@@ -54,7 +54,7 @@ const parseTowerStream = (stream: string): Tower | undefined => {
   const body = stream.slice(PREFIX.length), id = body.slice(0, 8);
   if (!validTower(id)) return;
   const label = body[8] === "_" ? decodeTowerLabel(body.slice(9)) : "";
-  return { id, label: label || `Ground Control ${id}`, stream };
+  return { id, label, stream };
 };
 
 export class PilotLobby extends EventTarget {
@@ -95,7 +95,10 @@ export class PilotLobby extends EventTarget {
       const tower = parseTowerStream(stream);
       if (!tower || (!this.sources.has(tower.id) && this.sources.size >= 32)) return;
       const id = tower.id;
-      const label = cleanTowerName(typeof item?.label === "string" ? item.label : "") || tower.label;
+      const advertised = cleanTowerName(typeof item?.label === "string" ? item.label : "");
+      const legacyLabel = `Ground Control ${id}`;
+      const label = tower.label || (advertised !== legacyLabel ? advertised : "");
+      if (!label) return;
       const fresh = !this.sources.has(id);
       this.sources.set(id, { id, label, stream: tower.stream });
       if (this.role !== "pilot" || this.selected || !fresh) return;
