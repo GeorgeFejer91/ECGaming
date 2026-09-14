@@ -1,8 +1,15 @@
+let sharedContext: AudioContext | null = null;
+
+export function getSharedAudioContext(): AudioContext {
+  if (!sharedContext) sharedContext = new AudioContext();
+  return sharedContext;
+}
+
 export class FlightSound {
   private context?: AudioContext;
   private muted = false;
   async unlock() {
-    if (!this.context) this.context = new AudioContext();
+    if (!this.context) this.context = getSharedAudioContext();
     if (this.context.state === "suspended") await this.context.resume();
   }
   setMuted(value: boolean) {

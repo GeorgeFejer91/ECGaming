@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Acceleration Capacity Index</title>
+  <path d="M6 44l5-10 5 8 5-18 4 12 5-6 5 8 5-14 5 10 6-4 6 6" stroke="#69d4de" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+  <path d="M25 16l-2-4m32 10l3-4M27 12h28" stroke="#f4b33a" stroke-dasharray="3 4" stroke-linecap="round" stroke-width="2.5"/>
+  <circle cx="25" cy="22" r="2.5" fill="#f4b33a"/>
+  <circle cx="57" cy="22" r="2.5" fill="#f4b33a"/>
+</svg>

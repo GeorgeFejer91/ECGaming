@@ -8,6 +8,7 @@ export type MetricId =
   | "rmssd"
   | "ln_rmssd"
   | "sdnn"
+  | "aci"
   | "ecg_local_power"
   | "ecg_rms"
   | "ecg_peak_to_peak";

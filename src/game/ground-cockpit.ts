@@ -12,14 +12,21 @@ import { AircraftPreview } from "./aircraft-preview";
 import type { EcgGameModule } from "./ecg-game-module";
 import { createFlightScene } from "./flight-scene";
 import { FlightSound } from "./sound";
+import { GenerativeMusic, VARIANT_LABELS } from "./generative-music";
 import { decoratePhoneButton } from "../phone-tilt/button";
 
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
+const MUSIC_KEY = "ecgaming-music-enabled-v1";
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const setText = (id: string, value: string) => {
   element(id).textContent = value;
 };
+
+export interface CockpitMusicSignal {
+  drone01?: number;
+  pulse01?: number;
+}
 
 export interface CockpitTelemetry {
   frame: FlightFrame;
@@ -30,6 +37,7 @@ export interface CockpitTelemetry {
   ready: boolean;
   holdReason?: string;
   heartbeat?: RrHeartbeatSignal;
+  music?: CockpitMusicSignal;
 }
 
 const COCKPIT_RECOVERY_MS = 3_000;
@@ -86,11 +94,13 @@ export class GroundCockpit extends EventTarget {
   private game?: EcgGameModule;
   private gameFailure?: Error;
   private readonly sound = new FlightSound();
+  private readonly music = new GenerativeMusic();
   private readonly phoneButton = document.createElement("button");
   private readonly preview: AircraftPreview;
   private started = false;
   private visible = false;
   private muted = false;
+  private musicEnabled = localStorage.getItem(MUSIC_KEY) === "true";
   private rewardTimer?: number;
   private aircraftRequest = 0;
   private aircraftReady: Promise<void> = Promise.resolve();
@@ -281,6 +291,31 @@ export class GroundCockpit extends EventTarget {
         button.setAttribute("aria-pressed", String(this.muted));
       },
     );
+    const musicButton = element<HTMLButtonElement>("cockpit-music");
+    const variantButton = element<HTMLButtonElement>("cockpit-music-variant");
+    const refreshMusicUI = () => {
+      musicButton.textContent = this.musicEnabled ? "MUSIC ON" : "MUSIC OFF";
+      musicButton.setAttribute("aria-pressed", String(this.musicEnabled));
+      variantButton.hidden = !this.musicEnabled;
+      if (this.musicEnabled) {
+        variantButton.textContent =
+          "STYLE: " + VARIANT_LABELS[this.music.variantLabel()];
+      }
+    };
+    refreshMusicUI();
+    musicButton.addEventListener("click", async () => {
+      this.musicEnabled = !this.musicEnabled;
+      await this.music.unlock();
+      this.music.setEnabled(this.musicEnabled);
+      refreshMusicUI();
+      localStorage.setItem(MUSIC_KEY, String(this.musicEnabled));
+    });
+    variantButton.addEventListener("click", () => {
+      this.music.cycleVariant();
+      variantButton.textContent =
+        "STYLE: " + VARIANT_LABELS[this.music.variantLabel()];
+    });
+    if (this.musicEnabled) void this.music.unlock();
     const xrButton = element<HTMLButtonElement>("cockpit-enter-xr");
     xrButton.addEventListener("click", async () => {
       try {
@@ -403,8 +438,9 @@ export class GroundCockpit extends EventTarget {
   }
 
   accept(telemetry: CockpitTelemetry) {
-    if (!this.game) return;
     const { frame } = telemetry;
+    if (telemetry.music) this.music.setSignal(telemetry.music);
+    if (!this.game) return;
     const recovery = this.started
       ? this.recovery.update(telemetry.ready, performance.now())
       : { ready: false, holding: false };

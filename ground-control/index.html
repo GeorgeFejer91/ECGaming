@@ -277,6 +277,33 @@
                   </p>
                   <div id="mapping-controls"></div>
 
+                  <fieldset
+                    class="mapping-card music-config-card"
+                    data-music-config
+                  >
+                    <legend class="visually-hidden">Ambient music signal</legend>
+                    <div class="mapping-head">
+                      <strong>Ambient music signal</strong
+                      ><output id="music-config-state">DRONE + PULSE</output>
+                    </div>
+                    <p class="music-config-note">
+                      Two arousal measures shape the generative background in the
+                      cockpit. Toggle playback there with the MUSIC button.
+                    </p>
+                    <div class="mapping-grid">
+                      <label class="wide"
+                        >Drone brightness · filter
+                        <select id="music-metric-drone"></select></label
+                      ><label class="wide"
+                        >Pulse rate · interval
+                        <select id="music-metric-pulse"></select></label
+                      ><p class="fine-print wide">
+                        Brightness follows the first signal's filter cutoff; the
+                        pulse interval follows the second signal's rate.
+                      </p>
+                    </div>
+                  </fieldset>
+
                   <fieldset class="adaptive-range-card">
                     <legend>Personal 0–1 range</legend>
                     <label class="check-row adaptive-toggle">
@@ -710,6 +737,15 @@
                     <button
                       type="button"
                       class="metric-widget-button"
+                      data-scope-metric="aci"
+                      aria-pressed="false"
+                    >
+                      <img src="/assets/metrics/aci.svg" alt="" />
+                      <span><strong>ACI</strong><small><output id="widget-aci">--</output> 0–1</small></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="metric-widget-button"
                       data-scope-metric="ecg_local_power"
                       aria-pressed="false"
                     >
@@ -897,6 +933,22 @@
               aria-pressed="false"
             >
               Sound on
+            </button>
+            <button
+              id="cockpit-music"
+              class="hud-button"
+              type="button"
+              aria-pressed="false"
+            >
+              Music off
+            </button>
+            <button
+              id="cockpit-music-variant"
+              class="hud-button"
+              type="button"
+              hidden
+            >
+              STYLE: DRONE
             </button>
             <button
               id="cockpit-enter-xr"

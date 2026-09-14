@@ -125,6 +125,16 @@ export const POLAR_METRICS = Object.freeze([
     detail: "Square root of local ECG power",
   }),
   Object.freeze({
+    id: "aci",
+    label: "Acceleration Capacity Index",
+    shortLabel: "ACI",
+    unit: "0–1",
+    minimum: 0,
+    maximum: 1,
+    group: "HRV",
+    detail: "Proportion of RR direction changes — beat-to-beat oscillation",
+  }),
+  Object.freeze({
     id: "ecg_peak_to_peak",
     label: "ECG peak-to-peak",
     shortLabel: "ECG range",
@@ -254,6 +264,24 @@ function rmssd(values) {
   return Math.sqrt(squaredDifferenceSum / (values.length - 1));
 }
 
+// ACI (García-González et al., 2003): proportion of consecutive RR first
+// differences that change sign — how often a local maximum/minimum follows the
+// opposite turn. High values mean the interval dynamics oscillate quickly,
+// which rises with exercise and cognitive arousal.
+function accelerationCapacityIndex(values) {
+  if (values.length < 3) return undefined;
+  let signChanges = 0;
+  let comparisons = 0;
+  for (let index = 2; index < values.length; index += 1) {
+    const previous = values[index - 1] - values[index - 2];
+    const current = values[index] - values[index - 1];
+    if (previous === 0 || current === 0) continue;
+    comparisons += 1;
+    if (Math.sign(previous) !== Math.sign(current)) signChanges += 1;
+  }
+  return comparisons > 0 ? signChanges / comparisons : undefined;
+}
+
 class RunningStats {
   constructor() {
     this.count = 0;
@@ -358,6 +386,8 @@ export class PolarMetricProcessor {
           );
         }
         if (rollingSdnn !== undefined) this.values.sdnn = rollingSdnn;
+        const aci = accelerationCapacityIndex(this.rr);
+        if (Number.isFinite(aci)) this.values.aci = aci;
       }
     }
     return this.snapshot();

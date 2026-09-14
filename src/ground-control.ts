@@ -42,6 +42,7 @@ import {
 import { CausalRPeakDetector } from "./signals/rpeak";
 import { RealtimeEcgTrace } from "./signals/realtime-ecg-trace";
 import { GroundCockpit, type CockpitTelemetry } from "./game/ground-cockpit";
+import { normalizeMusicMetric } from "./game/generative-music";
 import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 import { GameDivePublisher } from "./game/dive-intent-channel";
 import { SessionCsvLog } from "./logging/session-log";
@@ -58,6 +59,7 @@ const SETTINGS_KEY = "ecgaming-ground-settings-v2";
 const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
 const SOURCE_KEY = "ecgaming-ground-source-v1";
 const SCOPE_METRIC_KEY = "ecgaming-scope-metric-v1";
+const MUSIC_CONFIG_KEY = "ecgaming-music-config-v1";
 const PILOT_NAME_KEY = "ecgaming-pilot-name-v1";
 const COMMANDS: ContinuousCommand[] = ["altitude", "throttle", "traffic"];
 const COMMAND_LABELS: Record<ContinuousCommand, string> = {
@@ -107,6 +109,7 @@ type ScopeMetricId =
   | "rr_interval"
   | "breathing_volume"
   | "rmssd"
+  | "aci"
   | "ecg_local_power";
 
 const METRIC_ASSET_ROOT = flightAssetUrl("assets/metrics/");
@@ -161,6 +164,14 @@ const SCOPE_METRICS: Record<
     minimum: 0,
     maximum: 120,
   },
+  aci: {
+    label: "ACCELERATION INDEX",
+    icon: METRIC_ASSET_ROOT + "aci.svg",
+    unit: "0–1",
+    digits: 2,
+    minimum: 0,
+    maximum: 1,
+  },
   ecg_local_power: {
     label: "LOCAL ECG POWER",
     icon: METRIC_ASSET_ROOT + "ecg-power.svg",
@@ -177,6 +188,39 @@ function storedScopeMetric(): ScopeMetricId {
   return stored && SCOPE_METRIC_IDS.includes(stored)
     ? stored
     : "excitement_score";
+}
+
+interface MusicSignalConfig {
+  drone: MetricId;
+  pulse: MetricId;
+}
+
+const MUSIC_DRONE_DEFAULT: MetricId = "excitometer";
+const MUSIC_PULSE_DEFAULT: MetricId = "aci";
+const MUSIC_METRIC_IDS: string[] = METRIC_DEFINITIONS.map(
+  (definition) => definition.id,
+);
+
+function musicMetricPicker(metric: string | undefined, fallback: MetricId) {
+  return metric && metric !== "manual" && MUSIC_METRIC_IDS.includes(metric)
+    ? (metric as MetricId)
+    : fallback;
+}
+
+function storedMusicConfig(): MusicSignalConfig {
+  try {
+    const value = localStorage.getItem(MUSIC_CONFIG_KEY);
+    if (value) {
+      const parsed = JSON.parse(value) as Partial<MusicSignalConfig>;
+      return {
+        drone: musicMetricPicker(parsed.drone, MUSIC_DRONE_DEFAULT),
+        pulse: musicMetricPicker(parsed.pulse, MUSIC_PULSE_DEFAULT),
+      };
+    }
+  } catch {
+    /* Corrupt music settings fail safely to defaults. */
+  }
+  return { drone: MUSIC_DRONE_DEFAULT, pulse: MUSIC_PULSE_DEFAULT };
 }
 
 function storedMappings() {
@@ -260,6 +304,7 @@ let mappings = storedMappings();
 let sourceMode: SourceMode =
   localStorage.getItem(SOURCE_KEY) === "beacon" ? "beacon" : "polar";
 let scopeMetric = storedScopeMetric();
+let musicConfig = storedMusicConfig();
 let physicalConnected = false;
 let ecgReady = false;
 let simulated = false;
@@ -362,6 +407,45 @@ function metricOptions(selected: string) {
   );
 }
 
+function musicMetricOptions(selected: string) {
+  const option = (metric: (typeof METRIC_DEFINITIONS)[number]) =>
+    '<option value="' +
+    metric.id +
+    '"' +
+    (metric.id === selected ? " selected" : "") +
+    ">" +
+    metric.label +
+    "</option>";
+  const breathing = METRIC_DEFINITIONS.filter(
+    (metric) => metric.id === "breathing_volume",
+  );
+  const heart = METRIC_DEFINITIONS.filter(
+    (metric) => !["manual", "breathing_volume"].includes(metric.id),
+  );
+  return (
+    '<optgroup label="Breathing · Polar ACC">' +
+    breathing.map(option).join("") +
+    '</optgroup><optgroup label="Heart · ECG / HR / RR">' +
+    heart.map(option).join("") +
+    "</optgroup>"
+  );
+}
+
+function setupMusicControls() {
+  const droneSelect = element<HTMLSelectElement>("music-metric-drone");
+  const pulseSelect = element<HTMLSelectElement>("music-metric-pulse");
+  droneSelect.innerHTML = musicMetricOptions(musicConfig.drone);
+  pulseSelect.innerHTML = musicMetricOptions(musicConfig.pulse);
+  const persist = () => {
+    musicConfig = {
+      drone: musicMetricPicker(droneSelect.value, MUSIC_DRONE_DEFAULT),
+      pulse: musicMetricPicker(pulseSelect.value, MUSIC_PULSE_DEFAULT),
+    };
+    localStorage.setItem(MUSIC_CONFIG_KEY, JSON.stringify(musicConfig));
+  };
+  droneSelect.addEventListener("change", persist);
+  pulseSelect.addEventListener("change", persist);
+}
 function mappingMarkup(command: ContinuousCommand) {
   const value = mappings[command];
   const output = command === "altitude" ? "+0.00" : "50%";
@@ -1716,6 +1800,16 @@ function cockpitTelemetry(runtime: RuntimeState): CockpitTelemetry {
       ready: runtime.active.rrBeatReady && (runtime.active.physicalPolar || (practiceFlight && runtime.active.source === "simulation")),
       simulated: runtime.active.simulation,
     },
+    music: {
+      drone01: normalizeMusicMetric(
+        musicConfig.drone,
+        runtime.active.metrics[musicConfig.drone],
+      ),
+      pulse01: normalizeMusicMetric(
+        musicConfig.pulse,
+        runtime.active.metrics[musicConfig.pulse],
+      ),
+    },
   };
 }
 
@@ -2306,6 +2400,7 @@ renderMappings();
 setupPilotNameField();
 setupActions();
 setupScopeMetricSelector();
+setupMusicControls();
 setupCompactGround(() => cockpit.openRemoteCockpit());
 traceResizeObserver?.observe(element<HTMLCanvasElement>("raw-ecg-preview"));
 practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });

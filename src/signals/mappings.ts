@@ -25,6 +25,7 @@ export const METRIC_RANGE_DEFAULTS: Readonly<
   rmssd: { minimum: 0, maximum: 120, minimumSpan: 5 },
   ln_rmssd: { minimum: 1.5, maximum: 5.5, minimumSpan: 0.2 },
   sdnn: { minimum: 0, maximum: 120, minimumSpan: 5 },
+  aci: { minimum: 0, maximum: 1, minimumSpan: 0.08 },
   ecg_local_power: {
     minimum: 10_000,
     maximum: 2_250_000,
@@ -198,6 +199,7 @@ export function sanitizeMappings(value: unknown): FlightMappings {
       "rmssd",
       "ln_rmssd",
       "sdnn",
+      "aci",
       "ecg_local_power",
       "ecg_rms",
       "ecg_peak_to_peak",

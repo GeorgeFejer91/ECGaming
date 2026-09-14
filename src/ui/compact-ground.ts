@@ -76,7 +76,7 @@ export function setupCompactGround(openRemoteCockpit: () => void) {
   metrics.append(metricTitle, copy, widgetPanel);
   left.after(metrics);
   el("scope-metric-selector").setAttribute("aria-label", "Metric driving plane altitude");
-  const labels: Record<string,string> = { excitement_score: "Excite-O-Meter", heart_rate: "Heart rate", rr_interval: "RR interval", breathing_volume: "Breathing", rmssd: "HRV", ecg_local_power: "ECG power" };
+  const labels: Record<string,string> = { excitement_score: "Excite-O-Meter", heart_rate: "Heart rate", rr_interval: "RR interval", breathing_volume: "Breathing", rmssd: "HRV", aci: "Acceleration index", ecg_local_power: "ECG power" };
   widgetPanel.querySelectorAll<HTMLButtonElement>("[data-scope-metric]").forEach(button => {
     const label=labels[button.dataset.scopeMetric!]; button.querySelector("strong")!.textContent=label; button.setAttribute("aria-label", label);
   });

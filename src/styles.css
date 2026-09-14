@@ -871,6 +871,16 @@ a {
   height: 100%;
   background: linear-gradient(90deg, var(--orange), var(--amber));
 }
+.music-config-card {
+  border-color: rgba(105, 212, 222, 0.28);
+  background: #0e2431;
+}
+.music-config-note {
+  margin: -0.1rem 0.75rem 0.7rem;
+  color: #789098;
+  font-size: 0.6rem;
+  line-height: 1.4;
+}
 .tower-id {
   display: flex;
   justify-content: space-between;
