@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <meta
+      name="description"
+      content="Hold your phone against your belly and breathe. A responsive SVG circle mirrors your breath in realtime."
+    />
+    <title>Phone Breather · ECGaming</title>
+  </head>
+  <body data-phase="hold">
+    <header class="site-header">
+      <a class="brand" href="../">EC<span>Gaming</span></a>
+      <span class="lab-label">Phone Breather · breath demo</span>
+      <a
+        class="readme-link"
+        href="https://github.com/GeorgeFejer91/ECGaming"
+        >GitHub</a
+      >
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Phone Breather · feel the circle</p>
+          <h1 id="page-title"><span>PHONE</span><em>BREATHER</em></h1>
+          <p class="hero-subtitle">belly to circle</p>
+          <p class="intro">
+            Hold your phone flat against your belly. Breathe in and the circle
+            grows; breathe out and it contracts. The phone accelerometer detects
+            your belly expansion in realtime.
+          </p>
+          <div class="transport">
+            <button
+              class="primary-button"
+              id="start-sensor"
+              type="button"
+              aria-pressed="false"
+            >
+              Start sensing
+            </button>
+            <span id="sensor-status" role="status">Tap to enable motion sensors</span>
+          </div>
+        </div>
+
+        <div class="breath-visual" aria-hidden="true">
+          <svg class="breath-svg" viewBox="0 0 320 320" role="presentation">
+            <defs>
+              <radialGradient id="circle-gradient" cx="50%" cy="45%" r="50%">
+                <stop offset="0%" stop-color="rgba(105, 212, 222, 0.35)" />
+                <stop offset="100%" stop-color="rgba(105, 212, 222, 0.04)" />
+              </radialGradient>
+              <radialGradient id="glow-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(105, 212, 222, 0.22)" />
+                <stop offset="100%" stop-color="transparent" />
+              </radialGradient>
+            </defs>
+            <circle id="breath-glow" cx="160" cy="160" r="120" fill="url(#glow-gradient)" opacity="0" />
+            <circle id="breath-ring" cx="160" cy="160" r="60" fill="none" stroke="rgba(105, 212, 222, 0.5)" stroke-width="1.5" stroke-dasharray="4 6" />
+            <circle id="breath-circle" cx="160" cy="160" r="60" fill="url(#circle-gradient)" stroke="rgba(105, 212, 222, 0.6)" stroke-width="2" />
+            <circle id="breath-dot" cx="160" cy="160" r="3" fill="rgba(105, 212, 222, 0.9)" />
+          </svg>
+          <div class="visual-label">
+            <strong id="phase-text">hold</strong>
+            <span id="source-text" data-source="idle">waiting for sensor</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="telemetry" aria-label="Breath telemetry">
+        <div class="telemetry-grid">
+          <div>
+            <dt>Volume</dt>
+            <dd id="tel-volume">0.50</dd>
+          </div>
+          <div>
+            <dt>Phase</dt>
+            <dd id="tel-phase">hold</dd>
+          </div>
+          <div>
+            <dt>Derivative</dt>
+            <dd id="tel-derivative">0.00</dd>
+          </div>
+          <div>
+            <dt>Calibration</dt>
+            <dd id="tel-calibration">0%</dd>
+          </div>
+          <div>
+            <dt>Confidence</dt>
+            <dd id="tel-confidence">0%</dd>
+          </div>
+          <div>
+            <dt>Motion</dt>
+            <dd id="tel-motion">idle</dd>
+          </div>
+        </div>
+      </section>
+
+      <section class="info-panel" aria-label="How it works">
+        <h2>How it works</h2>
+        <p>
+          The phone accelerometer reads 3D motion at device-native rate. A PCA
+          calibration window finds the dominant breathing axis — the direction
+          your belly pushes the phone forward on inhale. The projection onto
+          that axis is normalised to a 0–1 volume using inverse lerp between
+          calibration bounds, matching the polar breathing processor's
+          derivative and phase classification approach.
+        </p>
+        <p>
+          Place the phone screen-up on your lower belly, lie back comfortably,
+          and tap Start. Calibration takes about 10 seconds of normal breathing.
+        </p>
+      </section>
+
+      <aside class="disclaimer">
+        Experimental breath demo, not a medical device. Accelerometer-derived
+        volume is a motion surrogate, not airflow or lung volume.
+      </aside>
+    </main>
+
+    <script type="module" src="/src/phone-breather/main.ts"></script>
+  </body>
+</html>

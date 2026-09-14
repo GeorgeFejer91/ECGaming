@@ -23,6 +23,10 @@ export default defineConfig({
           import.meta.dirname,
           "breath-sonification/index.html",
         ),
+        phoneBreather: resolve(
+          import.meta.dirname,
+          "phone-breather/index.html",
+        ),
       },
     },
   },
