@@ -12,7 +12,7 @@ export class PilotRequest {
   private readonly diagnostics = document.createElement("dl");
   private readonly diagnosticValues = new Map<string, HTMLElement>();
   private readonly cancel = document.createElement("button");
-  constructor(private form: HTMLFormElement, private hint: string, private accepted: (invitation: TiltInvitation, name: string) => void,
+  constructor(private form: HTMLFormElement, private hint: string, private hintLabel: string, private accepted: (invitation: TiltInvitation, name: string) => void,
     private mode: PilotRequestMode = "pilot") {
     this.status.id = "pilot-request-status"; this.status.setAttribute("role", "status");
     this.choices.className = "pilot-tower-choices";
@@ -22,7 +22,7 @@ export class PilotRequest {
     this.cancel.addEventListener("click", () => this.stop("Request cancelled."));
     form.append(this.status, this.choices, this.diagnostics, this.cancel);
     this.setDiagnostic("Site", location.host || "unknown");
-    this.setDiagnostic("Target", this.hint ? `Ground Control ${this.hint}` : "Any open Ground Control");
+    this.setDiagnostic("Target", this.targetLabel());
     this.setDiagnostic("Security", isSecureContext ? "HTTPS ready" : "HTTPS required");
     this.setDiagnostic("Discovery", "Enter pilot name");
     this.setDiagnostic("Channel", "Not started");
@@ -42,27 +42,27 @@ export class PilotRequest {
     let sendCount = 0;
     const retrying = attempt > 0, attemptLabel = `${attempt + 1}/3`;
     this.lock(true); this.status.textContent = retrying ? `Retrying Ground Control request ${attemptLabel}…` : "Looking for Ground Control…";
-    this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
+    this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.targetLabel()}` : "Scanning this site");
     this.setDiagnostic("Channel", "Waiting for tower");
     this.setDiagnostic("Request", retrying ? `Retrying ${attemptLabel}` : "Ready to send");
     this.discoveryTimer = setTimeout(() => {
       if (this.lobby !== lobby) return;
       const site = location.host || "this site";
       this.status.textContent = `Still looking for Ground Control on ${site}…`;
-      this.setDiagnostic("Discovery", this.hint ? `No tower ${this.hint} found on ${site}` : `No tower found on ${site}`);
+      this.setDiagnostic("Discovery", this.hint ? `${this.targetLabel()} not found on ${site}` : `No tower found on ${site}`);
       this.setDiagnostic("Channel", "Open Ground Control in this same site");
       this.setDiagnostic("Request", "Not sent");
     }, 4_000);
     lobby.addEventListener("status", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
       this.status.textContent = e.detail;
-      if (e.detail.startsWith("Connecting to Ground Control")) {
+      if (e.detail.startsWith("Connecting to ")) {
         this.clearDiscoveryTimer();
-        this.setDiagnostic("Discovery", this.hint ? `Ground Control ${this.hint} found` : "Ground Control selected");
+        this.setDiagnostic("Discovery", this.hint ? `${this.targetLabel()} found` : "Ground Control selected");
         this.setDiagnostic("Channel", e.detail);
       }
       else if (e.detail.startsWith("Could not")) this.setDiagnostic("Channel", e.detail);
-      else if (e.detail.includes("Looking for Ground Control")) this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.hint}` : "Scanning this site");
+      else if (e.detail.includes("Looking for Ground Control")) this.setDiagnostic("Discovery", this.hint ? `Scanning for ${this.targetLabel()}` : "Scanning this site");
     }) as EventListener);
     lobby.addEventListener("towers", ((e: CustomEvent<Tower[]>) => {
       if (this.lobby !== lobby) return;
@@ -70,7 +70,7 @@ export class PilotRequest {
       this.status.textContent = e.detail.length ? "Choose your Ground Control" : "Waiting for Ground Control to open…";
       if (e.detail.length) this.clearDiscoveryTimer();
       this.setDiagnostic("Discovery", e.detail.length ? `${e.detail.length} Ground Control window${e.detail.length === 1 ? "" : "s"} found` :
-        this.hint ? `Target ${this.hint} not found yet` : "No Ground Control found yet");
+        this.hint ? `${this.targetLabel()} not found yet` : "No Ground Control found yet");
       this.setDiagnostic("Channel", e.detail.length ? "Choose a tower" : "Waiting");
       for (const tower of e.detail) {
         const button = document.createElement("button"); button.type = "button"; button.textContent = tower.label;
@@ -81,7 +81,7 @@ export class PilotRequest {
     lobby.addEventListener("peer", ((e: CustomEvent<string>) => {
       if (this.lobby !== lobby) return;
       this.clearDiscoveryTimer();
-      this.setDiagnostic("Discovery", this.hint ? `Ground Control ${this.hint} found` : "Ground Control selected");
+      this.setDiagnostic("Discovery", this.hint ? `${this.targetLabel()} found` : "Ground Control selected");
       this.setDiagnostic("Channel", "Request channel open");
       const sendRequest = () => {
         ++sendCount;
@@ -173,6 +173,10 @@ export class PilotRequest {
       cell = description; this.diagnosticValues.set(label, cell);
     }
     cell.textContent = value;
+  }
+  private targetLabel() {
+    if (this.hintLabel) return this.hintLabel;
+    return this.hint ? "Selected Ground Control" : "Any open Ground Control";
   }
   private lock(pending: boolean) {
     this.form.querySelector("input")!.disabled = pending;

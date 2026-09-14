@@ -8,7 +8,7 @@ import { cleanPilotName } from "./pilot-name";
 import { PracticeHeartbeat } from "./practice-heartbeat";
 import { PolarRrHaptics } from "./rr-haptics";
 import { PilotRequest } from "./pilot-request";
-import { validTower } from "./pilot-lobby";
+import { cleanTowerName, validTower } from "./pilot-lobby";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pilotEntry = element<HTMLFormElement>("pilot-entry");
@@ -334,13 +334,15 @@ document.addEventListener("visibilitychange", () => {
 let pilotRequest: PilotRequest | undefined;
 if (invitation && isSecureContext && window.top === window.self) connect();
 else if (directVisit && isSecureContext && window.top === window.self) {
-  const hint = new URLSearchParams(location.search).get("tower") ?? "";
+  const params = new URLSearchParams(location.search);
+  const hint = params.get("tower") ?? "";
+  const towerName = cleanTowerName(params.get("towerName") ?? "");
   if (!hint || validTower(hint)) {
     entryFeedback.textContent = hint
-      ? `Enter your name to ask Ground Control ${hint} for wheel access.`
-      : "Enter your name to ask an open Ground Control for wheel access.";
+      ? `Enter your name to ask ${towerName || "the selected Ground Control"} for wheel access.`
+      : "Enter your name to search for Ground Control.";
     element("setup").hidden = true; pilotEntry.hidden = false;
-    pilotRequest = new PilotRequest(pilotEntry, hint, (accepted, name) => {
+    pilotRequest = new PilotRequest(pilotEntry, hint, towerName, (accepted, name) => {
       entryFeedback.textContent = "Ground Control accepted. Opening the yoke.";
       invitation = accepted; link.pilotName = name; pilotEntered = true;
       pilotEntry.hidden = true; element("controls").hidden = false; connect(true);

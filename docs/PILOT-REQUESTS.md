@@ -1,9 +1,12 @@
 # Pilot requests
 
-Ground Control starts reception when its page opens. A direct visit to
-`/controller/` asks for a pilot name, discovers an open Ground Control and sends
-a request. With multiple towers, the phone asks which one to join. The URL next
-to the QR code includes `?tower=<id>` to choose that particular tower.
+Ground Control asks for a session callsign, such as `Major Tom`, before it
+announces itself. A direct visit to `/controller/` asks for a pilot name,
+discovers open Ground Control pages, displays their callsigns, and sends a
+request to the chosen tower. External cockpit requests ask for a cockpit name.
+With multiple towers, the phone asks which one to join by callsign. Direct links
+can still include `?tower=<id>` to choose a particular hidden route, plus
+`towerName=<callsign>` for readable feedback.
 
 Ground Control can accept or decline. Only acceptance replaces the current
 phone and supplies the new pilot with a fresh private invitation. The phone
@@ -28,7 +31,8 @@ only after all attempts fail.
 
 The public rendezvous uses pinned VDO.Ninja SDK 1.5.5 and a reliable ordered
 `ecg_pilot_request_v1` channel, in a room scoped to the website host. Discovery
-announces a random tower label. Pilot names travel only in point-to-point
+uses a hidden random stream ID for routing and a user-entered Ground Control
+callsign for display. Pilot and cockpit names travel only in point-to-point
 requests. Names are display labels, not verified identities.
 
 This rendezvous is separate from BRSP/1 flight control. It accepts only bounded

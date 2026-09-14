@@ -1,14 +1,18 @@
 import { getFlightSessionHub } from "../flight-session/hub";
 import { createTiltInvitation } from "./invitation";
 import type { TiltLink } from "./link";
-import { PilotLobby, type PilotMessage } from "./pilot-lobby";
+import { cleanTowerName, PilotLobby, type PilotMessage } from "./pilot-lobby";
 import "./host.css";
 
 /** One reception desk per Ground Control page, independent of the 3D cockpit. */
-class PilotReception {
+class PilotReception extends EventTarget {
   readonly lobby = new PilotLobby("tower");
   private readonly hub = getFlightSessionHub();
   private readonly dialog = document.createElement("dialog");
+  private readonly towerDialog = document.createElement("dialog");
+  private readonly towerInput = document.createElement("input");
+  private readonly towerSuggestions = document.createElement("datalist");
+  private readonly towerStatus = document.createElement("p");
   private readonly requests = new Map<string, { id: string; row: HTMLElement }>();
   private readonly requested = new Set<string>();
   private readonly cockpitViewers = new Map<string, TiltLink>();
@@ -17,7 +21,12 @@ class PilotReception {
   private monitor?: ReturnType<typeof setInterval>;
   private busy = false;
   private accepting = "";
+  private name = "";
+  private nameConfirmed = false;
   constructor() {
+    super();
+    this.name = this.storedTowerName();
+    this.buildTowerNamePrompt();
     this.dialog.className = "pilot-request-dialog";
     this.dialog.setAttribute("aria-label", "Pilot requests");
     const title = document.createElement("h2"); title.textContent = "Take the wheel";
@@ -71,6 +80,8 @@ class PilotReception {
   }
   start() {
     if (!isSecureContext || window.top !== window.self) return;
+    this.showTowerNamePrompt();
+    if (!this.nameConfirmed) return;
     if (!this.monitor) this.monitor = setInterval(() => this.ensureStarted(), 2500);
     this.ensureStarted();
   }
@@ -87,11 +98,60 @@ class PilotReception {
   }
   url() {
     const url = new URL("../controller/", location.href);
-    url.searchParams.set("tower", this.lobby.towerId); return url.href;
+    url.searchParams.set("tower", this.lobby.towerId);
+    if (this.nameConfirmed) url.searchParams.set("towerName", this.name);
+    return url.href;
   }
   cockpitUrl() {
     const url = new URL("../session-cockpit/", location.href);
-    url.searchParams.set("tower", this.lobby.towerId); return url.href;
+    url.searchParams.set("tower", this.lobby.towerId);
+    if (this.nameConfirmed) url.searchParams.set("towerName", this.name);
+    return url.href;
+  }
+  get towerName() { return this.nameConfirmed ? this.name : ""; }
+  private storedTowerName() {
+    try { return cleanTowerName(localStorage.getItem("ecgaming-control-tower-name-v1") ?? ""); }
+    catch { return ""; }
+  }
+  private buildTowerNamePrompt() {
+    this.towerDialog.className = "tower-name-dialog";
+    this.towerDialog.setAttribute("aria-label", "Name this Ground Control");
+    const form = document.createElement("form"); form.method = "dialog";
+    const title = document.createElement("h2"); title.textContent = "Name this Ground Control";
+    const copy = document.createElement("p"); copy.textContent = "Pilots will choose this callsign from the steering wheel screen.";
+    const label = document.createElement("label");
+    const labelText = document.createElement("span"); labelText.textContent = "Ground Control callsign";
+    this.towerInput.type = "text"; this.towerInput.maxLength = 32; this.towerInput.required = true;
+    this.towerInput.autocomplete = "organization"; this.towerInput.placeholder = "Major Tom"; this.towerInput.value = this.name;
+    this.towerInput.setAttribute("list", "tower-callsign-suggestions");
+    this.towerSuggestions.id = "tower-callsign-suggestions";
+    for (const value of ["Major Tom", "Starman", "Ziggy Station", "Blackstar Control", "Low Orbit"]) {
+      const option = document.createElement("option"); option.value = value; this.towerSuggestions.append(option);
+    }
+    const save = document.createElement("button"); save.type = "submit"; save.textContent = "Transmit callsign";
+    this.towerStatus.setAttribute("role", "status");
+    if (this.name) this.towerStatus.textContent = "Confirm this callsign to broadcast this Ground Control.";
+    label.append(labelText, this.towerInput);
+    form.append(title, copy, label, this.towerSuggestions, save, this.towerStatus);
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const next = cleanTowerName(this.towerInput.value);
+      if (!next) { this.towerInput.value = ""; this.towerInput.reportValidity(); return; }
+      this.name = next; this.nameConfirmed = true; this.towerInput.value = next; this.towerStatus.textContent = `${next} is broadcasting to steering wheels.`;
+      try { localStorage.setItem("ecgaming-control-tower-name-v1", next); } catch { /* Persistence is helpful, not required. */ }
+      this.lobby.setTowerName(next);
+      this.dispatchEvent(new CustomEvent("tower-name", { detail: next }));
+      if (this.towerDialog.open) this.towerDialog.close();
+      this.start();
+    });
+    this.towerDialog.append(form);
+    document.body.append(this.towerDialog);
+  }
+  private showTowerNamePrompt() {
+    if (this.nameConfirmed || this.towerDialog.open) return;
+    try { this.towerDialog.show(); }
+    catch { this.towerDialog.open = true; }
+    this.towerInput.focus();
   }
   private setBusy(value: boolean) {
     this.busy = value;

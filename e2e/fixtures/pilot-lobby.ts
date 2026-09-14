@@ -13,7 +13,7 @@ export function installPilotLobbyFixture() {
   }
   class SDK extends EventTarget {
     id = crypto.randomUUID(); stream = ""; bus?: BroadcastChannel;
-    sources = new Map<string, string>(); channels = new Map<string, Channel>();
+    sources = new Map<string, { uuid: string; label: string }>(); channels = new Map<string, Channel>();
     registry = "";
     async connect() { (window as any).testSdkStarts++; }
     post(message: Record<string, unknown>) { this.bus?.postMessage({ ...message, from: this.id }); }
@@ -22,7 +22,10 @@ export function installPilotLobbyFixture() {
       this.registry = `pilot-test-${room}-sources`;
       this.bus.onmessage = ({ data: d }) => {
         if (d.to && d.to !== this.id) return;
-        if (d.kind === "listing") { this.sources.set(d.stream, d.from); emit(this, "listing", { list: [{ streamID: d.stream, UUID: d.from }] }); }
+        if (d.kind === "listing") {
+          this.sources.set(d.stream, { uuid: d.from, label: d.label });
+          emit(this, "listing", { list: [{ streamID: d.stream, UUID: d.from, label: d.label }] });
+        }
         if (d.kind === "view") emit(this, "dataChannelOpen", { uuid: d.from });
         if (d.kind === "channel") {
           const channel = new Channel(this, d.from, d.label); this.channels.set(d.from, channel);
@@ -47,16 +50,20 @@ export function installPilotLobbyFixture() {
       // The signaling server returns one complete listing. Reading its simulated
       // registry avoids racing replies from background, WebGL-heavy tower tabs.
       const list = Object.entries(JSON.parse(localStorage.getItem(this.registry) ?? "{}"))
-        .map(([streamID, UUID]) => { this.sources.set(streamID, UUID as string); return { streamID, UUID }; });
+        .map(([streamID, value]) => {
+          const source = typeof value === "string" ? { uuid: value, label: "" } : value as { uuid: string; label?: string };
+          this.sources.set(streamID, { uuid: source.uuid, label: source.label ?? "" });
+          return { streamID, UUID: source.uuid, label: source.label ?? "" };
+        });
       emit(this, "listing", { list });
     }
-    async announce({ streamID }: { streamID: string }) {
+    async announce({ streamID, label }: { streamID: string; label?: string }) {
       this.stream = streamID;
-      const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); sources[streamID] = this.id;
+      const sources = JSON.parse(localStorage.getItem(this.registry) ?? "{}"); sources[streamID] = { uuid: this.id, label: label ?? "" };
       localStorage.setItem(this.registry, JSON.stringify(sources));
-      this.post({ kind: "listing", stream: this.stream });
+      this.post({ kind: "listing", stream: this.stream, label: label ?? "" });
     }
-    async view(stream: string) { this.post({ kind: "view", to: this.sources.get(stream) }); }
+    async view(stream: string) { this.post({ kind: "view", to: this.sources.get(stream)?.uuid }); }
     async openChannel(peer: string, label: string) {
       const channel = new Channel(this, peer, `x-${label}`); this.channels.set(peer, channel);
       this.post({ kind: "channel", to: peer, label: channel.label, stream: this.stream }); return channel;

@@ -2,8 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 import { installPilotLobbyFixture } from "./fixtures/pilot-lobby";
 
-async function ground(page: Page) {
+async function ground(page: Page, towerName = "Major Tom") {
   await page.goto("./ground-control/");
+  await expect(page.getByRole("dialog", { name: "Name this Ground Control" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Ground Control callsign" }).fill(towerName);
+  await page.getByRole("button", { name: "Transmit callsign" }).click();
   await expect(page.locator("#connect-phone-controller")).toBeVisible();
   const url = await page.evaluate(async () => (await import("/src/phone-tilt/pilot-reception.ts")).getPilotReception().url());
   const stream = `ecg_pilot_${new URL(url).searchParams.get("tower")}`;
@@ -18,7 +21,7 @@ async function request(phone: Page, url: string, name: string) {
 }
 async function requestCockpit(cockpit: Page, url: string, name: string) {
   await cockpit.goto(url, { waitUntil: "domcontentloaded" });
-  await cockpit.getByRole("textbox", { name: "Pilot name", exact: true }).fill(name);
+  await cockpit.getByRole("textbox", { name: "Cockpit name", exact: true }).fill(name);
   await cockpit.getByRole("button", { name: "Request cockpit", exact: true }).click();
 }
 async function phoneState(page: Page) {
@@ -74,7 +77,7 @@ test("request channel closure retries before reporting failure", async ({ page, 
   await expect.poll(() => page.evaluate(() => (window as any).pilotDroppedRequestCount ?? 0)).toBe(1);
   const approval = page.getByRole("dialog", { name: "Pilot requests" });
   await expect(approval).toContainText("Retry wants to take the wheel.");
-  await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryGround Control .* found|DiscoveryGround Control selected/);
+  await expect(phone.locator(".pilot-request-debug")).toContainText(/DiscoveryMajor Tom found|DiscoveryGround Control selected/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelRequest channel open/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/Request(Received by Ground Control|Sent; check Ground Control)/);
 });
@@ -115,15 +118,14 @@ test("declining a second pilot preserves the current pilot; cancelling clears re
 });
 
 test("multiple towers require a choice and route the request only to that tower", async ({ page, context }) => {
-  const firstUrl = await ground(page), other = await context.newPage();
-  await ground(other);
+  const firstUrl = await ground(page, "Major Tom"), other = await context.newPage();
+  await ground(other, "Starman");
   const phone = await context.newPage();
   await request(phone, new URL("/controller/", firstUrl).href, "Pilot");
   await expect(phone.locator(".pilot-tower-choices button")).toHaveCount(2);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/Discovery2 Ground Control windows found/);
   await expect(phone.locator(".pilot-request-debug")).toContainText(/ChannelChoose a tower/);
-  const id = new URL(firstUrl).searchParams.get("tower")!;
-  await phone.getByRole("button", { name: `Ground Control ${id}`, exact: true }).click();
+  await phone.getByRole("button", { name: "Major Tom", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Pilot requests" })).toBeVisible();
   await expect(other.getByRole("dialog", { name: "Pilot requests" })).toBeHidden();
 });

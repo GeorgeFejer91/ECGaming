@@ -24,6 +24,13 @@
 .flight-relay-panel select { width: 100%; min-height: 44px; margin-top: 8px; font: inherit; background: #fff; color: #243b39; border: 1px solid #8a9991; padding: 8px; }
 .flight-relay-panel button { min-height: 44px; font: inherit; padding: 8px 12px; margin: 4px 8px 4px 0; background: #263d3a; color: #fff7ec; border: 1px solid #8a9991; border-radius: 6px; cursor: pointer; }
 .phone-tilt-dialog :focus-visible, .phone-tilt-button:focus-visible { outline: 3px solid #8d3447; outline-offset: 3px; }
+.tower-name-dialog { position: fixed; inset: auto 16px 16px auto; width: min(360px, calc(100vw - 32px)); padding: 16px; border: 1px solid #8a9991; border-radius: 6px; background: #263d3a; color: #fff4e6; font: inherit; z-index: 20; }
+.tower-name-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.tower-name-dialog p { margin: 8px 0; font-size: 13px; line-height: 1.4; }
+.tower-name-dialog label { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; }
+.tower-name-dialog input { min-height: 44px; border: 1px solid #8a9991; border-radius: 4px; background: #132825; color: #fff4e6; padding: 8px 10px; font: inherit; }
+.tower-name-dialog input::placeholder { color: #a8b5ac; }
+.tower-name-dialog button { min-height: 40px; margin-top: 12px; padding: 8px 12px; border: 1px solid #d6c4ab; border-radius: 4px; background: #d6c4ab; color: #132825; font: inherit; cursor: pointer; }
 /* The same SVG supplies the grips and arms on the phone and its pairing popup. */
 body > dialog.phone-tilt-dialog[open] { width: min(920px, calc(100vw - 16px)); max-height: none; padding: 8px 0; border: 0; background: transparent; color: #fff4e6; overflow: visible; }
 dialog.phone-tilt-dialog[open]::before { content: ""; position: absolute; inset: 0; background: url("./steering-yoke.svg") center / 100% 100% no-repeat; pointer-events: none; }

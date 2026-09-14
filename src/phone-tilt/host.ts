@@ -71,13 +71,21 @@ export class PhoneTiltHost {
     this.relayPanel.append(speedLabel, phoneActions);
     this.console.append(title, copy, this.canvas, this.status, this.anchor, actions, this.relayPanel);
     if (this.hub.coordinator) {
+      const reception = getPilotReception();
       const instruction = document.createElement("div"); instruction.className = "phone-chrome-instructions";
-      const url = getPilotReception().url(), link = document.createElement("a");
-      link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
-      link.textContent = new URL(url).host + "/controller/";
+      const link = document.createElement("a");
+      link.target = "_blank"; link.rel = "noopener noreferrer";
       const steps = document.createElement("p");
       steps.append("Open ", link, " in Google Chrome on your phone. Enter your name and request the wheel.");
-      const tower = document.createElement("p"); tower.textContent = `Ground Control ${getPilotReception().lobby.towerId}`;
+      const tower = document.createElement("p");
+      const updateRequestLink = () => {
+        const url = reception.url();
+        link.href = url;
+        link.textContent = new URL(url).host + "/controller/";
+        tower.textContent = reception.towerName ? `Ground Control: ${reception.towerName}` : "Name this Ground Control before pilots request the wheel.";
+      };
+      updateRequestLink();
+      reception.addEventListener("tower-name", updateRequestLink, { signal: this.abort.signal });
       instruction.append(steps, tower);
       const options = document.createElement("div"); options.className = "phone-pairing-options";
       this.canvas.before(options); options.append(this.canvas, instruction);
@@ -125,6 +133,7 @@ export class PhoneTiltHost {
     return this.hub.readTilt();
   }
   private buildRelayPanel() {
+    const reception = getPilotReception();
     const section = document.createElement("section"); section.className = "flight-source-options";
     const source = document.createElement("select"); source.id = "flight-session-source";
     for (const [value, label] of [["ground", "Ground Control · current signal"], ["phone", "Phone controller · Polar H10"], ["cockpit", "Separate cockpit · Polar H10"]]) {
@@ -146,8 +155,10 @@ export class PhoneTiltHost {
     this.pairCockpit = pair;
     const requestLink = document.createElement("a");
     requestLink.textContent = "Open request cockpit";
-    requestLink.href = getPilotReception().cockpitUrl();
     requestLink.target = "_blank"; requestLink.rel = "noopener noreferrer";
+    const updateCockpitRequestLink = () => { requestLink.href = reception.cockpitUrl(); };
+    updateCockpitRequestLink();
+    reception.addEventListener("tower-name", updateCockpitRequestLink, { signal: this.abort.signal });
     const stop = document.createElement("button"); stop.type = "button"; stop.textContent = "Disconnect cockpit"; stop.hidden = true;
     const canvas = document.createElement("canvas"); canvas.hidden = true; canvas.setAttribute("aria-label", "Scan to join the separate cockpit");
     const anchor = document.createElement("a"); anchor.textContent = "Open cockpit"; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.hidden = true;

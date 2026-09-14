@@ -2,7 +2,8 @@
 
 ## Connect and fly
 
-1. On **Ground Control**, click the dedicated SVG **Phone steering** widget.
+1. On **Ground Control**, confirm a callsign for this tower, then click the
+   dedicated SVG **Phone steering** widget.
 2. Scan the QR to start pairing, enter your pilot name, and tap the arrow to take control with tilt enabled. Hold the phone/tablet sideways with the screen facing you; its first valid reading sets the centre. A hand symbol appears when motion permission needs a tap on the instrument. Tap the instrument again to recenter. Dragging the grips steers in touch fallback when motion is unavailable; arrow keys also steer. Touching a grip during tilt mode does not override the sensor.
 3. To use the phone for ECG, tap the heart-rate icon on the yoke and choose **Phone controller** under **Flight settings → ECG source** on Ground Control.
 4. For a third screen, click **Pair separate cockpit** and open or scan its link. This opens `/session-cockpit/`, using the same aircraft and WebXR game engine. It connects automatically. Tap **Start flight** once the selected physical H10 signal is ready.

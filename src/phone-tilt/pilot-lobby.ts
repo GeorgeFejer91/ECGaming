@@ -1,5 +1,5 @@
 import { loadTiltSdk } from "./link";
-import { cleanPilotName } from "./pilot-name";
+import { cleanDisplayName, cleanPilotName } from "./pilot-name";
 import { readTiltInvitation, type TiltInvitation } from "./invitation";
 import { randomToken } from "../vendor/brsp/src/brsp.js";
 
@@ -28,6 +28,7 @@ export function parsePilotMessage(data: unknown): PilotMessage | undefined {
       readTiltInvitation(new URLSearchParams(v.invitation).toString())) return v;
   } catch { /* Invalid public request. */ }
 }
+export const cleanTowerName = cleanDisplayName;
 export interface Tower { id: string; label: string }
 const emit = (target: EventTarget, name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail }));
 
@@ -45,7 +46,16 @@ export class PilotLobby extends EventTarget {
   private advertise?: ReturnType<typeof setInterval>;
   private reconnect?: ReturnType<typeof setInterval>;
   private deadlines = new Map<string, number>();
+  private towerName = "";
   constructor(readonly role: "tower" | "pilot", private hint = "") { super(); }
+  get label() { return this.towerName || `Ground Control ${this.towerId}`; }
+  setTowerName(value: string) {
+    const next = cleanTowerName(value);
+    if (!next || next === this.towerName) return next;
+    this.towerName = next;
+    void this.announce();
+    return next;
+  }
   async start() {
     this.stop(); const generation = this.generation;
     await loadTiltSdk(); if (generation !== this.generation) return;
@@ -59,8 +69,10 @@ export class PilotLobby extends EventTarget {
       const stream = item?.streamID ?? item?.streamId ?? "";
       if (typeof stream !== "string" || !stream.startsWith(PREFIX) || !validTower(stream.slice(PREFIX.length)) || this.sources.size >= 32) return;
       const id = stream.slice(PREFIX.length);
+      const fallback = `Ground Control ${id}`;
+      const label = cleanTowerName(typeof item?.label === "string" ? item.label : "") || fallback;
       const fresh = !this.sources.has(id);
-      this.sources.set(id, { id, label: `Ground Control ${id}` });
+      this.sources.set(id, { id, label });
       if (this.role !== "pilot" || this.selected || !fresh) return;
       clearTimeout(this.settle);
       this.settle = setTimeout(() => {
@@ -96,9 +108,8 @@ export class PilotLobby extends EventTarget {
       const room = `${ROOM}_${location.host.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 48)}`;
       await sdk.joinRoom({ room, password: false }); if (!current()) return;
       if (this.role === "tower") {
-        const announce = () => void sdk.announce({ streamID: PREFIX + this.towerId, label: `Ground Control ${this.towerId}` }).catch(() => {});
-        announce();
-        this.advertise = setInterval(() => { if (current()) announce(); }, 2500);
+        void this.announce();
+        this.advertise = setInterval(() => { if (current()) void this.announce(); }, 2500);
       }
       if (current()) emit(this, "status", this.role === "tower" ? "ready" : "Looking for Ground Control…");
     } catch (error) { if (current()) { this.stop(); throw error; } }
@@ -106,7 +117,7 @@ export class PilotLobby extends EventTarget {
   async select(id: string) {
     if (!this.sdk || this.selected || !this.sources.has(id) || (this.hint && id !== this.hint)) return;
     this.selected = id;
-    emit(this, "status", `Connecting to Ground Control ${id}…`);
+    emit(this, "status", `Connecting to ${this.sources.get(id)!.label}…`);
     const sdk = this.sdk;
     const view = () => sdk.view(PREFIX + id, { audio: false, video: false, downloads: false, allowresources: false });
     clearInterval(this.reconnect);
@@ -134,6 +145,10 @@ export class PilotLobby extends EventTarget {
     const channel = this.peers.get(peer), data = JSON.stringify(message);
     if (!channel || channel.readyState !== "open" || channel.bufferedAmount > 4096 || !parsePilotMessage(data)) return false;
     try { channel.send(data); return true; } catch { return false; }
+  }
+  private async announce() {
+    if (this.role !== "tower" || !this.sdk || !this.towerName) return;
+    await this.sdk.announce({ streamID: PREFIX + this.towerId, label: this.towerName }).catch(() => {});
   }
   closePeer(peer: string) {
     if (!this.peers.has(peer)) return;

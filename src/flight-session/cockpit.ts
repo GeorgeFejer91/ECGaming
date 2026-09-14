@@ -11,7 +11,7 @@ import { FlightFlags } from "../protocol/flight-frame";
 import { AIRCRAFT_CATALOG } from "../game/aircraft";
 import { PilotRequest } from "../phone-tilt/pilot-request";
 import { cleanPilotName } from "../phone-tilt/pilot-name";
-import { validTower } from "../phone-tilt/pilot-lobby";
+import { cleanTowerName, validTower } from "../phone-tilt/pilot-lobby";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const directVisit = !location.hash;
@@ -94,11 +94,13 @@ window.addEventListener("pagehide", () => { stop(); releaseSteering(); game.disp
 
 if (invitation && isSecureContext && window.top === window.self) connect();
 else if (directVisit && isSecureContext && window.top === window.self) {
-  const hint = new URLSearchParams(location.search).get("tower") ?? "";
+  const params = new URLSearchParams(location.search);
+  const hint = params.get("tower") ?? "";
+  const towerName = cleanTowerName(params.get("towerName") ?? "");
   if (!hint || validTower(hint)) {
     const form = element<HTMLFormElement>("cockpit-entry");
     form.hidden = false;
-    cockpitRequest = new PilotRequest(form, hint, accepted => {
+    cockpitRequest = new PilotRequest(form, hint, towerName, accepted => {
       invitation = accepted; form.hidden = true; connect();
     }, "cockpit");
     form.addEventListener("submit", event => {
