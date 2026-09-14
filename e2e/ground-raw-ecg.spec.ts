@@ -3,6 +3,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { openGroundControl } from "./fixtures/ground-control";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
+const BEAT_HAPTIC_MS = 50;
+
 const ink = (page: Page, id: string) => page.locator(id).evaluate((canvas: HTMLCanvasElement) => {
   const pixels = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
   let count = 0; for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 20) count++;
@@ -75,7 +77,7 @@ test("practice ECG pulses the paired steering wheel without Bluetooth and stops 
   await enterPilot(phone);
   await expect(phone.locator("#connection-status")).toHaveText("Connected");
   await expect(phone.locator(".polar-source-button")).toHaveAttribute("data-heartbeat", "practice");
-  await expect.poll(() => phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms === 100).length)).toBeGreaterThan(1);
+  await expect.poll(() => phone.evaluate(ms => (window as any).vibrationCalls.filter((duration: number) => duration === ms).length, BEAT_HAPTIC_MS)).toBeGreaterThan(1);
   await expect(phone.locator(".polar-source-button")).toHaveAttribute("data-connected", "false");
   await phone.screenshot({ path: testInfo.outputPath("phone-practice-heart.png") });
   await phone.evaluate(() => { (window as any).testPageVisible = false; document.dispatchEvent(new Event("visibilitychange")); });

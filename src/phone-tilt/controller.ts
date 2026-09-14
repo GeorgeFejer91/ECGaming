@@ -17,6 +17,7 @@ const centreButton = element<HTMLButtonElement>("centre");
 const horizon = document.getElementById("attitude-horizon")!;
 const connectionStatus = element("connection-status"), inputStatus = element("input-status"), pad = element("tilt-pad");
 const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("confirmed");
+const liftMeter = element("lift-meter"), liftMeterFill = element("lift-meter-fill"), liftMeterValue = element("lift-meter-value");
 const entryFeedback = element("pilot-entry-feedback");
 const exitPilot = element<HTMLButtonElement>("exit-pilot");
 yoke.src = yokeUrl;
@@ -162,7 +163,7 @@ function connect(sensorsReady = false) {
 }
 
 function publishInput() {
-  practiceHeartbeatActive = practiceHeartbeat.update(link.relay, link.fresh && pilotEntered, !document.hidden);
+  refreshHeartbeatFeedback();
   renderAttitude();
   const now = performance.now();
   polarSource.configure(link.ready ? link.relay : null);
@@ -196,6 +197,20 @@ function publishInput() {
     link.send(neutralControls()); pad.dataset.steering = "centre";
     confirmed.textContent = "Waiting for flight confirmation · controls released.";
   }
+}
+function refreshHeartbeatFeedback() {
+  practiceHeartbeatActive = practiceHeartbeat.update(link.relay, link.fresh && pilotEntered, !document.hidden);
+  renderLiftMeter();
+}
+function renderLiftMeter() {
+  const frame = link.fresh && pilotEntered ? link.relay?.frame : null;
+  const lift = frame ? Math.max(0, Math.min(1, (frame.altitude + 1) / 2)) : .5;
+  const value = lift.toFixed(2);
+  liftMeter.style.setProperty("--lift", `${Math.round(lift * 100)}%`);
+  liftMeter.dataset.state = frame ? "live" : "stale";
+  liftMeter.setAttribute("aria-valuenow", value);
+  liftMeterValue.textContent = value;
+  liftMeterFill.style.height = `${lift * 100}%`;
 }
 function displayState(state: TiltState) {
   pad.dataset.steering = Math.abs(state.x) < .03 ? "centre" : state.x < 0 ? "left" : "right";
@@ -286,7 +301,7 @@ link.addEventListener("status", (event: Event) => {
   }
 });
 link.addEventListener("ready", () => { if (!centred) autoCentrePending = mode === "tilt"; renderMode(); void keepAwake(); });
-link.addEventListener("state", (event: Event) => displayState((event as CustomEvent<TiltState>).detail));
+link.addEventListener("state", (event: Event) => { refreshHeartbeatFeedback(); displayState((event as CustomEvent<TiltState>).detail); });
 
 const moveTouch = (event: PointerEvent) => {
   const rect = pad.getBoundingClientRect();

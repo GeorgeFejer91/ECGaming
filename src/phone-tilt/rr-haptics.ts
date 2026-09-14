@@ -1,4 +1,6 @@
 /** Local H10 notifications only. Never synthesize beats from BPM or replay an RR backlog. */
+export const HEARTBEAT_HAPTIC_MS = 50;
+
 export class PolarRrHaptics {
   private connected = false;
   private lastPulseAt = -Infinity;
@@ -27,7 +29,7 @@ export class PolarRrHaptics {
     if (now - this.lastPulseAt < 200) return;
     // A Bluetooth notification can contain older RR intervals. Pulse for its newest beat once.
     this.lastPulseAt = now;
-    this.output(100);
+    this.output(HEARTBEAT_HAPTIC_MS);
   }
   pause() { this.output(0); }
   stop() { this.connected = false; this.lastPulseAt = this.lastRPeakAt = -Infinity; this.pause(); }

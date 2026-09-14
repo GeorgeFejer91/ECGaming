@@ -65,6 +65,47 @@ button:disabled { cursor: default; }
 .attitude[data-state="touch"] #touch-cue { display: block; }
 .attitude[data-state="permission"] #tilt-gesture, .attitude[data-state="centre"] #tilt-gesture { display: block; }
 .attitude[data-state="permission"] #attitude-horizon { opacity: .4; }
+.lift-meter {
+  --lift: 50%;
+  position: absolute;
+  left: clamp(-88px, -16dvw, -56px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: clamp(128px, 42dvh, 190px);
+  display: grid;
+  grid-template-rows: 14px minmax(0, 1fr) 18px 14px 14px;
+  justify-items: center;
+  gap: 4px;
+  color: #f5e8d5;
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+}
+.lift-meter-track {
+  position: relative;
+  width: 14px;
+  height: 100%;
+  border: 1px solid #d6c4ab;
+  border-radius: 4px;
+  background: #132825;
+  overflow: hidden;
+}
+#lift-meter-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--lift);
+  background: #ffcf80;
+}
+#lift-meter-value {
+  font-variant-numeric: tabular-nums;
+  color: #ffcf80;
+}
+.lift-meter-label, .lift-meter-limit { color: #d6c4ab; }
+.lift-meter[data-state="stale"] #lift-meter-fill { background: #8a9991; }
+.lift-meter[data-state="stale"] #lift-meter-value { color: #d6c4ab; }
 .yoke-polar { display: flex; justify-content: center; }
 .yoke-polar .polar-source-button { width: 70px; height: 56px; border: 2px solid #d6c4ab; border-radius: 14px; padding: 10px 16px; font-size: 0; line-height: 0; background: #172d2a; color: #f5e8d5; }
 .exit-pilot { position: absolute; z-index: 3; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 54px; height: 54px; border: 2px solid #d6c4ab; border-radius: 8px; padding: 12px; background: #172d2a; color: #f5e8d5; }
@@ -105,6 +146,7 @@ button:disabled { cursor: default; }
   .controller { width: 100dvh; height: 100dvw; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
   #controls { gap: 8px; }
   .attitude { width: min(100%, 56dvw, 220px); }
+  .lift-meter { height: clamp(112px, 38dvw, 170px); }
   #rotate-cue { display: block; }
   .attitude #tilt-gesture, .attitude[data-state="touch"] #touch-cue { display: none; }
 }

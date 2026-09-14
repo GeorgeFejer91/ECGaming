@@ -58,6 +58,13 @@
               </g>
             </svg>
           </button>
+          <div id="lift-meter" class="lift-meter" role="meter" aria-label="Vertical lift excitometer" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.50">
+            <span class="lift-meter-limit" aria-hidden="true">1</span>
+            <span class="lift-meter-track" aria-hidden="true"><span id="lift-meter-fill"></span></span>
+            <span id="lift-meter-value">0.50</span>
+            <span class="lift-meter-label">Lift</span>
+            <span class="lift-meter-limit" aria-hidden="true">0</span>
+          </div>
           <div id="yoke-polar" class="yoke-polar"></div>
           <button id="exit-pilot" class="exit-pilot" type="button" aria-label="Exit pilot">
             <svg viewBox="0 0 32 32" aria-hidden="true">

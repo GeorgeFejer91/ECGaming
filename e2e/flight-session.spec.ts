@@ -3,6 +3,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { openGroundControl } from "./fixtures/ground-control";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
+const BEAT_HAPTIC_MS = 50;
+
 /** Synthetic hardware boundary; no physical Bluetooth qualification is claimed by this test. */
 async function installSyntheticPolar(page: Page, heartRate = 120) {
   await page.evaluate(async hr => {
@@ -154,7 +156,7 @@ test("the phone vibrates for local Polar RR notifications and stops on hide or d
   });
   await phone.getByRole("button", { name: "Connect Polar H10" }).click();
   await phone.evaluate(() => (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [800, 810] }));
-  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([100]);
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([BEAT_HAPTIC_MS]);
   await phone.evaluate(() => {
     (window as any).testPageVisible = false; document.dispatchEvent(new Event("visibilitychange"));
     (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [810] });
@@ -165,8 +167,57 @@ test("the phone vibrates for local Polar RR notifications and stops on hide or d
   });
   await phone.getByRole("button", { name: "Disconnect H10" }).click();
   await phone.evaluate(() => (window as any).emitTestPolar({ kind: "heart-rate", rrIntervalsMs: [810] }));
-  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([100]);
+  expect(await phone.evaluate(() => (window as any).vibrationCalls.filter((ms: number) => ms > 0))).toEqual([BEAT_HAPTIC_MS]);
   expect(await phone.evaluate(() => (window as any).vibrationCalls.at(-1))).toBe(0);
+});
+
+test("the paired steering wheel vibrates for Ground Control Polar RR beats", async ({ page, context }) => {
+  test.setTimeout(60_000);
+  await openGroundControl(page);
+  await page.evaluate(async () => {
+    Object.defineProperty(navigator, "bluetooth", { configurable: true, value: { requestDevice: async () => {} } });
+    const { getPolarBrowserHub } = await import("/src/polar/browser-hub.ts");
+    let callback: (event: any) => void = () => {};
+    getPolarBrowserHub().connect = async listener => {
+      callback = listener;
+      (window as any).emitGroundPolar = listener;
+      callback({ kind: "connection", connected: true, streamHealth: { observedSampleRateHz: 130 } });
+    };
+    getPolarBrowserHub().disconnect = async () => callback({ kind: "connection", connected: false });
+  });
+  await page.getByRole("button", { name: "Connect Polar H10", exact: true }).click();
+  await expect(page.locator("#polar-state")).toHaveText("Polar H10 live");
+
+  await page.locator("#connect-phone-controller").click();
+  const link = page.getByRole("link", { name: "Open controller" }); await expect(link).toBeVisible();
+  const phone = await context.newPage();
+  await phone.goto((await link.getAttribute("href"))!);
+  await phone.evaluate(() => {
+    (window as any).vibrationCalls = [];
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: (duration: number) => {
+      (window as any).vibrationCalls.push(duration); return true;
+    } });
+  });
+  await enterPilot(phone);
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+
+  const emitGroundRrBeat = async (rr = 800) => page.evaluate(rrMs => {
+    const emit = (window as any).emitGroundPolar;
+    emit({ kind: "metrics", snapshot: { values: { excitement_score: .85, heart_rate: 60_000 / rrMs, rr_interval: rrMs } } });
+    emit({ kind: "heart-rate", rrIntervalsMs: [rrMs] });
+    emit({ kind: "ecg", microvolts: [0, 3, 18, 48, 16, 4, 0], sensorTimestampNs: BigInt(Math.round(performance.now())) * 1_000_000n,
+      streamHealth: { observedSampleRateHz: 130 } });
+  }, rr);
+
+  await emitGroundRrBeat();
+  await expect.poll(() => phone.evaluate(ms => (window as any).vibrationCalls.filter((duration: number) => duration === ms).length, BEAT_HAPTIC_MS), { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect(phone.locator("#lift-meter")).toHaveAttribute("aria-valuemin", "0");
+  await expect(phone.locator("#lift-meter")).toHaveAttribute("aria-valuemax", "1");
+  await expect.poll(() => phone.locator("#lift-meter").getAttribute("aria-valuenow"), { timeout: 15_000 }).toMatch(/^0\.[5-9]\d$/);
+  const firstPulses = await phone.evaluate(ms => (window as any).vibrationCalls.filter((duration: number) => duration === ms).length, BEAT_HAPTIC_MS);
+  await phone.waitForTimeout(260);
+  await emitGroundRrBeat(790);
+  await expect.poll(() => phone.evaluate(ms => (window as any).vibrationCalls.filter((duration: number) => duration === ms).length, BEAT_HAPTIC_MS), { timeout: 15_000 }).toBeGreaterThan(firstPulses);
 });
 
 test("unsupported H10 browser retains the paired touch controller", async ({ page, context }) => {

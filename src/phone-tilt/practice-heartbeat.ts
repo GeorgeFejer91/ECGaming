@@ -1,5 +1,6 @@
 import type { RelayState } from "../flight-session/contract";
 import { FlightFlags } from "../protocol/flight-frame";
+import { HEARTBEAT_HAPTIC_MS } from "./rr-haptics";
 
 /** Consume the selected Ground Control beat clock once per beat; never extrapolate network beats. */
 export class PracticeHeartbeat {
@@ -17,7 +18,7 @@ export class PracticeHeartbeat {
     if (this.epoch !== relay.sourceEpoch) { this.epoch = relay.sourceEpoch; this.counter = -1; }
     if (frame.beatCounter !== this.counter) {
       this.counter = frame.beatCounter;
-      if (frame.beatCounter > 0 && frame.beatAgeMs <= 200) this.output(100);
+      if (frame.beatCounter > 0 && frame.beatAgeMs <= 200) this.output(HEARTBEAT_HAPTIC_MS);
     }
     return true;
   }

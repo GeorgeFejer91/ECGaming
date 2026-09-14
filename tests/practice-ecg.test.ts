@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { PracticeEcg } from "../src/signals/practice-ecg";
 import { PracticeHeartbeat } from "../src/phone-tilt/practice-heartbeat";
+import { HEARTBEAT_HAPTIC_MS } from "../src/phone-tilt/rr-haptics";
 import { RelayAuthority } from "../src/flight-session/contract";
 import { FlightFlags } from "../src/protocol/flight-frame";
 
@@ -30,13 +31,13 @@ it("relays one tactile pulse per fresh Ground Control beat and stops for off, hi
     flags: FlightFlags.simulation | FlightFlags.controlReady };
   expect(heartbeat.update(relay, true, true)).toBe(true);
   heartbeat.update(relay, true, true);
-  expect(output.mock.calls).toEqual([[100]]);
+  expect(output.mock.calls).toEqual([[HEARTBEAT_HAPTIC_MS]]);
   relay.frame.beatCounter = 4; relay.frame.beatAgeMs = 400;
   heartbeat.update(relay, true, true); expect(output).toHaveBeenCalledTimes(1);
   relay.frame.beatCounter++; relay.frame.beatAgeMs = 10;
   heartbeat.update(relay, true, false); expect(output).toHaveBeenLastCalledWith(0);
   heartbeat.update(relay, false, true); expect(output).toHaveBeenCalledTimes(2);
-  heartbeat.update(relay, true, true); expect(output).toHaveBeenLastCalledWith(100);
+  heartbeat.update(relay, true, true); expect(output).toHaveBeenLastCalledWith(HEARTBEAT_HAPTIC_MS);
   heartbeat.pause(); heartbeat.update(relay, true, true);
   expect(output.mock.calls.filter(([ms]) => ms > 0)).toHaveLength(2);
   relay.frame.flags = FlightFlags.physicalPolar | FlightFlags.controlReady; relay.frame.beatCounter++;
