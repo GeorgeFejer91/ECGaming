@@ -353,6 +353,44 @@ test("Ground Control metric buttons drive altitude and persist the selected sign
   );
 });
 
+test("Ground Control music switch toggles arousal music and syncs strategy", async ({
+  page,
+}) => {
+  await page.route("**/vendor/vdoninja/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: fakeVdo }),
+  );
+  await openGroundControl(page);
+
+  const toggle = page.locator("#compact-music-enabled");
+  const variant = page.locator("#compact-music-variant");
+  const state = page.locator("#compact-music-enabled-state");
+  await expect(toggle).toBeVisible();
+  await expect(toggle).not.toBeChecked();
+  await expect(state).toHaveText("OFF");
+  await expect(variant).toBeDisabled();
+
+  await toggle.check();
+  await expect(toggle).toBeChecked();
+  await expect(state).toHaveText("ON");
+  await expect(variant).toBeEnabled();
+
+  await variant.selectOption("melody");
+  await expect(variant).toHaveValue("melody");
+  await expect(page.locator("#cockpit-music-variant")).toHaveText(
+    "STYLE: MELODY",
+  );
+  await expect(page.locator("#cockpit-music")).toHaveText("MUSIC ON");
+  await expect(
+    page.getByText("Generative arousal music", { exact: true }),
+  ).toHaveCount(2);
+
+  await page.reload();
+  await nameGroundControl(page);
+  await expect(page.locator("#compact-music-enabled")).toBeChecked();
+  await expect(page.locator("#compact-music-variant")).toHaveValue("melody");
+  await expect(page.locator("#compact-music-enabled-state")).toHaveText("ON");
+});
+
 test("Connect Polar requests Bluetooth only after the visible button is tapped", async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).polarRequests = 0;

@@ -881,6 +881,117 @@ a {
   font-size: 0.6rem;
   line-height: 1.4;
 }
+.music-enabled-row {
+  margin: 0 0.75rem 0.6rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(166, 215, 225, 0.16);
+  border-radius: 6px;
+  background: #0b1d2a;
+}
+.music-enabled-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+.music-enabled-copy strong {
+  font:
+    700 0.7rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: #c9d9de;
+}
+.music-enabled-copy small {
+  color: #789098;
+  font-size: 0.6rem;
+  line-height: 1.35;
+}
+.music-toggle-state {
+  margin-left: auto;
+  font:
+    800 0.72rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+  color: #789098;
+}
+.music-toggle-state.is-on {
+  color: var(--green);
+}
+.music-variant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0.75rem 0.6rem;
+  padding: 0 0.4rem;
+  transition: opacity 0.2s ease;
+}
+.music-variant-row.is-disabled {
+  opacity: 0.45;
+}
+.music-variant-label {
+  color: #789098;
+  font:
+    600 0.6rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.music-variant-row select {
+  min-width: 7.5rem;
+}
+.music-quick-controls {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid rgba(166, 215, 225, 0.14);
+  background: #0e2431;
+}
+.music-quick-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.music-quick-toggle input {
+  accent-color: var(--green);
+}
+.music-quick-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+.music-quick-copy strong {
+  font:
+    700 0.7rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: #c9d9de;
+}
+.music-quick-copy small {
+  color: #789098;
+  font-size: 0.6rem;
+  line-height: 1.35;
+}
+.music-quick-variant {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.4rem;
+  transition: opacity 0.2s ease;
+}
+.music-quick-variant.is-disabled {
+  opacity: 0.45;
+}
+.music-quick-variant span {
+  color: #789098;
+  font:
+    600 0.6rem/1 "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.music-quick-variant select {
+  min-width: 7.5rem;
+}
 .tower-id {
   display: flex;
   justify-content: space-between;

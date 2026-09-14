@@ -12,7 +12,12 @@ import { AircraftPreview } from "./aircraft-preview";
 import type { EcgGameModule } from "./ecg-game-module";
 import { createFlightScene } from "./flight-scene";
 import { FlightSound } from "./sound";
-import { GenerativeMusic, VARIANT_LABELS } from "./generative-music";
+import {
+  GenerativeMusic,
+  VARIANT_LABELS,
+  VARIANT_LIST,
+  type GenerativeVariant,
+} from "./generative-music";
 import { decoratePhoneButton } from "../phone-tilt/button";
 
 const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
@@ -293,27 +298,14 @@ export class GroundCockpit extends EventTarget {
     );
     const musicButton = element<HTMLButtonElement>("cockpit-music");
     const variantButton = element<HTMLButtonElement>("cockpit-music-variant");
-    const refreshMusicUI = () => {
-      musicButton.textContent = this.musicEnabled ? "MUSIC ON" : "MUSIC OFF";
-      musicButton.setAttribute("aria-pressed", String(this.musicEnabled));
-      variantButton.hidden = !this.musicEnabled;
-      if (this.musicEnabled) {
-        variantButton.textContent =
-          "STYLE: " + VARIANT_LABELS[this.music.variantLabel()];
-      }
-    };
-    refreshMusicUI();
-    musicButton.addEventListener("click", async () => {
-      this.musicEnabled = !this.musicEnabled;
-      await this.music.unlock();
-      this.music.setEnabled(this.musicEnabled);
-      refreshMusicUI();
-      localStorage.setItem(MUSIC_KEY, String(this.musicEnabled));
-    });
+    this.refreshMusicUI();
+    musicButton.addEventListener("click", () =>
+      this.setMusicEnabled(!this.musicEnabled),
+    );
     variantButton.addEventListener("click", () => {
-      this.music.cycleVariant();
-      variantButton.textContent =
-        "STYLE: " + VARIANT_LABELS[this.music.variantLabel()];
+      const list = VARIANT_LIST;
+      const current = this.music.variantLabel();
+      this.setMusicVariant(list[(list.indexOf(current) + 1) % list.length]);
     });
     if (this.musicEnabled) void this.music.unlock();
     const xrButton = element<HTMLButtonElement>("cockpit-enter-xr");
@@ -435,6 +427,44 @@ export class GroundCockpit extends EventTarget {
     game.setPaused(!this.effectiveReady || !this.visible);
     requestAnimationFrame(() => dispatchEvent(new Event("resize")));
     return true;
+  }
+
+  isMusicEnabled(): boolean {
+    return this.musicEnabled;
+  }
+
+  musicConfiguration() {
+    return {
+      enabled: this.musicEnabled,
+      variant: this.music.variantLabel(),
+    };
+  }
+
+  setMusicEnabled(value: boolean) {
+    this.musicEnabled = Boolean(value);
+    localStorage.setItem(MUSIC_KEY, String(this.musicEnabled));
+    if (this.musicEnabled) void this.music.unlock();
+    this.music.setEnabled(this.musicEnabled);
+    this.refreshMusicUI();
+    this.dispatchEvent(new CustomEvent("musicchange"));
+  }
+
+  setMusicVariant(variant: GenerativeVariant) {
+    this.music.setVariant(variant);
+    this.refreshMusicUI();
+    this.dispatchEvent(new CustomEvent("musicchange"));
+  }
+
+  private refreshMusicUI() {
+    const musicButton = element<HTMLButtonElement>("cockpit-music");
+    const variantButton = element<HTMLButtonElement>("cockpit-music-variant");
+    musicButton.textContent = this.musicEnabled ? "MUSIC ON" : "MUSIC OFF";
+    musicButton.setAttribute("aria-pressed", String(this.musicEnabled));
+    variantButton.hidden = !this.musicEnabled;
+    if (this.musicEnabled) {
+      variantButton.textContent =
+        "STYLE: " + VARIANT_LABELS[this.music.variantLabel()];
+    }
   }
 
   accept(telemetry: CockpitTelemetry) {

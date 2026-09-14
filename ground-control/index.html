@@ -288,8 +288,25 @@
                     </div>
                     <p class="music-config-note">
                       Two arousal measures shape the generative background in the
-                      cockpit. Toggle playback there with the MUSIC button.
+                      cockpit. Flip this quiet switch to opt in or out.
                     </p>
+                    <label class="check-row music-enabled-row">
+                      <input id="music-enabled" type="checkbox" data-music-enabled />
+                      <span class="music-enabled-copy"
+                        ><strong>Generative arousal music</strong
+                        ><small id="music-enabled-copy" data-music-enabled-copy
+                          >Off by default. Turn on for a quiet, arousal-shaped
+                          background you can opt out of any time.</small
+                        ></span
+                      ><output id="music-enabled-state" class="music-toggle-state" data-music-enabled-state
+                        >OFF</output
+                      >
+                    </label>
+                    <label class="music-variant-row" id="music-variant-row" data-music-variant-row>
+                      <span class="music-variant-label"
+                        >Implementation strategy</span
+                      ><select id="music-variant" data-music-variant disabled></select>
+                    </label>
                     <div class="mapping-grid">
                       <label class="wide"
                         >Drone brightness · filter

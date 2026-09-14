@@ -91,7 +91,22 @@ export function setupCompactGround(openRemoteCockpit: () => void) {
     <canvas id="raw-ecg-preview" class="ecg-preview avionics-ecg-canvas" width="1100" height="260" role="img" aria-label="Raw ECG waveform"></canvas>
     <span class="ecg-calibration" aria-hidden="true">µV · 5 s</span></div>`;
   signals.append(document.querySelector(".ecg-instrument")!, raw);
-  right.append(signals);
+  const musicQuick = document.createElement("section");
+  musicQuick.className = "music-quick-controls";
+  musicQuick.setAttribute("aria-label", "Generative arousal music");
+  musicQuick.dataset.musicQuick = "";
+  musicQuick.innerHTML =
+    '<label class="music-quick-toggle">' +
+    '<input type="checkbox" id="compact-music-enabled" data-music-enabled />' +
+    '<span class="music-quick-copy"><strong>Generative arousal music</strong>' +
+    "<small>Non-intrusive switch. Arousal shapes the quiet cockpit background.</small></span>" +
+    '<output id="compact-music-enabled-state" class="music-toggle-state" data-music-enabled-state>OFF</output>' +
+    "</label>" +
+    '<label class="music-quick-variant is-disabled" id="compact-music-variant-row" data-music-variant-row>' +
+    "<span>Implementation strategy</span>" +
+    '<select id="compact-music-variant" data-music-variant disabled></select>' +
+    "</label>";
+  right.append(signals, musicQuick);
   document.querySelector(".avionics-board")!.remove();
   el("ecg-instrument-title").textContent = "Selected signal";
 }

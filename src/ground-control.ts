@@ -42,7 +42,12 @@ import {
 import { CausalRPeakDetector } from "./signals/rpeak";
 import { RealtimeEcgTrace } from "./signals/realtime-ecg-trace";
 import { GroundCockpit, type CockpitTelemetry } from "./game/ground-cockpit";
-import { normalizeMusicMetric } from "./game/generative-music";
+import {
+  normalizeMusicMetric,
+  VARIANT_LABELS,
+  VARIANT_LIST,
+  type GenerativeVariant,
+} from "./game/generative-music";
 import { GameHeartbeatPublisher } from "./game/heartbeat-channel";
 import { GameDivePublisher } from "./game/dive-intent-channel";
 import { SessionCsvLog } from "./logging/session-log";
@@ -60,6 +65,7 @@ const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
 const SOURCE_KEY = "ecgaming-ground-source-v1";
 const SCOPE_METRIC_KEY = "ecgaming-scope-metric-v1";
 const MUSIC_CONFIG_KEY = "ecgaming-music-config-v1";
+const MUSIC_ENABLED_KEY = "ecgaming-music-enabled-v1";
 const PILOT_NAME_KEY = "ecgaming-pilot-name-v1";
 const COMMANDS: ContinuousCommand[] = ["altitude", "throttle", "traffic"];
 const COMMAND_LABELS: Record<ContinuousCommand, string> = {
@@ -431,6 +437,46 @@ function musicMetricOptions(selected: string) {
   );
 }
 
+function bindMusicControls(root: ParentNode) {
+  const enabledToggle = root.querySelector<HTMLInputElement>("[data-music-enabled]")!;
+  const variantSelect = root.querySelector<HTMLSelectElement>("[data-music-variant]")!;
+  const variantRow = root.querySelector<HTMLElement>("[data-music-variant-row]")!;
+  const stateOutput = root.querySelector<HTMLOutputElement>("[data-music-enabled-state]")!;
+  const copyOutput = root.querySelector<HTMLElement>("[data-music-enabled-copy]");
+  variantSelect.innerHTML = VARIANT_LIST.map(
+    (variant) =>
+      '<option value="' +
+      variant +
+      '">' +
+      VARIANT_LABELS[variant] +
+      "</option>",
+  ).join("");
+  const syncMusicUI = () => {
+    const configuration = cockpit.musicConfiguration();
+    enabledToggle.checked = configuration.enabled;
+    variantSelect.value = configuration.variant;
+    variantSelect.disabled = !configuration.enabled;
+    variantRow.classList.toggle("is-disabled", !configuration.enabled);
+    stateOutput.textContent = configuration.enabled ? "ON" : "OFF";
+    stateOutput.classList.toggle("is-on", configuration.enabled);
+    if (copyOutput)
+      copyOutput.textContent = configuration.enabled
+        ? "Arousal-shaped background is on. Flip back any time to go quiet."
+        : "Off by default. Turn on for a quiet, arousal-shaped background.";
+  };
+  enabledToggle.addEventListener("change", () => {
+    localStorage.setItem(MUSIC_ENABLED_KEY, String(enabledToggle.checked));
+    cockpit.setMusicEnabled(enabledToggle.checked);
+  });
+  variantSelect.addEventListener("change", () => {
+    const variant = variantSelect.value as GenerativeVariant;
+    if ((VARIANT_LIST as readonly string[]).includes(variant))
+      cockpit.setMusicVariant(variant);
+  });
+  cockpit.addEventListener("musicchange", syncMusicUI);
+  syncMusicUI();
+}
+
 function setupMusicControls() {
   const droneSelect = element<HTMLSelectElement>("music-metric-drone");
   const pulseSelect = element<HTMLSelectElement>("music-metric-pulse");
@@ -445,6 +491,8 @@ function setupMusicControls() {
   };
   droneSelect.addEventListener("change", persist);
   pulseSelect.addEventListener("change", persist);
+  bindMusicControls(document.querySelector<HTMLElement>("[data-music-config]")!);
+  bindMusicControls(document.querySelector<HTMLElement>("[data-music-quick]")!);
 }
 function mappingMarkup(command: ContinuousCommand) {
   const value = mappings[command];
@@ -2400,8 +2448,8 @@ renderMappings();
 setupPilotNameField();
 setupActions();
 setupScopeMetricSelector();
-setupMusicControls();
 setupCompactGround(() => cockpit.openRemoteCockpit());
+setupMusicControls();
 traceResizeObserver?.observe(element<HTMLCanvasElement>("raw-ecg-preview"));
 practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });
 const disposeTextFit = installPretextFit();
