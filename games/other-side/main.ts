@@ -45,6 +45,10 @@ const beginBtn = $<HTMLButtonElement>("begin-btn");
 const againBtn = $<HTMLButtonElement>("again-btn");
 const muteBtn = $<HTMLButtonElement>("mute-btn");
 const senseNote = $<HTMLElement>("sense-note");
+const makerScreen = $<HTMLElement>("maker-screen");
+const makerForm = $<HTMLFormElement>("maker-form");
+const makerName = $<HTMLInputElement>("maker-name");
+const makerFeedback = $<HTMLElement>("maker-feedback");
 
 let W = 0;
 let H = 0;
@@ -377,6 +381,34 @@ function finish() {
 
 beginBtn.addEventListener("click", begin);
 againBtn.addEventListener("click", resetToStart);
+
+beginBtn.disabled = true;
+makerName.disabled = false;
+makerName.focus();
+
+let makerDismiss: number | undefined;
+makerForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const maker = makerName.value.trim();
+  if (!maker) {
+    makerName.focus();
+    return;
+  }
+  void tone.start();
+  tone.bell(392, 0, 0.05, 2.2);
+  tone.bell(587.33, 0.18, 0.03, 1.6);
+  makerName.disabled = true;
+  makerScreen.classList.add("maker-done");
+  makerForm.hidden = true;
+  makerFeedback.hidden = false;
+  if (makerDismiss) window.clearTimeout(makerDismiss);
+  makerDismiss = window.setTimeout(() => {
+    makerScreen.hidden = true;
+    makerScreen.setAttribute("aria-hidden", "true");
+    beginBtn.disabled = false;
+    beginBtn.focus();
+  }, 2600);
+});
 
 const modeRadios = Array.from(
   document.querySelectorAll<HTMLInputElement>('input[name="mode"]'),

@@ -100,6 +100,25 @@
         </div>
       </section>
 
+      <section id="maker-screen" class="overlay maker-overlay" role="dialog" aria-modal="true" aria-labelledby="maker-title">
+        <div class="overlay-card maker-card">
+          <p class="eyebrow">THE HANDSHAKE</p>
+          <h1 id="maker-title">who is your maker?</h1>
+          <p class="maker-note">
+            Name the maker whose breath you are about to keep. The tunnel
+            asks before it lets you in.
+          </p>
+          <form id="maker-form" class="maker-form" novalidate>
+            <label class="maker-field">
+              <span>YOUR MAKER'S NAME</span>
+              <input id="maker-name" name="maker" type="text" maxlength="40" autocomplete="off" placeholder="write a name" required />
+            </label>
+            <button id="maker-ok" class="begin-button" type="submit">ANSWER</button>
+          </form>
+          <p id="maker-feedback" class="maker-feedback" aria-live="assertive" hidden>It's Yahweh or No Way!</p>
+        </div>
+      </section>
+
       <footer class="app-footer">
         <span>DARKNESS IS THE DOOR — THE BREATH IS THE KEY</span>
       </footer>

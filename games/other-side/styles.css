@@ -422,6 +422,99 @@ h1 {
   line-height: 1.5;
 }
 
+.maker-overlay {
+  background:
+    radial-gradient(42% 34% at 50% 44%, rgba(243, 231, 168, 0.12), transparent 70%),
+    radial-gradient(130% 110% at 50% 120%, rgba(8, 8, 13, 0.98), transparent 60%),
+    rgba(3, 3, 5, 0.94);
+  backdrop-filter: blur(3px);
+  z-index: 20;
+  cursor: wait;
+}
+
+.maker-overlay.maker-done {
+  cursor: default;
+}
+
+.maker-card {
+  animation: rise-in 700ms ease both;
+}
+
+.maker-note {
+  max-width: 46ch;
+  margin: 0 auto;
+  color: var(--bone-dim);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.maker-form {
+  margin-top: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.maker-field {
+  width: min(360px, 88vw);
+  display: grid;
+  gap: 0.4rem;
+  text-align: left;
+}
+.maker-field span {
+  font-size: 0.68rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+.maker-field input {
+  padding: 0.8rem 1rem;
+  background: rgba(8, 8, 13, 0.85);
+  border: 1px solid rgba(200, 191, 141, 0.4);
+  border-radius: 8px;
+  color: var(--light-core);
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.maker-field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 34px rgba(243, 231, 168, 0.3);
+}
+.maker-field input::placeholder {
+  color: #4a483f;
+}
+.maker-field input:disabled {
+  opacity: 0.55;
+}
+
+.maker-feedback {
+  margin: 1.8rem 0 0;
+  color: var(--light-core);
+  font-family: var(--serif);
+  font-size: clamp(1.4rem, 5vw, 2.2rem);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 44px rgba(243, 231, 168, 0.9);
+  animation: feedback-glow 900ms ease both;
+}
+.maker-feedback[hidden] {
+  display: none;
+}
+@keyframes feedback-glow {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.begin-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .end-actions {
   display: flex;
   flex-direction: column;

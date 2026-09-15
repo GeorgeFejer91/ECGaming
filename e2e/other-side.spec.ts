@@ -5,8 +5,15 @@ test("Other Side starts a crossing and the light advances in showcase mode", asy
 }) => {
   await page.goto("./games/other-side/");
   await expect(page.locator("#tunnel")).toBeVisible();
-  await expect(page.locator("#start-screen")).toBeVisible();
+  await expect(page.locator("#maker-screen")).toBeVisible();
 
+  await page.getByLabel("YOUR MAKER'S NAME").fill("Yahweh");
+  await page.getByRole("button", { name: "ANSWER" }).click();
+  await expect(page.locator("#maker-feedback")).toHaveText("It's Yahweh or No Way!");
+  await expect(page.locator("#maker-screen")).toBeHidden();
+  await expect(page.getByRole("button", { name: "BEGIN THE CROSSING" })).toBeEnabled();
+
+  await expect(page.locator("#start-screen")).toBeVisible();
   await page.getByRole("radio", { name: "Auto-play showcase" }).check();
   await page.getByRole("button", { name: "BEGIN THE CROSSING" }).click();
 
