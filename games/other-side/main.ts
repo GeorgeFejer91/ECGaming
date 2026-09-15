@@ -505,17 +505,44 @@ let vx = 0;
 let vy = 0;
 let maxR = 1;
 
-function drawRing(z: number, now: number) {
+interface StreamRing {
+  z: number;
+  seed: number;
+  speed: number;
+}
+
+let streamRings: StreamRing[] = Array.from(
+  { length: RING_COUNT },
+  (_, i) => ({
+    z: (i + 1) / RING_COUNT,
+    seed: Math.random(),
+    speed: 0.6 + 0.8 * Math.random(),
+  }),
+);
+
+function drawRing(ring: StreamRing, now: number) {
+  const z = ring.z;
   const r = ringR(z);
-  const index = Math.round(z * 40);
+  const arrival = clamp(1 - lightPos, 0, 1);
+  const depth = 0.35 + 0.65 * z;
+  const para = 1 + (holding ? 1.5 : 0.4) * smoothstep(arrival);
+  const cx =
+    lerp(W * 0.5, vx, depth) +
+    Math.sin(now * 0.0013 + z * 9) * 0.006 * depth * para * W;
+  const cy =
+    lerp(H * 0.5, vy, depth) +
+    Math.cos(now * 0.0011 + z * 7) * 0.009 * depth * para * H;
   const points: number[][] = [];
   for (let k = 0; k < RING_POINTS; k++) {
     const baseAngle = (k / RING_POINTS) * Math.PI * 2;
     const wobble =
-      (hash2(index, k) * 2 - 1) * 0.05 * (1 - z * 0.55) +
+      (hash2(Math.round(ring.seed * 9973), k) * 2 - 1) * 0.05 * (1 - z * 0.55) +
       Math.sin(now * 0.00022 + k * 0.83 + z * 24) * 0.014 * (1 - z * 0.4);
     const rr = r * (1 + wobble);
-    points.push([vx + Math.cos(baseAngle) * rr, vy + Math.sin(baseAngle) * rr * 0.82]);
+    points.push([
+      cx + Math.cos(baseAngle) * rr,
+      cy + Math.sin(baseAngle) * rr * 0.82,
+    ]);
   }
 
   const glow = Math.exp(-Math.abs(z - lightPos) * 3.4);
@@ -713,7 +740,7 @@ function renderOtherSide() {
   ctx.globalAlpha = 1;
 }
 
-function render(now: number) {
+function render(now: number, dt: number) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.clearRect(0, 0, W, H);
   if (W === 0 || H === 0) return;
@@ -731,6 +758,25 @@ function render(now: number) {
     Math.sin(now * (holding ? 0.0007 : 0.0014)) * (holding ? 0.015 : 0.04);
   const arrival = clamp(1 - lightPos, 0, 1);
 
+  const zoomK =
+    (phase === "complete"
+      ? 0.03
+      : 0.12 + 1.7 * smoothstep(arrival) + (holding ? 1.5 : 0)) *
+    0.09;
+
+  for (const ring of streamRings) {
+    ring.z -= dt * zoomK * ring.speed;
+    if (ring.z <= 0) {
+      ring.z = 1.015;
+      ring.seed = Math.random();
+      ring.speed = 0.6 + 0.8 * Math.random();
+    }
+  }
+  for (const wing of wings) {
+    wing.z -= dt * 0.012 * zoomK;
+    if (wing.z <= 0) wing.z = 0.96;
+  }
+
   ctx.fillStyle = "#030305";
   ctx.fillRect(0, 0, W, H);
 
@@ -744,7 +790,7 @@ function render(now: number) {
   ctx.fillRect(0, 0, W, H);
 
   drawWings(now);
-  for (let i = 0; i <= RING_COUNT; i++) drawRing(i / RING_COUNT, now);
+  for (const ring of streamRings) drawRing(ring, now);
   drawLight(now, breathSwell, arrival);
   updateMotes(now);
   drawMotes();
@@ -757,7 +803,7 @@ function frame(now: number) {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastFrame) / 1000));
   lastFrame = now;
   tick(now, dt);
-  render(now);
+  render(now, dt);
   updateHud();
   requestAnimationFrame(frame);
 }
