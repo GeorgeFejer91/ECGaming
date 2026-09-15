@@ -1,4 +1,4 @@
-import { PhoneBreathProcessor, type BreathSnapshot } from "./breathe-processor";
+import { LynphanBreathDetector, type LynphanSnapshot } from "./lynphan";
 import { BreathPairHost } from "./host";
 import type { BreathState } from "./link";
 import "./styles.css";
@@ -24,7 +24,7 @@ const telMotion = byId("tel-motion");
 const MIN_RADIUS = 30;
 const MAX_RADIUS = 130;
 
-const processor = new PhoneBreathProcessor();
+const processor = new LynphanBreathDetector();
 type SourceMode = "idle" | "local" | "remote";
 let source: SourceMode = "idle";
 let sensing = false;
@@ -55,7 +55,7 @@ function animate() {
   animFrame = requestAnimationFrame(animate);
 }
 
-function renderSnapshot(snapshot: BreathSnapshot): void {
+function renderSnapshot(snapshot: LynphanSnapshot): void {
   const label = phaseLabels[snapshot.phase] ?? "hold";
   phaseText.textContent = label;
   document.body.dataset.phase = label;
@@ -97,13 +97,20 @@ function consumeSample(x: number, y: number, z: number, t: number): void {
 }
 
 function consumeState(state: BreathState): void {
-  const snapshot: BreathSnapshot = {
+  const snapshot: LynphanSnapshot = {
+    sampleRate: 0,
+    threshold: 0,
+    totalDifference: 0,
+    peakDetected: false,
+    breathCounted: false,
+    bpm: state.bpm ?? 0,
     calibrated: true,
     ready: true,
     lost: false,
     phase: state.phase,
     volume01: state.volume01,
     derivativePerSecond: state.flow01,
+    flow01: state.flow01,
     confidence01: state.confidence01,
     calibration01: 1,
     values: {
@@ -161,7 +168,7 @@ async function startSensing(): Promise<void> {
   sensing = true;
   startButton.textContent = "Stop sensing";
   startButton.setAttribute("aria-pressed", "true");
-  statusText.textContent = "Breathe normally — calibrating (~10 s)…";
+  statusText.textContent = "Breathe normally — calibrating (~2 s)…";
   sourceText.textContent = "calibrating";
   sourceText.dataset.source = "calibrating";
   sensorAbort = new AbortController();
@@ -194,7 +201,7 @@ const pairHost = new BreathPairHost(byId("breath-pair-host"), {
       if (sensing) stopLocalSensors();
       processor.reset();
       source = "remote";
-      statusText.textContent = "Phone connected. Breathe normally — calibrating (~10 s)…";
+      statusText.textContent = "Phone connected. Breathe normally — calibrating (~2 s)…";
       sourceText.textContent = "calibrating";
       sourceText.dataset.source = "calibrating";
     } else if (!active && source === "remote") {

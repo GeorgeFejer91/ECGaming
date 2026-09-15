@@ -307,7 +307,9 @@ function updateVisuals(state: BreathState) {
   phaseLabel.textContent = phaseText;
   phaseLabel.dataset.phase = state.phase === 1 ? "inhale" : state.phase === -1 ? "exhale" : "hold";
 
-  if (state.flow01 > 0.1) {
+  if (typeof state.bpm === "number" && state.bpm > 0) {
+    bpmLabel.textContent = `${Math.round(state.bpm)} BPM`;
+  } else if (state.flow01 > 0.1) {
     const cycleEstimate = 60 / (state.flow01 * 10 + 2);
     bpmLabel.textContent = `${Math.round(cycleEstimate)} BPM`;
   }
@@ -415,6 +417,7 @@ function buildNameDialog() {
   nameInput.type = "text"; nameInput.maxLength = 40; nameInput.required = true;
   nameInput.autocomplete = "off"; nameInput.placeholder = "Yahweh"; nameInput.value = hostName;
   const save = document.createElement("button"); save.type = "submit"; save.className = "button primary"; save.textContent = "ANSWER";
+  nameStatus.className = "name-status";
   nameStatus.setAttribute("role", "status");
   label.append(labelText, nameInput);
   form.append(title, copy, label, save, nameStatus);
@@ -435,6 +438,12 @@ function buildNameDialog() {
       currentLobby?.setHostName(next);
       ensureLobby();
       resetVisuals();
+      ensureInvitation();
+      if (!breathLink.active) {
+        breathLink.pilotName = "Phone";
+        void breathLink.start(currentInvitation!);
+      }
+      showQR();
       if (hostName) nameStatus.classList.remove("maker-verdict");
     }, 2600);
   });
@@ -472,8 +481,8 @@ async function accept(peer: string, id: string) {
   if (busy || pendingRequests.get(peer)?.id !== id || !currentLobby) return;
   busy = true;
   try {
-    ensureInvitation();
-    await breathLink.stop();
+ensureInvitation();
+    await breathLink.stop({ emitStatus: false });
     breathLink.pilotName = "Phone";
     await breathLink.start(currentInvitation!);
     if (!currentLobby.send(peer, { kind: "accepted", id, invitation: currentInvitation! })) {

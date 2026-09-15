@@ -285,6 +285,16 @@ export class PhoneBreathProcessor {
     return this.snapshot(timeMs);
   }
 
+  get diagnosticMotionScore01(): number {
+    const threshold = Math.max(this.settings.minimumAxisRange * 0.1, 0.005);
+    const motionRatio = this.motionEma / threshold;
+    return Math.max(0, Math.min(1, 1 / (1 + motionRatio * motionRatio)));
+  }
+
+  get diagnosticPcaDominance01(): number {
+    return this.pcaDominance01;
+  }
+
   snapshot(timeMs: number): BreathSnapshot {
     const threshold = Math.max(this.settings.minimumAxisRange * 0.1, 0.005);
     const motionRatio = this.motionEma / threshold;

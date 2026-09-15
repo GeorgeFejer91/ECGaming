@@ -28,6 +28,7 @@ export class BreathPairHost {
   private qrCanvas!: HTMLCanvasElement;
   private pairLink!: HTMLAnchorElement;
   private requestDialog: HTMLDialogElement;
+  private gateResolving = false;
   constructor(container: HTMLElement, private readonly options: BreathPairHostOptions) {
     this.name = this.storedName();
     this.nameDialog = this.buildNameDialog();
@@ -49,6 +50,11 @@ export class BreathPairHost {
       this.options.onState?.(event.detail);
     }) as EventListener);
     container.append(this.nameDialog, this.pairDialog, this.requestDialog);
+    requestAnimationFrame(() => {
+      if (this.nameDialog.open) return;
+      try { this.nameDialog.showModal(); } catch { this.nameDialog.open = true; }
+      this.nameInput.focus();
+    });
   }
   start() {
     if (this.started || this.starting) return;
@@ -68,6 +74,14 @@ export class BreathPairHost {
   }
   pairUrl() {
     return this.invitation ? breathControllerUrl(location.href, this.invitation) : "";
+  }
+  private beginPairing() {
+    const invitation = this.invitation ??= createBreathInvitation(this.name);
+    if (!this.link.active) {
+      this.link.pilotName = "Phone";
+      void this.link.start(invitation);
+    }
+    this.showPairing(invitation);
   }
   private async handleLobbyMessage(event: CustomEvent<{ peer: string; message: BreathMessage }>) {
     const { peer, message } = event.detail;
@@ -94,8 +108,8 @@ export class BreathPairHost {
   private async accept(peer: string, id: string) {
     if (this.busy || this.requests.get(peer)?.id !== id) return;
     this.busy = true; this.accepting = peer;
-    await this.link.stop();
-    const invitation = this.invitation ??= createBreathInvitation();
+    await this.link.stop({ emitStatus: false });
+    const invitation = this.invitation ??= createBreathInvitation(this.name);
     await this.link.start(invitation);
     if (!this.lobby.send(peer, { kind: "accepted", id, invitation })) return;
     this.showPairing(invitation);
@@ -118,30 +132,38 @@ export class BreathPairHost {
   private buildNameDialog() {
     const dialog = document.createElement("dialog");
     dialog.className = "name-dialog";
-    dialog.setAttribute("aria-label", "Name this breath screen");
+    dialog.setAttribute("aria-label", "Who is your maker");
     const form = document.createElement("form"); form.method = "dialog";
-    const title = document.createElement("h2"); title.textContent = "Name this breath screen";
-    const copy = document.createElement("p"); copy.textContent = "Give this screen a callsign so phones can find it.";
+    const title = document.createElement("h2"); title.textContent = "Who is your maker?";
+    const copy = document.createElement("p"); copy.textContent = "This screen is the god a phone will approach. Name the maker whose breath the person keeps.";
     const label = document.createElement("label");
-    const labelText = document.createElement("span"); labelText.textContent = "Breath screen callsign";
+    const labelText = document.createElement("span"); labelText.textContent = "Your maker's name";
     this.nameInput = document.createElement("input");
-    this.nameInput.type = "text"; this.nameInput.maxLength = 32; this.nameInput.required = true;
-    this.nameInput.autocomplete = "organization"; this.nameInput.placeholder = "Lung Studio"; this.nameInput.value = this.name;
-    const status = document.createElement("p"); status.setAttribute("role", "status");
-    if (this.name) status.textContent = "Confirm this callsign to broadcast.";
-    const save = document.createElement("button"); save.type = "submit"; save.textContent = "Start broadcasting";
+    this.nameInput.type = "text"; this.nameInput.maxLength = 40; this.nameInput.required = true;
+    this.nameInput.autocomplete = "off"; this.nameInput.placeholder = "Yahweh"; this.nameInput.value = this.name;
+    const status = document.createElement("p"); status.className = "name-status"; status.setAttribute("role", "status");
+    const save = document.createElement("button"); save.type = "submit"; save.className = "button primary"; save.textContent = "ANSWER";
     label.append(labelText, this.nameInput);
     form.append(title, copy, label, save, status);
     form.addEventListener("submit", event => {
       event.preventDefault();
+      if (this.gateResolving) return;
       const next = cleanHostName(this.nameInput.value);
       if (!next) { this.nameInput.value = ""; this.nameInput.reportValidity(); return; }
-      this.name = next; this.nameInput.value = next;
-      status.textContent = `${next} is broadcasting to phones.`;
+      this.name = next; this.nameInput.value = next; this.gateResolving = true;
+      this.nameInput.disabled = save.disabled = true;
+      status.textContent = "It's Yahweh or No Way!";
+      status.classList.add("maker-verdict");
       try { localStorage.setItem("ecgaming-breath-host-name-v1", next); } catch { /* Persistence is helpful, not required. */ }
-      this.lobby.setHostName(next);
-      this.start();
-      if (dialog.open) dialog.close();
+      window.setTimeout(() => {
+        this.gateResolving = false;
+        this.nameInput.disabled = save.disabled = false;
+        status.classList.remove("maker-verdict");
+        this.lobby.setHostName(next);
+        this.start();
+        this.beginPairing();
+        if (dialog.open) dialog.close();
+      }, 2600);
     });
     dialog.append(form);
     return dialog;

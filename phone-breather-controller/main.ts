@@ -1,6 +1,7 @@
 import { BreathLink, type BreathSignal } from "../src/phone-breather/link";
 import { readBreathInvitation, type BreathInvitation } from "../src/phone-breather/invitation";
 import { BreathLobby, type BreathMessage, type BreathHost } from "../src/phone-breather/breath-lobby";
+import { LynphanBreathDetector } from "../src/phone-breather/lynphan";
 import { randomToken } from "../src/vendor/brsp/src/brsp.js";
 import "./styles.css";
 
@@ -28,6 +29,7 @@ const metricVolume = byId("metric-volume");
 const metricPhase = byId("metric-phase");
 const metricFlow = byId("metric-flow");
 const metricConfidence = byId("metric-confidence");
+const metricBpm = byId("metric-bpm");
 
 const disconnectBtn = byId<HTMLButtonElement>("disconnect-btn");
 
@@ -38,6 +40,7 @@ let targetRadius = 100;
 let animationFrame = 0;
 
 const breathLink = new BreathLink("controller");
+const breath = new LynphanBreathDetector();
 let currentInvitation: BreathInvitation | null = null;
 let godName = "";
 let motionPermissionGranted = false;
@@ -79,6 +82,9 @@ function updateVisuals(signal: BreathSignal) {
   metricPhase.textContent = phaseText;
   metricFlow.textContent = signal.flow01.toFixed(2);
   metricConfidence.textContent = `${Math.round(signal.confidence01 * 100)}%`;
+  metricBpm.textContent = Number.isFinite(signal.bpm) && signal.bpm > 0
+    ? `${Math.round(signal.bpm)}`
+    : "\u2014";
   statusIndicator.className = "status-indicator connected";
   statusText.textContent = `Connected to host`;
 }
@@ -98,6 +104,7 @@ function setDisconnected(message = "Disconnected") {
   metricPhase.textContent = "\u2014";
   metricFlow.textContent = "\u2014";
   metricConfidence.textContent = "\u2014";
+  metricBpm.textContent = "\u2014";
   hostNameEl.textContent = "Host: \u2014";
 }
 
@@ -152,54 +159,17 @@ function handleMotion(event: DeviceMotionEvent) {
   const accel = event.accelerationIncludingGravity;
   if (!accel || accel.x === null || accel.y === null || accel.z === null) return;
 
-  const signal: BreathSignal = {
-    volume01: 0.5,
-    phase: 0,
-    flow01: 0,
-    confidence01: 0,
-    timestamp: performance.now(),
-  };
-
-  const z = accel.z;
-  if (!handleMotion.lastZ) handleMotion.lastZ = z;
-  if (!handleMotion.filteredZ) handleMotion.filteredZ = z;
-  if (!handleMotion.lastTime) handleMotion.lastTime = performance.now();
-
   const now = performance.now();
-  const dt = Math.max(1, now - handleMotion.lastTime) / 1000;
-  handleMotion.lastTime = now;
+  const snapshot = breath.pushSample({ x: accel.x, y: accel.y, z: accel.z }, now);
 
-  const alpha = 0.1;
-  handleMotion.filteredZ = handleMotion.filteredZ + (z - handleMotion.filteredZ) * alpha;
-  const breathing = z - handleMotion.filteredZ;
-  handleMotion.lastZ = z;
-
-  if (!handleMotion.breathHistory) handleMotion.breathHistory = [];
-  handleMotion.breathHistory.push(breathing);
-  if (handleMotion.breathHistory.length > 100) handleMotion.breathHistory.shift();
-
-  const recent = handleMotion.breathHistory.slice(-50);
-  const min = Math.min(...recent);
-  const max = Math.max(...recent);
-  const range = max - min;
-  const volume = range > 0.1 ? Math.max(0, Math.min(1, (breathing - min) / range)) : 0.5;
-
-  if (!handleMotion.lastVolume) handleMotion.lastVolume = volume;
-  const deriv = (volume - handleMotion.lastVolume) / dt;
-  handleMotion.lastVolume = volume;
-
-  let phase: -1 | 0 | 1 = 0;
-  if (deriv > 0.05) phase = 1;
-  else if (deriv < -0.05) phase = -1;
-
-  const flow = Math.min(1, Math.abs(deriv) / 0.5);
-  const confidence = range > 0.2 ? 0.8 : 0.3;
-
-  signal.volume01 = volume;
-  signal.phase = phase;
-  signal.flow01 = flow;
-  signal.confidence01 = confidence;
-  signal.timestamp = now;
+  const signal: BreathSignal = {
+    volume01: snapshot.volume01,
+    phase: snapshot.phase,
+    flow01: snapshot.flow01,
+    confidence01: snapshot.confidence01,
+    timestamp: now,
+    bpm: snapshot.bpm > 0 ? snapshot.bpm : undefined,
+  };
 
   breathLink.send(signal);
   updateVisuals(signal);
@@ -227,6 +197,7 @@ function disconnect() {
   breathLink.stop();
   stopSensing();
   stopLobby();
+  breath.reset();
   currentInvitation = null;
   showEntry("Disconnected. Enter your name to reconnect.");
 }

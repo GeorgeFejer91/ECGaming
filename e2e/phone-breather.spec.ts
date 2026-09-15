@@ -16,9 +16,11 @@ async function nameHost(page: Page, name = "Yahweh") {
 }
 
 async function openPairLink(page: Page) {
-  await page.getByRole("button", { name: "Pair phone" }).click();
   const dialog = page.getByRole("dialog", { name: "Phone pairing" });
-  await expect(dialog).toBeVisible();
+  await expect(dialog).toBeVisible({ timeout: 10_000 }).catch(async () => {
+    await page.getByRole("button", { name: "Pair phone" }).click();
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+  });
   const link = dialog.getByRole("link", { name: "Open on Phone" });
   await expect(link).toBeVisible();
   const href = new URL((await link.getAttribute("href"))!);
@@ -63,6 +65,69 @@ async function driveHolds(phone: Page) {
 function tunnelProgress(page: Page) {
   return page.locator("#tunnel-canvas").getAttribute("data-progress").then(value => Number(value ?? 0));
 }
+
+test("belly-breath circle expands and contracts with derived breath volume on the demo game", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("./games/phone-breather/");
+  const circle = page.locator("#breath-circle");
+  await expect(page.locator("main").locator("section", { has: page.locator("#breath-pair-host") })).toBeVisible();
+
+  const maker = page.getByRole("dialog", { name: "Who is your maker" });
+  await maker.getByLabel("Your maker's name").fill("Yahweh");
+  await maker.getByRole("button", { name: "ANSWER" }).click();
+  await expect(maker).toBeHidden({ timeout: 15_000 });
+
+  const pair = page.getByRole("dialog", { name: "Phone pairing" });
+  await expect(pair).toBeVisible();
+  await pair.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(pair).toBeHidden();
+
+  await page.evaluate(() => {
+    const base = 9.8, amplitude = 0.8, periodMs = 5_000, start = performance.now();
+    (window as any).sendAccel = true;
+    (window as any).accelSample = { x: 0, y: 9.8, z: base };
+    (window as any).__motionCount = 0;
+    window.addEventListener("devicemotion", () => ((window as any).__motionCount = ((window as any).__motionCount! as number) + 1), { passive: true });
+    setInterval(() => {
+      const t = performance.now() - start;
+      (window as any).accelSample = {
+        x: 0,
+        y: 9.8,
+        z: base + amplitude * Math.sin((2 * Math.PI * t) / periodMs),
+      };
+    }, 16);
+  });
+  await page.waitForTimeout(8000);
+  const s1 = await page.evaluate(() => ({
+    count: (window as any).__motionCount,
+    perms: (window as any).deviceMotionPermissionRequests,
+    sendAccel: (window as any).sendAccel,
+  }));
+  console.log("MOTION 8s", JSON.stringify(s1));
+  await expect(page.locator("#status-text")).toContainText("Breathing detected", { timeout: 45_000 });
+
+  const samples: Array<{ phase: string; r: number }> = await page.evaluate(
+    () =>
+      new Promise(resolve => {
+        const out: Array<{ phase: string; r: number }> = [];
+        const collect = () => {
+          out.push({
+            phase: document.querySelector("#phase-label")!.textContent!.trim(),
+            r: Number(document.querySelector("#breath-circle")!.getAttribute("r")),
+          });
+          if (out.length >= 44) resolve(out);
+          else setTimeout(collect, 400);
+        };
+        collect();
+      }),
+  );
+  const inhale = samples.filter(s => s.phase === "Inhale").map(s => s.r);
+  const exhale = samples.filter(s => s.phase === "Exhale").map(s => s.r);
+  expect(inhale.length).toBeGreaterThan(0);
+  expect(exhale.length).toBeGreaterThan(0);
+  expect(Math.max(...inhale)).toBeGreaterThan(130);
+  expect(Math.min(...exhale)).toBeLessThan(80);
+});
 
 test("host names their maker and gets the Yahweh verdict before broadcasting", async ({ page }) => {
   await page.goto("./phone-breather-host/");

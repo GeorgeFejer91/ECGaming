@@ -23,12 +23,16 @@ const defaultTransport: TransportFactory = (role, invitation) =>
     forceTurn: new URLSearchParams(location.search).get("remote-force-turn") === "1",
   });
 
+export const BREATH_BPM_MAX = 200;
+
 export interface BreathSignal {
   volume01: number;
   phase: -1 | 0 | 1;
   flow01: number;
   confidence01: number;
   timestamp: number;
+  /** Estimated breaths per minute when a detector (e.g. lynphan) measures it. */
+  bpm?: number;
 }
 
 export interface BreathState extends BreathSignal {
@@ -40,6 +44,26 @@ export interface BreathState extends BreathSignal {
 
 function exactFields<T extends Record<string, unknown>>(obj: unknown, keys: string[]): obj is T {
   return !!obj && typeof obj === "object" && !Array.isArray(obj) && Object.keys(obj).length === keys.length && keys.every((k) => Object.hasOwn(obj, k));
+}
+
+const BASE_SIGNAL_FIELDS = ["volume01", "phase", "flow01", "confidence01", "timestamp"];
+
+function breathSignalShape(v: unknown): v is Record<string, unknown> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const keys = Object.keys(v);
+  return (
+    (keys.length === BASE_SIGNAL_FIELDS.length && BASE_SIGNAL_FIELDS.every((k) => keys.includes(k))) ||
+    (keys.length === BASE_SIGNAL_FIELDS.length + 1 &&
+      keys.includes("bpm") &&
+      BASE_SIGNAL_FIELDS.every((k) => keys.includes(k)))
+  );
+}
+
+function validBpm(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= BREATH_BPM_MAX)
+  );
 }
 
 function validBreathSignalFields(v: unknown): v is BreathSignal {
@@ -60,27 +84,38 @@ function validBreathSignalFields(v: unknown): v is BreathSignal {
     w.confidence01 >= 0 &&
     w.confidence01 <= 1 &&
     typeof w.timestamp === "number" &&
-    Number.isFinite(w.timestamp)
+    Number.isFinite(w.timestamp) &&
+    validBpm(w.bpm)
   );
 }
 
 function validBreathSignal(v: unknown): v is BreathSignal {
+  return breathSignalShape(v) && validBreathSignalFields(v);
+}
+
+const BASE_STATE_FIELDS = ["profile", "revision", "volume01", "phase", "flow01", "confidence01", "timestamp", "pilotName", "connected"];
+
+function breathStateShape(v: unknown): v is Record<string, unknown> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const keys = Object.keys(v);
   return (
-    exactFields<Record<string, unknown>>(v, ["volume01", "phase", "flow01", "confidence01", "timestamp"]) &&
-    validBreathSignalFields(v)
+    (keys.length === BASE_STATE_FIELDS.length && BASE_STATE_FIELDS.every((k) => keys.includes(k))) ||
+    (keys.length === BASE_STATE_FIELDS.length + 1 &&
+      keys.includes("bpm") &&
+      BASE_STATE_FIELDS.every((k) => keys.includes(k)))
   );
 }
 
 function validBreathState(v: unknown): v is BreathState {
   return (
-    exactFields<Record<string, unknown>>(v, ["profile", "revision", "volume01", "phase", "flow01", "confidence01", "timestamp", "pilotName", "connected"]) &&
+    breathStateShape(v) &&
     v.profile === BREATH_PROFILE &&
     typeof v.revision === "number" &&
     Number.isSafeInteger(v.revision) &&
     v.revision >= 0 &&
-    validBreathSignalFields(v) &&
     typeof v.pilotName === "string" &&
-    typeof v.connected === "boolean"
+    typeof v.connected === "boolean" &&
+    validBreathSignalFields(v)
   );
 }
 

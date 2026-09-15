@@ -59,6 +59,7 @@ import {
   getPolarBrowserHub,
   polarWebBluetoothSupport,
 } from "./polar/browser-hub";
+import { BreathAnalyzer, BreathSourceManager, type BreathSourceKind } from "./breath";
 
 const SETTINGS_KEY = "ecgaming-ground-settings-v2";
 const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
@@ -67,6 +68,7 @@ const SCOPE_METRIC_KEY = "ecgaming-scope-metric-v1";
 const MUSIC_CONFIG_KEY = "ecgaming-music-config-v1";
 const MUSIC_ENABLED_KEY = "ecgaming-music-enabled-v1";
 const PILOT_NAME_KEY = "ecgaming-pilot-name-v1";
+const BREATH_SOURCE_KEY = "ecgaming-breath-source-v1";
 const COMMANDS: ContinuousCommand[] = ["altitude", "throttle", "traffic"];
 const COMMAND_LABELS: Record<ContinuousCommand, string> = {
   altitude: "Vertical control · plane up/down",
@@ -306,6 +308,33 @@ const ecgTrace = new RealtimeEcgTrace({
 });
 const scopeHistory = new Map<ScopeMetricId, number[]>();
 const polarMetrics: Record<string, number> = {};
+const breathAnalyzer = new BreathAnalyzer();
+const breathSources = new BreathSourceManager(breathAnalyzer);
+function storedBreathSource(): BreathSourceKind {
+  const stored = localStorage.getItem(BREATH_SOURCE_KEY);
+  return stored === "phone" ? "phone" : "polar";
+}
+let preferredBreathSource: BreathSourceKind = storedBreathSource();
+breathSources.setPreferred(preferredBreathSource);
+breathSources.attach({ kind: "polar", label: "Polar H10 ACC" });
+breathSources.onFrame((frame) => {
+  if (frame.values.breathing_signal_ready === 1) {
+    breathingReady = true;
+    lastBreathingSignalAt = performance.now();
+    appendBreathingPresentationPoints(frame.presentationPoints);
+  }
+  polarMetrics.breathing_volume = frame.values.breathing_volume ?? 0;
+  polarMetrics.acc_breathing_magnitude =
+    frame.values.acc_breathing_magnitude ?? 0;
+  polarMetrics.breathing_axis_range =
+    frame.values.breathing_axis_range ?? 0;
+  polarMetrics.breathing_signal_ready =
+    frame.values.breathing_signal_ready;
+  polarMetrics.breathing_signal_confidence =
+    frame.values.breathing_signal_confidence;
+  polarMetrics.breathing_signal_contribution = frame.confidence01;
+  syncBreathDetectorPresence();
+});
 let mappings = storedMappings();
 let sourceMode: SourceMode =
   localStorage.getItem(SOURCE_KEY) === "beacon" ? "beacon" : "polar";
@@ -503,7 +532,12 @@ function mappingMarkup(command: ContinuousCommand) {
         String(value.metric !== "breathing_volume") +
         '"><span class="biosignal-family-icon heart" aria-hidden="true">♥</span><span><strong>HEART CONTROL</strong><small>ECG, heart rate, RR or excitement</small></span></button><button type="button" class="biosignal-family-button" data-signal-family="breath" aria-pressed="' +
         String(value.metric === "breathing_volume") +
-        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>BREATH CONTROL</strong><small>Polar ACC chest-motion waveform</small></span></button></div>'
+        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>BREATH CONTROL</strong><small>Polar ACC chest-motion waveform</small></span></button></div>' +
+        '<div class="biosignal-family-selector breath-detector-selector" role="group" aria-label="Breath detection device"><span class="breath-detector-heading">BREATH DETECTOR</span><button type="button" class="biosignal-family-button" data-breath-detector="polar" aria-pressed="' +
+        String(preferredBreathSource === "polar") +
+        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>POLAR H10 ACC</strong><small>Default chest-motion detector</small></span></button><button type="button" class="biosignal-family-button" data-breath-detector="phone" aria-pressed="' +
+        String(preferredBreathSource === "phone") +
+        '"><span class="biosignal-family-icon heart" aria-hidden="true">☎</span><span><strong>PHONE MOTION</strong><small>Breath-responsible phone accelerometer</small></span></button></div>'
       : "";
   return (
     '<fieldset class="mapping-card" data-command="' +
@@ -576,9 +610,50 @@ function renderMappings() {
         updateMappingsFromUi(true);
       }),
   );
+  host.querySelectorAll<HTMLButtonElement>("[data-breath-detector]").forEach(
+    (button) =>
+      button.addEventListener("click", () => {
+        setBreathDetector(
+          button.dataset.breathDetector === "phone" ? "phone" : "polar",
+        );
+      }),
+  );
   element<HTMLInputElement>("adaptive-normalization").checked =
     mappings.altitude.normalization?.mode === "adaptive";
   syncMappingAvailability();
+}
+
+function setBreathDetector(kind: BreathSourceKind) {
+  preferredBreathSource = kind;
+  localStorage.setItem(BREATH_SOURCE_KEY, kind);
+  breathSources.setPreferred(kind);
+  updateBreathDetectorSelector();
+  syncMappingAvailability();
+}
+
+function updateBreathDetectorSelector() {
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-breath-detector]")
+    .forEach((button) => {
+      const pressed = button.dataset.breathDetector === preferredBreathSource;
+      button.setAttribute("aria-pressed", String(pressed));
+    });
+}
+
+function syncBreathDetectorPresence() {
+  const active = breathSources.activeSource;
+  const breathButton = document.querySelector<HTMLElement>(
+    '[data-command="altitude"] [data-signal-family="breath"] small',
+  );
+  if (!breathButton) return;
+  breathButton.textContent =
+    active === "phone"
+      ? breathingReady
+        ? "Phone accelerometer waveform live"
+        : "Phone motion breath detector"
+      : breathingReady
+        ? "Polar ACC chest-motion waveform live"
+        : "Polar ACC chest-motion waveform";
 }
 
 function updateMappingsFromUi(resetMetricDefaults = false) {
@@ -680,8 +755,20 @@ function syncMappingAvailability() {
           ),
         );
       });
-    if (command === "altitude")
+    if (command === "altitude") {
       card.toggleAttribute("data-beat-lift", mappings.beatAction === "lift");
+      card
+        .querySelectorAll<HTMLButtonElement>("[data-breath-detector]")
+        .forEach((button) => {
+          button.disabled = sourceMapped;
+          button.setAttribute(
+            "aria-pressed",
+            String(
+              button.dataset.breathDetector === preferredBreathSource,
+            ),
+          );
+        });
+    }
   });
   const locked = sourceMapped;
   element<HTMLInputElement>("import-settings").disabled = locked;
@@ -1170,8 +1257,20 @@ function handlePolarEvent(event: any) {
   }
   if (event.kind === "accelerometer") {
     lastBreathingSignalAt = now;
-    breathingReady = event.breathing?.ready === true;
-    appendBreathingPresentationPoints(event.breathing?.presentationPoints);
+    const samples = event.samples ?? [];
+    for (const sample of samples) {
+      const timeMs =
+        (Number(event.sensorTimestampNs) || now * 1e6) / 1e6;
+      breathSources.ingest(
+        {
+          x: (Number(sample.xMg) / 1000) * 9.80665,
+          y: (Number(sample.yMg) / 1000) * 9.80665,
+          z: (Number(sample.zMg) / 1000) * 9.80665,
+          timeMs,
+        },
+        "polar",
+      );
+    }
   }
   if (event.kind === "warning") {
     setText("polar-detail", event.message ?? "Optional Polar signal unavailable");
@@ -1194,6 +1293,7 @@ async function connectPolar() {
   element<HTMLInputElement>("sim-enabled").checked = false;
   for (const key of Object.keys(polarMetrics)) delete polarMetrics[key];
   ecgTrace.reset();
+  breathAnalyzer.reset();
   resetScopeHistory();
   breathingReady = false;
   lastBreathingSignalAt = -Infinity;

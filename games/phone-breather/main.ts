@@ -1,4 +1,5 @@
 import "./styles.css";
+import { BreathAnalyzer, type BreathAnalysisFrame } from "../../src/breath";
 import { BreathPairHost } from "../../src/phone-breather/host";
 import type { BreathState } from "../../src/phone-breather/link";
 
@@ -12,6 +13,7 @@ interface BreathFrame {
   confidence01: number;
   ready: boolean;
   timestamp: number;
+  bpm?: number;
 }
 
 interface AccelerometerReading {
@@ -32,139 +34,6 @@ const phaseValue = (value: number): -1 | 0 | 1 =>
 
 const phaseName = (value: -1 | 0 | 1): BreathPhase =>
   value > 0 ? "inhale" : value < 0 ? "exhale" : "hold";
-
-class PhoneBreathLock {
-  private latest?: BreathFrame;
-  private calibrationData: number[] = [];
-  private calibrated = false;
-  private baseline = 0;
-  private minZ = Infinity;
-  private maxZ = -Infinity;
-  private readonly calibrationSamples = 240;
-  private readonly staleAfterMs = 800;
-  private readonly fullFlowPerSecond = 0.5;
-  private lastTimestamp = 0;
-  private lastFilteredZ = 0;
-
-  constructor(
-    private readonly smoothing = 0.15,
-    private readonly sensitivity = 1.0
-  ) {}
-
-  setSmoothing(value: number) {
-    this.smoothing = clamp01(value);
-  }
-
-  setSensitivity(value: number) {
-    this.sensitivity = Math.max(0.1, Math.min(5, value));
-  }
-
-  startCalibration() {
-    this.calibrationData = [];
-    this.calibrated = false;
-    this.baseline = 0;
-    this.minZ = Infinity;
-    this.maxZ = -Infinity;
-  }
-
-  private updateCalibration(z: number) {
-    this.calibrationData.push(z);
-    this.minZ = Math.min(this.minZ, z);
-    this.maxZ = Math.max(this.maxZ, z);
-
-    if (this.calibrationData.length >= this.calibrationSamples) {
-      this.baseline = this.calibrationData.reduce((a, b) => a + b, 0) / this.calibrationData.length;
-      this.calibrated = true;
-    }
-  }
-
-  accept(reading: AccelerometerReading): BreathFrame {
-    const now = reading.timestamp;
-    const rawZ = reading.z * this.sensitivity;
-
-    if (!this.calibrated) {
-      this.updateCalibration(rawZ);
-    }
-
-    const dt = Math.max(1, Math.min(100, now - this.lastTimestamp)) / 1000;
-    this.lastTimestamp = now;
-
-    const filteredZ = this.lastFilteredZ + (rawZ - this.lastFilteredZ) * this.smoothing;
-    this.lastFilteredZ = filteredZ;
-
-    const centeredZ = this.calibrated ? filteredZ - this.baseline : 0;
-    const derivative = (centeredZ - (this.latest ? 0 : centeredZ)) / Math.max(0.001, dt);
-
-    const range = this.maxZ - this.minZ;
-    const normalizedVolume = this.calibrated && range > 0.1
-      ? clamp01((filteredZ - this.minZ) / range)
-      : 0.5;
-
-    const flow01 = clamp01(
-      Math.abs(derivative) / Math.max(0.001, this.fullFlowPerSecond)
-    );
-
-    const phaseVal = phaseValue(derivative);
-    const phase = phaseName(this.calibrated ? phaseVal : 0);
-
-    const confidence01 = this.calibrated
-      ? clamp01(Math.min(1, this.calibrationData.length / this.calibrationSamples))
-      : 0;
-
-    const frame: BreathFrame = {
-      phase,
-      phaseValue: this.calibrated ? phaseVal : 0,
-      volume01: normalizedVolume,
-      flow01,
-      confidence01,
-      ready: this.calibrated,
-      timestamp: now,
-    };
-
-    this.latest = frame;
-    return { ...frame };
-  }
-
-  read(now: number): BreathFrame | undefined {
-    if (!this.latest) return undefined;
-    if (now - this.latest.timestamp <= this.staleAfterMs) return { ...this.latest };
-    return {
-      ...this.latest,
-      confidence01: 0,
-      flow01: 0,
-      phase: "hold",
-      phaseValue: 0,
-      ready: false,
-    };
-  }
-
-  reset() {
-    this.latest = undefined;
-    this.calibrationData = [];
-    this.calibrated = false;
-    this.baseline = 0;
-    this.minZ = Infinity;
-    this.maxZ = -Infinity;
-    this.lastTimestamp = 0;
-    this.lastFilteredZ = 0;
-  }
-
-  getCalibrationProgress(): number {
-    return clamp01(this.calibrationData.length / this.calibrationSamples);
-  }
-
-  isCalibrated(): boolean {
-    return this.calibrated;
-  }
-
-  getBaseline(): number {
-    return this.baseline;
-  }
-
-  getRange(): { min: number; max: number } {
-    return { min: this.minZ, max: this.maxZ };
-  }
-}
 
 class BreathVisualizer {
   private breathCircle!: SVGCircleElement;
@@ -249,7 +118,9 @@ class BreathVisualizer {
     this.phaseLabel.textContent = phaseText;
     this.phaseLabel.dataset.phase = frame.phase;
 
-    if (frame.flow01 > 0.1) {
+    if (Number.isFinite(frame.bpm) && frame.bpm > 0) {
+      this.bpmLabel.textContent = `${Math.round(frame.bpm)} BPM`;
+    } else if (frame.flow01 > 0.1) {
       const cycleEstimate = 60 / (frame.flow01 * 10 + 2);
       this.bpmLabel.textContent = `${Math.round(cycleEstimate)} BPM`;
     }
@@ -331,44 +202,18 @@ class BreathVisualizer {
   }
 }
 
-class SimulatedBreath {
-  private running = false;
-  private startTime = 0;
-  private rate = 6;
-
-  setRate(bpm: number) {
-    this.rate = Math.max(3, Math.min(20, bpm));
-  }
-
-  start() {
-    this.running = true;
-    this.startTime = performance.now();
-  }
-
-  stop() {
-    this.running = false;
-  }
-
-  getReading(): AccelerometerReading | null {
-    if (!this.running) return null;
-    const elapsed = (performance.now() - this.startTime) / 1000;
-    const cycle = (elapsed * this.rate / 60) % 1;
-    const z = Math.sin(cycle * Math.PI * 2) * 0.5;
-    return { x: 0, y: 0, z, timestamp: performance.now() };
-  }
-}
-
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id)! as T;
 
-const breathLock = new PhoneBreathLock();
+const breath = new BreathAnalyzer();
 const visualizer = new BreathVisualizer();
-const simulated = new SimulatedBreath();
 
 let sensorActive = false;
 let motionPermissionGranted = false;
-let lastReading: AccelerometerReading | null = null;
-let simulateMode = false;
 let remoteActive = false;
+let gain = 1;
+let lastRawZ = 0;
+let lastProjection = 0;
+let lastFrame: BreathFrame | null = null;
 const phaseValueMap: Record<number, -1 | 0 | 1> = { "-1": -1, 0: 0, 1: 1 };
 
 const minRadiusInput = byId<HTMLInputElement>("min-radius");
@@ -376,8 +221,6 @@ const maxRadiusInput = byId<HTMLInputElement>("max-radius");
 const smoothingInput = byId<HTMLInputElement>("smoothing");
 const sensitivityInput = byId<HTMLInputElement>("sensitivity");
 const calibrateBtn = byId<HTMLButtonElement>("calibrate-btn");
-const simulateCheckbox = byId<HTMLInputElement>("simulate");
-const simRateInput = byId<HTMLInputElement>("sim-rate");
 const logEnabledCheckbox = byId<HTMLInputElement>("log-enabled");
 const logExportBtn = byId<HTMLButtonElement>("log-export");
 const fullscreenBtn = byId<HTMLButtonElement>("fullscreen-btn");
@@ -386,14 +229,45 @@ const minRadiusOutput = byId("min-radius-output");
 const maxRadiusOutput = byId("max-radius-output");
 const smoothingOutput = byId("smoothing-output");
 const sensitivityOutput = byId("sensitivity-output");
-const simRateOutput = byId("sim-rate-output");
 
 function updateOutputs() {
   minRadiusOutput.textContent = minRadiusInput.value;
   maxRadiusOutput.textContent = maxRadiusInput.value;
   smoothingOutput.textContent = Number(smoothingInput.value).toFixed(2);
   sensitivityOutput.textContent = Number(sensitivityInput.value).toFixed(1);
-  simRateOutput.textContent = `${simRateInput.value} BPM`;
+}
+
+function applyTuning() {
+  breath.settings.signalTauMs = Number(smoothingInput.value) * 1200;
+  gain = Number(sensitivityInput.value);
+}
+
+function frameFromSnapshot(snapshot: BreathAnalysisFrame, timeMs: number): BreathFrame {
+  return {
+    phase: phaseName(snapshot.phase),
+    phaseValue: snapshot.phase,
+    volume01: snapshot.volume01,
+    flow01: snapshot.derivativePerSecond,
+    confidence01: snapshot.calibrated ? snapshot.confidence01 : snapshot.calibration01,
+    ready: snapshot.ready,
+    timestamp: timeMs,
+    bpm: snapshot.bpm || undefined,
+  };
+}
+
+function processReading(reading: AccelerometerReading) {
+  const analysis = breath.ingest(
+    {
+      x: reading.x * gain,
+      y: reading.y * gain,
+      z: reading.z * gain,
+      timeMs: reading.timestamp,
+    },
+  );
+  lastRawZ = reading.z;
+  lastProjection = analysis.values.acc_breathing_magnitude ?? 0;
+  lastFrame = frameFromSnapshot(analysis, reading.timestamp);
+  visualizer.update(lastFrame, reading.z, lastProjection, analysis.derivativePerSecond);
 }
 
 minRadiusInput.addEventListener("input", () => {
@@ -406,42 +280,18 @@ maxRadiusInput.addEventListener("input", () => {
 });
 smoothingInput.addEventListener("input", () => {
   updateOutputs();
-  breathLock.setSmoothing(Number(smoothingInput.value));
+  applyTuning();
 });
 sensitivityInput.addEventListener("input", () => {
   updateOutputs();
-  breathLock.setSensitivity(Number(sensitivityInput.value));
+  applyTuning();
 });
 
 calibrateBtn.addEventListener("click", () => {
-  breathLock.startCalibration();
+  breath.reset();
   visualizer.statusText.textContent = "Calibrating… breathe normally";
-  visualizer.statusHint.textContent = "Keep phone still on belly for ~2 seconds";
+  visualizer.statusHint.textContent = "Keep phone on belly and breathe normally for ~2 seconds";
   visualizer.statusDot.dataset.state = "calibrating";
-});
-
-simulateCheckbox.addEventListener("change", () => {
-  simulateMode = simulateCheckbox.checked;
-  if (simulateMode) {
-    simulated.setRate(Number(simRateInput.value));
-    simulated.start();
-    sensorActive = true;
-    visualizer.statusDot.dataset.state = "live";
-    visualizer.statusText.textContent = "Simulated breathing active";
-    visualizer.statusHint.textContent = "Adjust rate slider to change breathing speed";
-  } else {
-    simulated.stop();
-    sensorActive = false;
-    visualizer.statusDot.dataset.state = "waiting";
-    visualizer.statusText.textContent = "Requesting motion access…";
-    visualizer.statusHint.textContent = "Hold phone against your belly, screen facing up";
-    requestMotionPermission();
-  }
-});
-
-simRateInput.addEventListener("input", () => {
-  updateOutputs();
-  simulated.setRate(Number(simRateInput.value));
 });
 
 logEnabledCheckbox.addEventListener("change", () => {
@@ -487,7 +337,7 @@ async function requestMotionPermission() {
         startMotionListener();
       } else {
         visualizer.statusText.textContent = "Motion permission denied";
-        visualizer.statusHint.textContent = "Enable in browser settings or use Simulate mode";
+        visualizer.statusHint.textContent = "Enable in browser settings";
         visualizer.statusDot.dataset.state = "error";
       }
     } catch {
@@ -503,15 +353,15 @@ async function requestMotionPermission() {
 function startMotionListener() {
   if (sensorActive || remoteActive) return;
   sensorActive = true;
+  breath.reset();
   window.addEventListener("devicemotion", handleMotion, { passive: true });
   visualizer.statusText.textContent = "Motion sensor active";
-  visualizer.statusHint.textContent = "Place phone on belly, screen facing up";
+  visualizer.statusHint.textContent = "Place phone on belly and breathe normally — calibrating (~2 s)";
   visualizer.statusDot.dataset.state = "calibrating";
-  breathLock.startCalibration();
 }
 
 function handleMotion(event: DeviceMotionEvent) {
-  if (simulateMode || remoteActive) return;
+  if (remoteActive) return;
   const accel = event.accelerationIncludingGravity;
   if (!accel) return;
 
@@ -521,26 +371,26 @@ function handleMotion(event: DeviceMotionEvent) {
     z: finite(accel.z),
     timestamp: performance.now(),
   };
-  lastReading = reading;
   processReading(reading);
 }
 
-function processReading(reading: AccelerometerReading) {
-  const frame = breathLock.accept(reading);
-  const filteredZ = breathLock["lastFilteredZ"];
-  const derivative = frame.volume01 > 0.5
-    ? (reading.z * breathLock["sensitivity"] - breathLock["baseline"]) * 10
-    : -(reading.z * breathLock["sensitivity"] - breathLock["baseline"]) * 10;
-
-  visualizer.update(frame, reading.z, filteredZ, derivative);
-}
-
-function simulationLoop() {
-  if (simulateMode) {
-    const reading = simulated.getReading();
-    if (reading) processReading(reading);
+function loop() {
+  if (!remoteActive && lastFrame) {
+    const now = performance.now();
+    if (now - lastFrame.timestamp > 900) {
+      const stale: BreathFrame = {
+        ...lastFrame,
+        confidence01: 0,
+        flow01: 0,
+        phase: "hold",
+        phaseValue: 0,
+        ready: false,
+        timestamp: now,
+      };
+      visualizer.update(stale, lastRawZ, lastProjection, 0);
+    }
   }
-  requestAnimationFrame(simulationLoop);
+  requestAnimationFrame(loop);
 }
 
 const pairHostEl = document.getElementById("breath-pair-host");
@@ -556,6 +406,7 @@ if (pairHostEl) {
         confidence01: state.confidence01,
         ready: true,
         timestamp: state.timestamp,
+        bpm: state.bpm || undefined,
       };
       visualizer.update(frame, 0, 0, state.flow01);
       visualizer.statusDot.dataset.state = "live";
@@ -566,9 +417,7 @@ if (pairHostEl) {
       remoteActive = ready;
       if (ready) {
         stopSensing();
-        simulateMode = false;
-        simulateCheckbox.checked = false;
-      } else if (!active && !simulateMode) {
+      } else if (!active) {
         remoteActive = false;
         requestMotionPermission();
       }
@@ -582,15 +431,14 @@ function stopSensing() {
 }
 
 visualizer.animate();
-simulationLoop();
+loop();
 updateOutputs();
+applyTuning();
 visualizer.setRadiusRange(Number(minRadiusInput.value), Number(maxRadiusInput.value));
 
-if (!simulateMode) {
-  requestMotionPermission();
-}
+requestMotionPermission();
 
 window.addEventListener("pagehide", () => {
   visualizer.stop();
-  window.removeEventListener("devicemotion", handleMotion);
+  stopSensing();
 });

@@ -843,6 +843,17 @@ a {
 .biosignal-family-icon.breath i:nth-child(1) { transform: translateY(-7px); }
 .biosignal-family-icon.breath i:nth-child(2) { width: 25px; }
 .biosignal-family-icon.breath i:nth-child(3) { transform: translateY(7px); }
+.breath-detector-selector {
+  margin-top: 0.35rem;
+  border-top: 1px dashed rgba(105, 212, 222, 0.15);
+}
+.breath-detector-heading {
+  grid-column: 1 / -1;
+  padding: 0.45rem 0 0.1rem;
+  color: #789098;
+  font: 700 0.56rem/1 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.14em;
+}
 .mapping-grid label {
   display: grid;
   gap: 0.35rem;
