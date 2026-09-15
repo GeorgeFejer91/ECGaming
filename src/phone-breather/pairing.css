@@ -1,0 +1,110 @@
+.breath-pair {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.breath-pair-button {
+  min-height: 46px;
+  padding: 0.65rem 1.1rem;
+  color: #050505;
+  border: 1px solid var(--amber, #f0883e);
+  background: var(--amber, #f0883e);
+  cursor: pointer;
+  font: 800 0.78rem/1 "Barlow Condensed", system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: 0.2s;
+}
+
+.breath-pair-button:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.breath-pair-status {
+  color: var(--muted, #8b949e);
+  font-size: 0.78rem;
+}
+
+.breath-pair-dialog {
+  width: min(420px, calc(100% - 2rem));
+  padding: 1.5rem;
+  color: var(--cream, #f0f6fc);
+  border: 1px solid var(--line, rgba(139, 148, 158, 0.22));
+  border-radius: 10px;
+  background: #0d1117;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.breath-pair-dialog::backdrop {
+  background: rgba(5, 5, 5, 0.7);
+}
+
+.breath-pair-dialog h2 {
+  margin: 0 0 0.5rem;
+  font: 700 1.5rem/1 "Barlow Condensed", system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.breath-pair-copy {
+  margin: 0 0 1rem;
+  color: var(--muted, #8b949e);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.breath-pair-dialog canvas {
+  display: block;
+  width: 240px;
+  height: 240px;
+  margin: 0 auto;
+  border: 1px solid var(--line, rgba(139, 148, 158, 0.22));
+  border-radius: 8px;
+  background: #fff;
+}
+
+.breath-pair-dialog p[role="status"] {
+  min-height: 1.4em;
+  margin: 0.85rem 0;
+  color: var(--muted, #8b949e);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.breath-pair-dialog a {
+  display: block;
+  margin: 0 auto 0.75rem;
+  color: var(--cyan, #58a6ff);
+  font: 700 0.78rem/1 "Barlow Condensed", system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.breath-pair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.breath-pair-actions button {
+  min-height: 38px;
+  padding: 0.5rem 0.85rem;
+  color: var(--cream, #f0f6fc);
+  border: 1px solid var(--line, rgba(139, 148, 158, 0.22));
+  border-radius: 6px;
+  background: var(--panel-2, #161b22);
+  cursor: pointer;
+  font: 800 0.7rem/1 "Barlow Condensed", system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.breath-pair-actions button:hover {
+  border-color: var(--cyan, #58a6ff);
+  color: var(--cyan, #58a6ff);
+}

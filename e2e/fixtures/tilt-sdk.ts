@@ -1,5 +1,5 @@
 /** Test-only two-page SDK adapter. Real browser BRSP/WebCrypto, deterministic transport. */
-export function installTiltSdkFixture(options: { motionPermissionRequired?: boolean; motionReadings?: boolean; pausePhonePairing?: boolean } = {}) {
+export function installTiltSdkFixture(options: { motionPermissionRequired?: boolean; motionReadings?: boolean; pausePhonePairing?: boolean; deviceMotion?: boolean } = {}) {
   // Shared-context BroadcastChannel fixtures represent separate visible devices, not background tabs.
   // Tests can explicitly hide one device to exercise the application's visibility release.
   (window as any).testPageVisible = true;
@@ -78,6 +78,24 @@ export function installTiltSdkFixture(options: { motionPermissionRequired?: bool
     }
   };
   Object.defineProperty(window, "VDONinjaSDK", { configurable: true, writable: true, value: SDK });
+  if (options.deviceMotion && typeof DeviceMotionEvent !== "undefined") {
+    (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 };
+    (window as any).sendAccel = options.motionReadings !== false;
+    (window as any).deviceMotionPermissionRequests = 0;
+    let motionPermissionGranted = true;
+    const dmPermissionRequired = options.motionPermissionRequired !== false;
+    if (dmPermissionRequired) motionPermissionGranted = false;
+    Object.defineProperty(DeviceMotionEvent, "requestPermission", { configurable: true, value: dmPermissionRequired ? async () => {
+      (window as any).deviceMotionPermissionRequests++;
+      const result = (window as any).motionPermissionResult ?? "granted";
+      motionPermissionGranted = result === "granted";
+      return result;
+    } : undefined });
+    setInterval(() => {
+      if ((window as any).sendAccel && motionPermissionGranted && (window as any).testPageVisible)
+        window.dispatchEvent(new DeviceMotionEvent("devicemotion", { accelerationIncludingGravity: (window as any).accelSample, interval: 16 }));
+    }, 16);
+  }
   if (typeof DeviceOrientationEvent === "undefined") return; // Initial about:blank has no secure motion API.
   (window as any).orientationSample = { beta: 0, gamma: -40 };
   (window as any).sendOrientation = options.motionReadings !== false;

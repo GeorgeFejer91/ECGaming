@@ -25,7 +25,15 @@ export default defineConfig({
         ),
         phoneBreather: resolve(
           import.meta.dirname,
-          "phone-breather/index.html",
+          "games/phone-breather/index.html",
+        ),
+        phoneBreatherHost: resolve(
+          import.meta.dirname,
+          "phone-breather-host/index.html",
+        ),
+        phoneBreatherController: resolve(
+          import.meta.dirname,
+          "phone-breather-controller/index.html",
         ),
         otherSide: resolve(
           import.meta.dirname,

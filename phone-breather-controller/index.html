@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07131f" />
+    <meta name="description" content="Phone Breather Controller — hold phone on belly to send breathing data to host." />
+    <link rel="icon" href="../favicon.svg" />
+    <title>Phone Breather Controller · EC Gaming</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" class="controller-shell">
+      <header class="controller-header">
+        <a class="brand brand-light" href="../" aria-label="EC Gaming home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>EC GAMING</span>
+        </a>
+        <div class="header-center">
+          <h1>Phone Breather</h1>
+        </div>
+      </header>
+
+      <section id="entry-section" class="entry-section" aria-label="Enter your name">
+        <div class="entry-card">
+          <span class="entry-eyebrow">THE HANDSHAKE</span>
+          <h2>the person comes closer</h2>
+          <form id="name-form" class="name-form">
+            <label for="controller-name">Name of the person</label>
+            <div class="name-input-row">
+              <input
+                id="controller-name"
+                name="name"
+                type="text"
+                maxlength="32"
+                autocomplete="given-name"
+                enterkeyhint="go"
+                placeholder="Your name"
+                required
+              />
+            </div>
+            <label for="host-name-field">Maker's breath screen</label>
+            <div class="name-input-row">
+              <input
+                id="host-name-field"
+                name="host-name"
+                type="text"
+                maxlength="32"
+                autocapitalize="words"
+                enterkeyhint="go"
+                placeholder="Lung Studio"
+              />
+              <button type="submit" class="button primary" aria-label="Connect">Connect</button>
+            </div>
+            <p id="entry-feedback" class="entry-feedback" role="status">Who are you? Name yourself before approaching your maker.</p>
+            <div id="host-choices" class="host-choices" aria-label="Found breath screens"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="controls-section" class="controls-section" hidden aria-label="Breathing controls">
+        <div class="connection-status" id="connection-status" role="status" aria-live="polite">
+          <span class="status-indicator" id="status-indicator" aria-hidden="true"></span>
+          <span id="status-text">Connecting…</span>
+        </div>
+
+        <div class="breath-visual" aria-label="Your breathing">
+          <svg class="breath-svg" viewBox="0 0 320 320" aria-hidden="true">
+            <defs>
+              <radialGradient id="breath-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.2" />
+                <stop offset="60%" stop-color="#14b8a6" stop-opacity="0.1" />
+                <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+              </radialGradient>
+              <radialGradient id="breath-gradient-inner" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#5eead4" stop-opacity="0.3" />
+                <stop offset="50%" stop-color="#2dd4bf" stop-opacity="0.15" />
+                <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <circle id="breath-ring-outer" class="breath-ring" cx="160" cy="160" r="130" fill="none" stroke="url(#breath-gradient)" stroke-width="30" stroke-opacity="0.5" />
+            <circle id="breath-circle" class="breath-circle" cx="160" cy="160" r="100" fill="url(#breath-gradient-inner)" stroke="#14b8a6" stroke-width="2" stroke-opacity="0.4" />
+            <circle id="breath-ring-inner" class="breath-ring-inner" cx="160" cy="160" r="60" fill="none" stroke="#5eead4" stroke-width="1.5" stroke-opacity="0.3" />
+            <circle id="breath-center" class="breath-center" cx="160" cy="160" r="6" fill="#14b8a6" opacity="0.8" />
+          </svg>
+          <div class="breath-labels">
+            <span id="phase-label" class="phase-label">—</span>
+            <span id="host-name" class="host-name">Host: —</span>
+          </div>
+        </div>
+
+        <div class="metrics-grid" aria-label="Breathing metrics">
+          <div class="metric-card">
+            <dt>Volume</dt>
+            <dd id="metric-volume">—</dd>
+          </div>
+          <div class="metric-card">
+            <dt>Phase</dt>
+            <dd id="metric-phase">—</dd>
+          </div>
+          <div class="metric-card">
+            <dt>Flow</dt>
+            <dd id="metric-flow">—</dd>
+          </div>
+          <div class="metric-card">
+            <dt>Confidence</dt>
+            <dd id="metric-confidence">—</dd>
+          </div>
+        </div>
+
+        <div class="instruction-card">
+          <p>Hold phone against your belly, screen facing up. Breathe naturally.</p>
+        </div>
+
+        <button id="disconnect-btn" class="button ghost full-width" type="button">Disconnect</button>
+      </section>
+
+      <footer class="controller-footer">
+        <a href="../" class="footer-link">← Back to EC Gaming</a>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

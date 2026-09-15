@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07131f" />
+    <meta name="description" content="Phone Breather Host — pair your phone to visualize breathing on this screen." />
+    <link rel="icon" href="../favicon.svg" />
+    <title>Phone Breather Host · EC Gaming</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#breath-visual">Skip to breath visual</a>
+    <main id="app" class="app-shell">
+      <header class="app-header">
+        <a class="brand brand-light" href="../" aria-label="EC Gaming home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>EC GAMING</span>
+        </a>
+        <h1>Phone Breather</h1>
+        <div class="header-actions">
+          <button id="pair-btn" class="hud-button emphasis" type="button" aria-label="Pair phone">PAIR PHONE</button>
+          <button id="fullscreen-btn" class="hud-button" type="button">FULLSCREEN</button>
+        </div>
+      </header>
+
+      <section id="breath-visual" class="breath-visual" aria-label="Breathing visualization">
+        <canvas id="tunnel-canvas" class="tunnel-canvas" hidden aria-hidden="true"></canvas>
+        <svg class="breath-svg" viewBox="0 0 400 400" aria-hidden="true">
+          <defs>
+            <radialGradient id="breath-gradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.15" />
+              <stop offset="60%" stop-color="#14b8a6" stop-opacity="0.08" />
+              <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id="breath-gradient-inner" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#5eead4" stop-opacity="0.25" />
+              <stop offset="50%" stop-color="#2dd4bf" stop-opacity="0.1" />
+              <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <circle id="breath-ring-outer" class="breath-ring" cx="200" cy="200" r="160" fill="none" stroke="url(#breath-gradient)" stroke-width="40" stroke-opacity="0.6" />
+          <circle id="breath-circle" class="breath-circle" cx="200" cy="200" r="120" fill="url(#breath-gradient-inner)" stroke="#14b8a6" stroke-width="2" stroke-opacity="0.4" />
+          <circle id="breath-ring-inner" class="breath-ring-inner" cx="200" cy="200" r="80" fill="none" stroke="#5eead4" stroke-width="1.5" stroke-opacity="0.3" />
+          <circle id="breath-center" class="breath-center" cx="200" cy="200" r="8" fill="#14b8a6" opacity="0.8" />
+        </svg>
+        <div class="breath-labels">
+          <span id="phase-label" class="phase-label">—</span>
+          <span id="bpm-label" class="bpm-label">— BPM</span>
+        </div>
+        <div id="connection-badge" class="connection-badge" hidden>
+          <span class="badge-dot" aria-hidden="true"></span>
+          <span id="badge-text">Waiting for phone…</span>
+        </div>
+      </section>
+
+      <section class="status-panel" aria-label="Connection status">
+        <div class="status-row">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <span id="status-text">Not connected</span>
+        </div>
+        <p class="status-hint" id="status-hint">Tap "PAIR PHONE" to generate a QR code for your phone.</p>
+      </section>
+
+      <dialog id="pair-dialog" class="pair-dialog" aria-label="Phone pairing">
+        <div class="pair-dialog-content">
+          <header class="pair-dialog-header">
+            <h2>Pair Your Phone</h2>
+            <button id="pair-close" class="dialog-close" type="button" aria-label="Close">&times;</button>
+          </header>
+          <div class="pair-dialog-body">
+            <p class="pair-instruction">Scan this QR code with your phone, or tap "Open on Phone" below.</p>
+            <div class="qr-container">
+              <canvas id="qr-canvas" aria-label="QR code for phone pairing"></canvas>
+            </div>
+            <a id="pair-link" class="button primary" href="#" target="_blank" rel="noopener">Open on Phone</a>
+            <p class="pair-hint">Your phone will prompt for a name, then connect here.</p>
+            <div id="pair-status" class="pair-status" role="status" aria-live="polite">Generating QR code…</div>
+          </div>
+          <footer class="pair-dialog-footer">
+            <button id="pair-stop" class="button ghost" type="button">Stop Pairing</button>
+          </footer>
+        </div>
+      </dialog>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

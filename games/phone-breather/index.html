@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07131f" />
+    <meta name="description" content="Phone Breather — hold your phone against your belly and watch the circle breathe with you." />
+    <link rel="icon" href="../../favicon.svg" />
+    <title>Phone Breather · EC Gaming</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#breath-visual">Skip to breath visual</a>
+    <main id="app" class="app-shell">
+      <header class="app-header">
+        <a class="brand brand-light" href="../../" aria-label="EC Gaming home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>EC GAMING</span>
+        </a>
+        <h1>Phone Breather</h1>
+        <div class="header-actions">
+          <button id="fullscreen-btn" class="hud-button" type="button">FULLSCREEN</button>
+        </div>
+      </header>
+
+      <section class="pair-panel" aria-label="Phone pairing">
+        <div id="breath-pair-host"></div>
+      </section>
+
+      <section id="breath-visual" class="breath-visual" aria-label="Breathing visualization">
+        <svg class="breath-svg" viewBox="0 0 400 400" aria-hidden="true">
+          <defs>
+            <radialGradient id="breath-gradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.15" />
+              <stop offset="60%" stop-color="#14b8a6" stop-opacity="0.08" />
+              <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id="breath-gradient-inner" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#5eead4" stop-opacity="0.25" />
+              <stop offset="50%" stop-color="#2dd4bf" stop-opacity="0.1" />
+              <stop offset="100%" stop-color="#0d9488" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <!-- Outer glow ring -->
+          <circle
+            id="breath-ring-outer"
+            class="breath-ring"
+            cx="200"
+            cy="200"
+            r="160"
+            fill="none"
+            stroke="url(#breath-gradient)"
+            stroke-width="40"
+            stroke-opacity="0.6"
+          />
+          <!-- Main breathing circle -->
+          <circle
+            id="breath-circle"
+            class="breath-circle"
+            cx="200"
+            cy="200"
+            r="120"
+            fill="url(#breath-gradient-inner)"
+            stroke="#14b8a6"
+            stroke-width="2"
+            stroke-opacity="0.4"
+          />
+          <!-- Inner pulse ring -->
+          <circle
+            id="breath-ring-inner"
+            class="breath-ring-inner"
+            cx="200"
+            cy="200"
+            r="80"
+            fill="none"
+            stroke="#5eead4"
+            stroke-width="1.5"
+            stroke-opacity="0.3"
+          />
+          <!-- Center dot -->
+          <circle
+            id="breath-center"
+            class="breath-center"
+            cx="200"
+            cy="200"
+            r="8"
+            fill="#14b8a6"
+            opacity="0.8"
+          />
+        </svg>
+        <div class="breath-labels">
+          <span id="phase-label" class="phase-label">—</span>
+          <span id="bpm-label" class="bpm-label">— BPM</span>
+        </div>
+      </section>
+
+      <section class="status-panel" aria-label="Connection status">
+        <div class="status-row">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <span id="status-text">Requesting motion access…</span>
+        </div>
+        <p class="status-hint" id="status-hint">Hold phone against your belly, screen facing up.</p>
+      </section>
+
+      <section class="controls-panel" aria-label="Breathing controls">
+        <details class="accordion" open>
+          <summary><span><b>01</b> Calibration</span><i>SETUP</i></summary>
+          <div class="accordion-body">
+            <label>
+              Min radius <output id="min-radius-output">40</output>
+              <input id="min-radius" type="range" min="20" max="100" value="40" step="1" />
+            </label>
+            <label>
+              Max radius <output id="max-radius-output">180</output>
+              <input id="max-radius" type="range" min="120" max="250" value="180" step="1" />
+            </label>
+            <label>
+              Smoothing <output id="smoothing-output">0.15</output>
+              <input id="smoothing" type="range" min="0.05" max="0.5" value="0.15" step="0.01" />
+            </label>
+            <label>
+              Sensitivity <output id="sensitivity-output">1.0</output>
+              <input id="sensitivity" type="range" min="0.3" max="3.0" value="1.0" step="0.1" />
+            </label>
+            <button id="calibrate-btn" class="button primary" type="button">Calibrate now</button>
+            <p class="fine-print">Place phone on belly, breathe normally, then tap Calibrate.</p>
+          </div>
+        </details>
+
+        <details class="accordion">
+          <summary><span><b>02</b> Sensor data</span><i>DEBUG</i></summary>
+          <div class="accordion-body">
+            <dl class="metrics-grid">
+              <div><dt>Z-accel</dt><dd id="metric-z">—</dd></div>
+              <div><dt>Filtered</dt><dd id="metric-filtered">—</dd></div>
+              <div><dt>Derivative</dt><dd id="metric-derivative">—</dd></div>
+              <div><dt>Volume 0-1</dt><dd id="metric-volume">—</dd></div>
+              <div><dt>Phase</dt><dd id="metric-phase">—</dd></div>
+              <div><dt>Confidence</dt><dd id="metric-confidence">—</dd></div>
+            </dl>
+            <canvas id="waveform" width="600" height="120" aria-label="Breath waveform"></canvas>
+          </div>
+        </details>
+
+        <details class="accordion">
+          <summary><span><b>03</b> Test & privacy</span><i>LOCAL</i></summary>
+          <div class="accordion-body">
+            <label class="check-row">
+              <input id="simulate" type="checkbox" />
+              <span>Simulate breathing (no sensor)</span>
+            </label>
+            <label>
+              Simulated rate <output id="sim-rate-output">6</output> BPM
+              <input id="sim-rate" type="range" min="3" max="20" value="6" step="1" />
+            </label>
+            <label class="check-row">
+              <input id="log-enabled" type="checkbox" />
+              <span>Record session CSV</span>
+            </label>
+            <button id="log-export" class="button ghost" type="button" disabled>Export CSV</button>
+            <p class="fine-print">All processing happens locally. No data leaves this tab.</p>
+          </div>
+        </details>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
