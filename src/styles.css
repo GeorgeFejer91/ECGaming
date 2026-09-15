@@ -939,24 +939,27 @@ a {
   min-width: 7.5rem;
 }
 .music-quick-controls {
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.9rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  padding: 0.5rem 0.9rem;
   border-top: 1px solid rgba(166, 215, 225, 0.14);
   background: #0e2431;
 }
 .music-quick-toggle {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   cursor: pointer;
 }
 .music-quick-toggle input {
   accent-color: var(--green);
 }
 .music-quick-copy {
-  display: grid;
-  gap: 0.2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 .music-quick-copy strong {
   font:
@@ -973,9 +976,8 @@ a {
 .music-quick-variant {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0 0.4rem;
+  gap: 0.55rem;
+  margin-left: auto;
   transition: opacity 0.2s ease;
 }
 .music-quick-variant.is-disabled {
@@ -988,6 +990,7 @@ a {
     sans-serif;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .music-quick-variant select {
   min-width: 7.5rem;

@@ -71,6 +71,14 @@ body.compact-ground .signal-displays .ecg-screen { min-height: 0; }
   body.compact-ground .avionics-display .altitude-metric-panel { flex-basis: 126px; }
   body.compact-ground .signal-displays .ecg-instrument { padding: 6px; }
   body.compact-ground .signal-displays .instrument-header { min-height: 18px; }
+  body.compact-ground .music-quick-controls { display: none; }
+}
+@media (max-width: 700px) and (min-height: 721px) {
+  body.compact-ground .music-quick-controls { padding: 6px 10px; gap: 0; }
+  body.compact-ground .music-quick-toggle { gap: 8px; }
+  body.compact-ground .music-quick-copy small,
+  body.compact-ground .music-quick-variant { display: none; }
+  body.compact-ground .music-quick-copy strong { font-size: 11px; }
 }
 body.compact-ground .instrument-header { min-height: 24px; flex: 0 0 auto; padding: 0; }
 body.compact-ground .instrument-header h2 { font: 600 16px/1.25 Inter, sans-serif; letter-spacing: 0; margin: 0; }
@@ -201,6 +209,9 @@ body.compact-ground .control-workspace button:focus-visible, body.compact-ground
 }
 @media (prefers-reduced-motion: reduce) {
   body.compact-ground .control-workspace button, body.compact-ground .unified-header button { transition: none; }
+}
+@media (max-height: 760px) {
+  body.compact-ground .music-quick-controls .music-quick-copy small { display: none; }
 }
 /* Architectural surround replaces the heading without covering the aircraft. */
 body.compact-ground .aircraft-preview-pulse-label { position: absolute; top: 15%; left: 8%; z-index: 3; color: #8ba8b3; font: 500 11px/1.3 Inter, sans-serif; pointer-events: none; }
