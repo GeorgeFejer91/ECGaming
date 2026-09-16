@@ -110,13 +110,13 @@ describe("BreathSourceManager", () => {
     return { manager, analyzer };
   }
 
-  it("defaults to polar as the active source when attached", () => {
+  it("defaults to polar-lynphan as the active source when attached", () => {
     const { manager } = make();
-    manager.attach({ kind: "polar", label: "Polar H10" });
-    expect(manager.activeSource).toBe("polar");
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
+    expect(manager.activeSource).toBe("polar-lynphan");
   });
 
-  it("falls back to phone when phone is tagged breathResponsible and polar absent", () => {
+  it("falls back to phone when phone is tagged breathResponsible and polar-lynphan absent", () => {
     const { manager } = make();
     manager.attach({ kind: "phone", label: "This phone", breathResponsible: true });
     expect(manager.activeSource).toBe("phone");
@@ -128,33 +128,33 @@ describe("BreathSourceManager", () => {
     expect(manager.activeSource).toBeNull();
   });
 
-  it("prefers polar when both sources are attached", () => {
+  it("prefers polar-lynphan when both sources are attached", () => {
     const { manager } = make();
     manager.attach({ kind: "phone", label: "This phone", breathResponsible: true });
-    manager.attach({ kind: "polar", label: "Polar H10" });
-    expect(manager.activeSource).toBe("polar");
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
+    expect(manager.activeSource).toBe("polar-lynphan");
   });
 
-  it("switches to phone when polar detaches", () => {
+  it("switches to phone when polar-lynphan detaches", () => {
     const { manager } = make();
-    manager.attach({ kind: "polar", label: "Polar H10" });
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
     manager.attach({ kind: "phone", label: "This phone", breathResponsible: true });
-    expect(manager.activeSource).toBe("polar");
-    manager.detach("polar");
+    expect(manager.activeSource).toBe("polar-lynphan");
+    manager.detach("polar-lynphan");
     expect(manager.activeSource).toBe("phone");
   });
 
   it("routes samples only when active", () => {
     const { manager } = make();
-    manager.attach({ kind: "polar", label: "Polar H10" });
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
     const result = manager.ingest(
       { x: 0, y: 0, z: 9.8, timeMs: 0, unit: "ms2" },
-      "polar",
+      "polar-lynphan",
     );
     expect(result).not.toBeNull();
     expect(result!.timestampMs).toBe(0);
 
-    // phone samples are ignored while polar is active
+    // phone samples are ignored while polar-lynphan is active
     const ignored = manager.ingest(
       { x: 0, y: 0, z: 9.8, timeMs: 0, unit: "ms2" },
       "phone",
@@ -164,9 +164,9 @@ describe("BreathSourceManager", () => {
 
   it("setPreferred switches active source and resets analyzer", () => {
     const { manager, analyzer } = make();
-    manager.attach({ kind: "polar", label: "Polar H10" });
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
     manager.attach({ kind: "phone", label: "This phone", breathResponsible: true });
-    expect(manager.activeSource).toBe("polar");
+    expect(manager.activeSource).toBe("polar-lynphan");
 
     manager.setPreferred("phone");
     expect(manager.activeSource).toBe("phone");
@@ -178,8 +178,8 @@ describe("BreathSourceManager", () => {
     const { manager } = make();
     const changes: (string | null)[] = [];
     manager.onActiveChange((a) => changes.push(a));
-    manager.attach({ kind: "polar", label: "Polar H10" });
-    manager.detach("polar");
-    expect(changes).toEqual(["polar", null]);
+    manager.attach({ kind: "polar-lynphan", label: "Polar H10 (Lynphan)" });
+    manager.detach("polar-lynphan");
+    expect(changes).toEqual(["polar-lynphan", null]);
   });
 });

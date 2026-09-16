@@ -1,6 +1,6 @@
 import type { AccelSample, BreathAnalysisFrame, BreathAnalyzer } from "./analyzer";
 
-export type BreathSourceKind = "polar" | "phone";
+export type BreathSourceKind = "polar" | "polar-lynphan" | "phone";
 
 export interface BreathSourceDescriptor {
   kind: BreathSourceKind;
@@ -101,13 +101,14 @@ export class BreathSourceManager {
   }
 
   private recompute(): void {
-    const polar = this.sources.get("polar");
+    const polarLynphan = this.sources.get("polar-lynphan");
     const phone = this.sources.get("phone");
     const phoneOk = phone?.breathResponsible === true;
     let next: BreathSourceKind | null = null;
 
     if (phoneOk && this.preferred === "phone") next = "phone";
-    else if (polar) next = "polar";
+    else if (polarLynphan && this.preferred === "polar-lynphan") next = "polar-lynphan";
+    else if (polarLynphan) next = "polar-lynphan";
     else if (phoneOk) next = "phone";
 
     if (next !== this.activeKind) {

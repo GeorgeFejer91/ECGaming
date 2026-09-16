@@ -538,9 +538,12 @@ function mappingMarkup(command: ContinuousCommand) {
         '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>BREATH CONTROL</strong><small>Polar ACC chest-motion waveform</small></span></button></div>' +
         '<div class="biosignal-family-selector breath-detector-selector" role="group" aria-label="Breath detection device"><span class="breath-detector-heading">BREATH DETECTOR</span><button type="button" class="biosignal-family-button" data-breath-detector="polar" aria-pressed="' +
         String(preferredBreathSource === "polar") +
-        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>POLAR H10 ACC</strong><small>Default chest-motion detector</small></span></button><button type="button" class="biosignal-family-button" data-breath-detector="phone" aria-pressed="' +
+        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>POLAR H10 ACC</strong><small>Default chest-motion detector</small></span></button><button type="button" class="biosignal-family-button" data-breath-detector="polar-lynphan" aria-pressed="' +
+        String(preferredBreathSource === "polar-lynphan") +
+        '"><span class="biosignal-family-icon breath" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>POLAR H10 ACC · Lynphan</strong><small>Lynphan algorithm on Polar ACC</small></span></button><button type="button" class="biosignal-family-button" data-breath-detector="phone" aria-pressed="' +
         String(preferredBreathSource === "phone") +
-        '"><span class="biosignal-family-icon heart" aria-hidden="true">☎</span><span><strong>PHONE MOTION</strong><small>Breath-responsible phone accelerometer</small></span></button></div>'
+        '"><span class="biosignal-family-icon heart" aria-hidden="true">☎</span><span><strong>PHONE MOTION · Lynphan</strong><small>Phone accelerometer (lynphan)</small></span></button></div>' +
+        '<div class="breath-detector-qr" id="breath-detector-qr" hidden><canvas class="qr-canvas" aria-label="Phone pairing QR code"></canvas><p class="qr-instruction">Scan with phone controller app</p></div>'
       : "";
   return (
     '<fieldset class="mapping-card" data-command="' +
@@ -631,11 +634,22 @@ function setBreathDetector(kind: BreathSourceKind) {
   localStorage.setItem(BREATH_SOURCE_KEY, kind);
   breathSources.setPreferred(kind);
 
+  // Manage polar-lynphan source attachment
+  if (kind === "polar-lynphan") {
+    breathSources.attach({ kind: "polar-lynphan", label: "Polar H10 ACC (Lynphan)" });
+  } else {
+    breathSources.detach("polar-lynphan");
+  }
+
+  // Manage phone link
   if (kind === "phone") {
     startPhoneBreathLink();
   } else {
     stopPhoneBreathLink();
-    // Restore polar metrics from original method on switch back
+  }
+
+  // Reset breathing state when switching
+  if (kind !== "polar") {
     breathingReady = false;
     lastBreathingSignalAt = -Infinity;
   }
@@ -693,14 +707,19 @@ function syncBreathDetectorPresence() {
     '[data-command="altitude"] [data-signal-family="breath"] small',
   );
   if (!breathButton) return;
-  breathButton.textContent =
-    active === "phone"
-      ? breathingReady
-        ? "Phone accelerometer waveform live"
-        : "Phone motion breath detector"
-      : breathingReady
-        ? "Polar ACC chest-motion waveform live"
-        : "Polar ACC chest-motion waveform";
+  if (preferredBreathSource === "polar") {
+    breathButton.textContent = breathingReady
+      ? "Polar ACC chest-motion waveform live"
+      : "Polar ACC chest-motion waveform";
+  } else if (preferredBreathSource === "polar-lynphan") {
+    breathButton.textContent = active === "polar-lynphan" && breathingReady
+      ? "Polar ACC · Lynphan waveform live"
+      : "Polar ACC · Lynphan detector";
+  } else {
+    breathButton.textContent = active === "phone" && breathingReady
+      ? "Phone accelerometer waveform live"
+      : "Phone motion breath detector";
+  }
 }
 
 function updateMappingsFromUi(resetMetricDefaults = false) {
@@ -1308,6 +1327,22 @@ function handlePolarEvent(event: any) {
       // Existing Polar ACC breathing method (not replaced)
       breathingReady = event.breathing?.ready === true;
       appendBreathingPresentationPoints(event.breathing?.presentationPoints);
+    } else if (preferredBreathSource === "polar-lynphan") {
+      // Lynphan algorithm on Polar ACC
+      const samples = event.samples ?? [];
+      for (const sample of samples) {
+        const timeMs =
+          (Number(event.sensorTimestampNs) || now * 1e6) / 1e6;
+        breathSources.ingest(
+          {
+            x: (Number(sample.xMg) / 1000) * 9.80665,
+            y: (Number(sample.yMg) / 1000) * 9.80665,
+            z: (Number(sample.zMg) / 1000) * 9.80665,
+            timeMs,
+          },
+          "polar-lynphan",
+        );
+      }
     } else {
       // Phone module active — polar ACC is not used for breathing
     }
