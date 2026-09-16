@@ -60,6 +60,8 @@ import {
   polarWebBluetoothSupport,
 } from "./polar/browser-hub";
 import { BreathAnalyzer, BreathSourceManager, type BreathSourceKind } from "./breath";
+import { BreathLink, type BreathState } from "./phone-breather/link";
+import { createBreathInvitation } from "./phone-breather/invitation";
 
 const SETTINGS_KEY = "ecgaming-ground-settings-v2";
 const LEGACY_SETTINGS_KEY = "ecgaming-ground-settings-v1";
@@ -69,6 +71,7 @@ const MUSIC_CONFIG_KEY = "ecgaming-music-config-v1";
 const MUSIC_ENABLED_KEY = "ecgaming-music-enabled-v1";
 const PILOT_NAME_KEY = "ecgaming-pilot-name-v1";
 const BREATH_SOURCE_KEY = "ecgaming-breath-source-v1";
+let phoneBreathLink: BreathLink | null = null;
 const COMMANDS: ContinuousCommand[] = ["altitude", "throttle", "traffic"];
 const COMMAND_LABELS: Record<ContinuousCommand, string> = {
   altitude: "Vertical control · plane up/down",
@@ -627,8 +630,52 @@ function setBreathDetector(kind: BreathSourceKind) {
   preferredBreathSource = kind;
   localStorage.setItem(BREATH_SOURCE_KEY, kind);
   breathSources.setPreferred(kind);
+
+  if (kind === "phone") {
+    startPhoneBreathLink();
+  } else {
+    stopPhoneBreathLink();
+    // Restore polar metrics from original method on switch back
+    breathingReady = false;
+    lastBreathingSignalAt = -Infinity;
+  }
   updateBreathDetectorSelector();
   syncMappingAvailability();
+}
+
+function startPhoneBreathLink(): void {
+  if (phoneBreathLink) return;
+  // Pre-set a name so the "Who is your maker" dialog doesn't prompt
+  if (!localStorage.getItem("ecgaming-breath-host-name-v1")) {
+    localStorage.setItem("ecgaming-breath-host-name-v1", "Ground Control");
+  }
+  phoneBreathLink = new BreathLink("target");
+  phoneBreathLink.pilotName = "Ground Control";
+  phoneBreathLink.addEventListener("state", (event: Event) => {
+    const state = (event as CustomEvent<BreathState>).detail;
+    if (!state || !Number.isFinite(state.volume01)) return;
+    breathingReady = true;
+    lastBreathingSignalAt = performance.now();
+    polarMetrics.breathing_volume = state.volume01;
+    polarMetrics.acc_breathing_magnitude = state.flow01 ?? 0;
+    polarMetrics.breathing_axis_range = 0;
+    polarMetrics.breathing_signal_ready = 1;
+    polarMetrics.breathing_signal_confidence = state.confidence01 ?? 0;
+    polarMetrics.breathing_signal_contribution = state.confidence01 ?? 0;
+    // Feed presentation points for the scope waveform
+    appendBreathingPresentationPoints([{ timeMs: state.timestamp, volume01: state.volume01 }]);
+    syncBreathDetectorPresence();
+  });
+  // Start the link with a proper invitation
+  const invitation = createBreathInvitation("Ground Control");
+  phoneBreathLink.start(invitation);
+}
+
+function stopPhoneBreathLink(): void {
+  if (phoneBreathLink) {
+    phoneBreathLink.stop({ emitStatus: false });
+    phoneBreathLink = null;
+  }
 }
 
 function updateBreathDetectorSelector() {
@@ -1257,19 +1304,12 @@ function handlePolarEvent(event: any) {
   }
   if (event.kind === "accelerometer") {
     lastBreathingSignalAt = now;
-    const samples = event.samples ?? [];
-    for (const sample of samples) {
-      const timeMs =
-        (Number(event.sensorTimestampNs) || now * 1e6) / 1e6;
-      breathSources.ingest(
-        {
-          x: (Number(sample.xMg) / 1000) * 9.80665,
-          y: (Number(sample.yMg) / 1000) * 9.80665,
-          z: (Number(sample.zMg) / 1000) * 9.80665,
-          timeMs,
-        },
-        "polar",
-      );
+    if (preferredBreathSource === "polar") {
+      // Existing Polar ACC breathing method (not replaced)
+      breathingReady = event.breathing?.ready === true;
+      appendBreathingPresentationPoints(event.breathing?.presentationPoints);
+    } else {
+      // Phone module active — polar ACC is not used for breathing
     }
   }
   if (event.kind === "warning") {
