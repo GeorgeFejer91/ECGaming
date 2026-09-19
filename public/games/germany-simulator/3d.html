@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Germany Simulator · 3D Prototype</title>
+<style>
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#77756f;font-family:Arial,sans-serif}
+.hud{position:fixed;z-index:20;left:12px;right:12px;top:12px;display:flex;justify-content:space-between;gap:12px;padding:10px 12px;background:rgba(232,228,216,.9);border:1px solid #222}
+.hud b{font-size:21px}.hud small{display:block;font-size:8px;letter-spacing:.16em}.status{text-align:right;font-size:11px}
+.help{position:fixed;z-index:20;left:12px;top:82px;padding:8px 10px;background:rgba(232,228,216,.88);border:1px solid #333;font-size:10px;max-width:300px}
+.dialogue{position:fixed;z-index:24;left:12px;right:12px;bottom:118px;padding:13px;background:#eee8da;border:3px solid #222;display:none;font-size:15px}
+.dialogue.show{display:block}.dialogue b{display:block;margin-bottom:7px;letter-spacing:.09em}
+.controls{position:fixed;z-index:24;left:0;right:0;bottom:0;height:106px;display:grid;grid-template-columns:70px 1fr 78px;gap:6px;padding:7px;background:rgba(225,220,208,.97);border-top:2px solid #222}
+.controls button{border:1px solid #222;background:#e8e2d4;font-weight:900;font-size:17px;touch-action:none}
+.controls .pad{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.controls .act{background:#171717;color:#eee8da}
+.badge{position:fixed;z-index:20;right:12px;bottom:118px;padding:7px 10px;background:rgba(232,228,216,.9);border:1px solid #333;font-size:9px}
+@media(min-width:800px){.controls{width:520px;left:50%;right:auto;transform:translateX(-50%)}}
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="hud"><div><small>EXPERIMENTAL WEBGL BUILD</small><b>GERMANY SIMULATOR · 3D</b></div><div class="status"><b id="district">BERLIN</b><br>THREE.JS MESH WORLD</div></div>
+  <div class="help">Actual 3D mesh buildings, roads, trees, fences, fax billboards and characters. Arrow/WASD or touch controls. Press E near Merkel or a fax billboard.</div>
+  <div id="dialogue" class="dialogue"><b id="speaker"></b><span id="line"></span></div>
+  <div class="badge" id="coords">0 / 0</div>
+  <nav class="controls">
+    <button id="home">↺</button>
+    <div class="pad">
+      <button data-key="ArrowLeft">◀</button><button data-key="ArrowUp">▲</button><button data-key="ArrowDown">▼</button><button data-key="ArrowRight">▶</button>
+    </div>
+    <button class="act" data-key="KeyE">E</button>
+  </nav>
+</main>
+<script>
+(()=>{"use strict";
+const WORLD={w:4800,h:4000},player={x:1800,y:1760},keys={},police=[];
+const roads=[
+{x:0,y:820,w:WORLD.w,h:260},{x:1050,y:0,w:260,h:WORLD.h},{x:0,y:2000,w:WORLD.w,h:240},
+{x:0,y:3000,w:WORLD.w,h:220},{x:2400,y:0,w:220,h:WORLD.h},{x:4400,y:0,w:180,h:WORLD.h}
+];
+const crossings=[
+{x:1010,y:890,w:340,h:80},{x:1135,y:760,w:90,h:380},{x:2360,y:890,w:300,h:80},{x:2465,y:760,w:90,h:380},
+{x:4360,y:890,w:260,h:80},{x:4445,y:760,w:90,h:380},{x:1010,y:2070,w:340,h:80},{x:1135,y:1940,w:90,h:360},
+{x:2360,y:2070,w:300,h:80},{x:2465,y:1940,w:90,h:360},{x:4360,y:2070,w:260,h:80},{x:4445,y:1940,w:90,h:360},
+{x:1010,y:3060,w:340,h:80},{x:1135,y:2940,w:90,h:340},{x:2360,y:3060,w:300,h:80},{x:2465,y:2940,w:90,h:340},
+{x:4360,y:3060,w:260,h:80},{x:4445,y:2940,w:90,h:340},{x:3590,y:2985,w:120,h:270}
+];
+const buildings=[
+{id:"buergeramt",name:"BÜRGERAMT",x:150,y:220,w:350,h:250,hgt:115,doorX:325,doorY:500,sign:"TERMIN NUR MIT TERMIN"},
+{id:"hausverwaltung",name:"HAUSVERWALTUNG",x:590,y:210,w:330,h:255,hgt:95,doorX:755,doorY:495,sign:"WOHNUNGSGEBERBESTÄTIGUNG"},
+{id:"stadtbild",name:"AMT FÜR STADTBILD",x:1390,y:220,w:360,h:245,hgt:105,doorX:1570,doorY:495,sign:"OPTISCHE ORDNUNG · DIN 0815"},
+{id:"auslaender",name:"AUSLÄNDERBEHÖRDE",x:1840,y:190,w:430,h:280,hgt:130,doorX:2055,doorY:505,sign:"VORSPRACHE NUR NACH VORSPRACHE"},
+{id:"finanzamt",name:"FINANZAMT",x:1420,y:1260,w:360,h:265,hgt:120,doorX:1600,doorY:1555,sign:"STEUERN · NUMMERN · RÜCKFRAGEN"},
+{id:"krankenkasse",name:"KRANKENKASSE",x:1900,y:1260,w:340,h:260,hgt:90,doorX:2070,doorY:1550,sign:"BITTE BLEIBEN SIE GESUND"},
+{id:"polizei",name:"POLIZEI",x:2900,y:3300,w:650,h:360,hgt:185,doorX:3225,doorY:3690,sign:"ABSCHNITT 08 · GARTENAUFSICHT"},
+{id:"spaeti",name:"SPÄTI",x:130,y:620,w:250,h:145,hgt:55,doorX:255,doorY:795,sign:"PFAND · MATE · ALLES"},
+{id:"imbiss",name:"WURST-INSEL",x:1900,y:630,w:280,h:150,hgt:55,doorX:2040,doorY:810,sign:"BRATWURST · CURRYWURST"},
+{id:"faxamt",name:"BUNDESFAXAMT",x:2700,y:250,w:620,h:380,hgt:180,doorX:3010,doorY:660,sign:"DIGITALISIERUNG DURCH PAPIER"},
+{id:"tuev",name:"TÜV-ZENTRUM",x:3700,y:250,w:650,h:390,hgt:175,doorX:4025,doorY:670,sign:"BITTE BLEIBEN SIE PRÜFBAR"},
+{id:"sparkasse",name:"SPARKASSE",x:2750,y:1260,w:600,h:400,hgt:165,doorX:3050,doorY:1690,sign:"BERATUNG NUR MIT TERMIN"},
+{id:"post",name:"DEUTSCHE POST",x:3700,y:1260,w:650,h:400,hgt:170,doorX:4025,doorY:1690,sign:"BRIEF · FAX · WARTEMARKE"},
+{id:"rathaus",name:"RATHAUS",x:2750,y:2320,w:700,h:430,hgt:205,doorX:3100,doorY:2780,sign:"BÜRGERNÄHE NACH TERMINVEREINBARUNG"},
+{id:"baumarkt",name:"DIN-BAUMARKT",x:3700,y:2320,w:650,h:430,hgt:160,doorX:4025,doorY:2780,sign:"NORMGERECHTE SCHRAUBEN"}
+];
+const schreber={x:90,y:1210,w:560,h:570},policeGarden={x:2850,y:3250,w:1500,h:650},policePath={x1:4250,y1:3850,x2:3650,y2:3250,width:130};
+const props=[
+{x:2860,y:760,asset:"faxbillboard",id:"fax1"},{x:3500,y:1880,asset:"faxbillboard",id:"fax2"},{x:3980,y:2890,asset:"faxbillboard",id:"fax3"}
+];
+const npcs=[
+{x:520,y:720,vx:16,vy:0,min:470,max:900},{x:1470,y:670,vx:-13,vy:0,min:1360,max:1760},
+{x:2900,y:2860,vx:15,vy:0,min:2740,max:3400,special:"merkel"}
+];
+const pickups=[{x:1980,y:870,type:"bratwurst",taken:false},{x:2110,y:880,type:"currywurst",taken:false},{x:4100,y:900,type:"brezel",taken:false},{x:3000,y:1910,type:"pfand",taken:false}];
+window.Germany3DBridge={WORLD,player,roads,crossings,buildings,schreber,policeGarden,policePath,props,pickups,getNPCs:()=>npcs,getPolice:()=>police};
+const dist=(a,b,c,d)=>Math.hypot(a-c,b-d);
+function blocked(x,y){if(x<25||y<25||x>WORLD.w-25||y>WORLD.h-25)return true;return buildings.some(b=>x>b.x-16&&x<b.x+b.w+16&&y>b.y-16&&y<b.y+b.h+16)}
+function say(s,l){document.getElementById("speaker").textContent=s;document.getElementById("line").textContent=l;const d=document.getElementById("dialogue");d.classList.add("show");clearTimeout(say.t);say.t=setTimeout(()=>d.classList.remove("show"),4500)}
+function interact(){const m=npcs.find(n=>n.special==="merkel"&&dist(player.x,player.y,n.x,n.y)<120);if(m){say("ANGELA MERKEL · SATIRE","Wir schaffen das.");return}const f=props.find(p=>dist(player.x,player.y,p.x,p.y)<150);if(f)say("FAX 3000 PRO","2,75× schneller beim Versand ausgedruckter Dokumente. Die Zukunft der Digitalisierung ist Papier.")}
+function update(dt){let dx=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0),dy=(keys.ArrowDown?1:0)-(keys.ArrowUp?1:0);const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;const nx=player.x+dx*190*dt,ny=player.y+dy*190*dt;if(!blocked(nx,player.y))player.x=nx;if(!blocked(player.x,ny))player.y=ny;npcs.forEach(n=>{if(n.vx){n.x+=n.vx*dt;if(n.x<n.min||n.x>n.max)n.vx*=-1}if(n.vy){n.y+=n.vy*dt;if(n.y<n.min||n.y>n.max)n.vy*=-1}});document.getElementById("coords").textContent=Math.round(player.x)+" / "+Math.round(player.y);document.getElementById("district").textContent=player.x>2400?"DEUTSCHLAND OST":"BERLIN"}
+addEventListener("keydown",e=>{if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==="KeyE")interact()});addEventListener("keyup",e=>keys[e.code]=false);
+document.querySelectorAll("[data-key]").forEach(b=>{const k=b.dataset.key;b.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true;if(k==="KeyE")interact()});["pointerup","pointercancel","pointerleave"].forEach(t=>b.addEventListener(t,e=>{e.preventDefault();keys[k]=false}))});
+document.getElementById("home").onclick=()=>{player.x=1800;player.y=1760};
+let last=performance.now();function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;update(dt);window.Germany3D?.sync();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+})();
+</script>
+<script type="module" src="./world3d.js"></script>
+</body></html>
