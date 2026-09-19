@@ -1,13 +1,13 @@
 (function(){
 "use strict";
 const canvas=document.getElementById("game"),ctx=canvas.getContext("2d"),keys=Object.create(null),WORLD={w:2400,h:2000};
-const player={x:1180,y:1760,r:16,energy:100};
+const player={x:1800,y:1760,r:16,energy:100};
 const state={started:false,modal:false,dialogue:false,wanted:0,offence:"AKTENLAGE: UNAUFFÄLLIG",wantedCooldown:0,runTimer:0,runWarned:false,roadTimer:0,roadWarned:false,jayCooldown:0,grassTimer:0,grassWarned:false,gardenCooldown:0,mission:0,forms:0,pfand:0,day:1,minutes:480,stadtbild:0,citizen:false,gameOver:false,rule:0,ruleTimer:0,lang:"de",voiceOn:true,region:"berlin",regionCooldown:0};
 let police=[],particles=[],width=innerWidth,height=innerHeight,dpr=1,last=performance.now();
 const roads=[{x:0,y:820,w:WORLD.w,h:260},{x:1050,y:0,w:260,h:WORLD.h}],crossings=[{x:1010,y:890,w:340,h:70},{x:1135,y:760,w:90,h:380}],schreber={x:90,y:1210,w:560,h:570};
 const policeGarden={x:650,y:1530,w:560,h:440};
 const BORDER_Y=1120;
-const policePath={x1:1080,y1:1930,x2:620,y2:1490,width:104};
+const policePath={x1:1000,y1:1930,x2:540,y2:1470,width:140};
 
 const props=[
  {x:130,y:1180,asset:"gartenzwerg",w:42,h:64},
@@ -149,8 +149,8 @@ function speak(text,urgent=false){if(!state.voiceOn||!("speechSynthesis" in wind
 function violationAlert(msg,level){const alert=document.getElementById("violation-alert"),app=document.getElementById("app");document.getElementById("violation-law").textContent=lawFor(msg);document.getElementById("violation-title").textContent=state.lang==="en"?"RULE VIOLATION":"ORDNUNGSWIDRIGKEIT";document.getElementById("violation-text").textContent=state.lang==="en"?localize(msg):msg;document.getElementById("violation-stars").textContent="★".repeat(level)+"☆".repeat(Math.max(0,5-level));alert.hidden=false;app.classList.remove("enforcement");void app.offsetWidth;app.classList.add("enforcement");clearTimeout(violationAlert.t);violationAlert.t=setTimeout(()=>{alert.hidden=true;app.classList.remove("enforcement")},2200);playSiren()}
 function policeBark(force=false){const now=performance.now();if(!force&&now-(policeBark.last||0)<2300)return;policeBark.last=now;const lines=policeBarks[state.region]||policeBarks.germany,msg=lines[Math.floor(Math.random()*lines.length)],box=document.getElementById("police-bark");document.getElementById("police-bark-text").textContent=msg;box.hidden=false;clearTimeout(policeBark.t);policeBark.t=setTimeout(()=>box.hidden=true,1500);speak(msg,true);uiTone(1280,.06,"square",.035)}
 function softWarn(msg){toast((state.lang==="en"?"WARNING · ":"VERWARNUNG · ")+msg);uiTone(520,.055,"square",.025)}
-function wanted(level,msg,instant){const old=state.wanted;state.wanted=Math.max(state.wanted,level);state.offence=msg;state.wantedCooldown=12;if(instant||(state.wanted>old&&state.wanted>=2))spawnPolice(instant?4:Math.max(1,state.wanted-old));violationAlert(msg,state.wanted);toast(msg+" · "+state.wanted+" STERN"+(state.wanted===1?"":"E"));updateHud()}
-function spawnPolice(n){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,d=180+Math.random()*120;police.push({x:clamp(player.x+Math.cos(a)*d,40,WORLD.w-40),y:clamp(player.y+Math.sin(a)*d,40,WORLD.h-40),speed:120+state.wanted*18,barkAt:0})}policeBark(true)}
+function wanted(level,msg,instant){const old=state.wanted;state.wanted=Math.max(state.wanted,level);state.offence=msg;state.wantedCooldown=12;if(instant||(state.wanted>old&&state.wanted>=2))spawnPolice(instant?3:1);violationAlert(msg,state.wanted);toast(msg+" · "+state.wanted+" STERN"+(state.wanted===1?"":"E"));updateHud()}
+function spawnPolice(n){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,d=180+Math.random()*120;police.push({x:clamp(player.x+Math.cos(a)*d,40,WORLD.w-40),y:clamp(player.y+Math.sin(a)*d,40,WORLD.h-40),speed:105+state.wanted*10,barkAt:0})}policeBark(true)}
 function updateHud(){const stars=document.getElementById("stars"),wantedBox=document.querySelector(".wanted");stars.innerHTML="";wantedBox.classList.toggle("hot",state.wanted>0);for(let i=0;i<5;i++){const s=document.createElement("span");s.className="star"+(i<state.wanted?" active":"");s.textContent="★";stars.appendChild(s)}document.getElementById("offence").textContent=state.lang==="en"?(state.wanted?"ACTIVE VIOLATION FILE":"FILE STATUS: UNREMARKABLE"):state.offence;const m=missions[Math.min(state.mission,missions.length-1)];document.getElementById("mission-title").textContent=localize(m.title);document.getElementById("mission-text").textContent=localize(m.text);const frac=state.mission/missions.length+(state.mission===5?state.stadtbild/3/missions.length:0);document.getElementById("mission-progress").style.width=Math.min(100,frac*100)+"%";document.getElementById("energy").textContent=Math.round(player.energy);document.getElementById("forms").textContent=state.forms;document.getElementById("pfand").textContent=state.pfand;document.getElementById("day").textContent=state.day+"/3";const r=rules[state.rule%rules.length];document.getElementById("rule-id").textContent=r[0];document.getElementById("rule-text").textContent=localize(r[1]);document.getElementById("region-name").textContent=state.region==="berlin"?"BERLIN":"DEUTSCHLAND";document.getElementById("region-language").textContent=state.region==="berlin"?"Denglisch-Zone":"Nur Deutsch"}
 function openDialogue(speaker,lines,portrait,done){state.modal=true;state.dialogue=true;state.dialogueData={speaker,lines,portrait:portrait||"§",done,i:0};renderDialogue()}
 function renderDialogue(){const d=state.dialogueData,line=localize(d.lines[d.i]);document.getElementById("dialogue").hidden=false;document.getElementById("speaker").textContent=d.speaker;document.getElementById("portrait").textContent=d.portrait;document.getElementById("dialogue-text").textContent=line;document.getElementById("dialogue-next").textContent=d.i===d.lines.length-1?(state.lang==="en"?"UNDERSTOOD":"VERSTANDEN"):(state.lang==="en"?"CONTINUE":"WEITER");document.getElementById("voice-state").textContent=state.voiceOn?(state.lang==="en"?"GERMAN-ACCENT VOICE":"SPRECHENDE BEHÖRDE"):(state.lang==="en"?"VOICE OFF":"STIMME AUS");speak(d.lines[d.i])}
@@ -178,7 +178,7 @@ function update(dt){
  let sx=(keys.ArrowRight||keys.KeyD?1:0)-(keys.ArrowLeft||keys.KeyA?1:0),fy=(keys.ArrowUp||keys.KeyW?1:0)-(keys.ArrowDown||keys.KeyS?1:0);
  if(tilt.enabled&&tilt.centred&&performance.now()-tilt.readingAt<700){sx=clamp(sx+tilt.x,-1,1);fy=clamp(fy+tilt.y,-1,1)}
  const mag=Math.hypot(sx,fy);if(mag>1){sx/=mag;fy/=mag}
- const sprint=!!(keys.ShiftLeft||keys.ShiftRight)||Math.abs(fy)>.94;
+ const sprint=!!(keys.ShiftLeft||keys.ShiftRight)||(tilt.enabled&&tilt.centred&&Math.abs(tilt.y)>.94);
  const speed=146*(sprint?1.58:1)*(player.energy<25?.84:1),nx=player.x+sx*speed*dt,ny=player.y-fy*speed*dt;
  if(!blocked(nx,player.y))player.x=nx;if(!blocked(player.x,ny))player.y=ny;
  updateRegion();
@@ -209,7 +209,7 @@ function update(dt){
  if(grass){
    state.grassTimer+=dt;
    if(state.grassTimer>.45&&!state.grassWarned){softWarn(state.lang==="en"?"YOU ARE TOUCHING ADMINISTRATIVELY SENSITIVE GRASS":"SIE BERÜHREN VERWALTUNGSRELEVANTEN RASEN");state.grassWarned=true}
-   const triggerAt=stationGrass?1.35:1.9;
+   const triggerAt=stationGrass?2.4:3.0;
    if(state.grassTimer>triggerAt&&state.gardenCooldown===0){state.gardenCooldown=8;wanted(Math.max(2,state.wanted),"RASENBETRETUNG IM SCHREBERGARTEN · SOFORTMASSNAHME",false);state.grassTimer=0;state.grassWarned=false}
  }else{
    state.grassTimer=Math.max(0,state.grassTimer-dt*4);if(state.grassTimer<.15)state.grassWarned=false
@@ -222,7 +222,7 @@ function update(dt){
    const p=police[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
    p.x+=dx/d*p.speed*dt;p.y+=dy/d*p.speed*dt;
    if(d<260&&performance.now()>(p.barkAt||0)){p.barkAt=performance.now()+2200+Math.random()*1800;policeBark()}
-   if(d<30){police.splice(i,1);player.energy=Math.max(36,player.energy-12);player.x=1080;player.y=1930;state.wanted=Math.max(0,state.wanted-1);state.offence="PERSONALIEN FESTGESTELLT · HINWEIS ERTEILT";uiTone(180,.18,"sawtooth",.05);toast(state.lang==="en"?"POLICE ACTION · ESCORTED TO THE STATION GARDEN":"POLIZEILICHE MASSNAHME · IN DEN WACHEN-SCHREBERGARTEN BEGLEITET")}
+   if(d<30){police.splice(i,1);player.energy=Math.max(36,player.energy-12);player.x=1000;player.y=1930;state.wanted=Math.max(0,state.wanted-1);state.offence="PERSONALIEN FESTGESTELLT · HINWEIS ERTEILT";uiTone(180,.18,"sawtooth",.05);toast(state.lang==="en"?"POLICE ACTION · ESCORTED TO THE STATION GARDEN":"POLIZEILICHE MASSNAHME · IN DEN WACHEN-SCHREBERGARTEN BEGLEITET")}
    else if(state.wanted<2&&d>520)police.splice(i,1)
  }
 
