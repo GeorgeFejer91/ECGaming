@@ -273,5 +273,12 @@ document.getElementById("start").onclick=()=>startGame(true);document.getElement
 document.getElementById("voice-toggle").onclick=()=>{state.voiceOn=!state.voiceOn;document.getElementById("voice-toggle").textContent=state.voiceOn?"VOICE ON":"VOICE OFF";if(!state.voiceOn&&"speechSynthesis" in window)speechSynthesis.cancel()};
 function keydown(e){if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.repeat)return;if(e.code==="KeyE")interact()}function keyup(e){keys[e.code]=false}addEventListener("keydown",keydown);addEventListener("keyup",keyup);
 document.querySelectorAll(".control-dock [data-key]").forEach(btn=>{const code=btn.dataset.key,down=e=>{e.preventDefault();keys[code]=true;if(code==="KeyE")interact()},up=e=>{e.preventDefault();keys[code]=false};btn.addEventListener("pointerdown",down);btn.addEventListener("pointerup",up);btn.addEventListener("pointercancel",up);btn.addEventListener("pointerleave",up)});
+
+const appSurface=document.getElementById("app");
+function editableTarget(target){return !!(target&&target.closest&&target.closest('input, textarea, select, [contenteditable="true"]'))}
+appSurface.addEventListener("contextmenu",event=>{if(!editableTarget(event.target))event.preventDefault()});
+appSurface.addEventListener("selectstart",event=>{if(!editableTarget(event.target))event.preventDefault()});
+appSurface.addEventListener("dragstart",event=>{if(!editableTarget(event.target))event.preventDefault()});
+
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}updateHud();requestAnimationFrame(loop);
 })();

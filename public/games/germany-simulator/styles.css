@@ -91,3 +91,35 @@
   .violation-alert{top:42%;padding:17px 12px;border-width:4px}.violation-alert>b{font-size:32px}.violation-alert p{font-size:14px}
   #app.enforcement::before{border-width:10px}
 }
+
+
+/* Game surface should behave like a controller, not selectable webpage text. */
+#app{
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
+#app button,
+#app a,
+#app canvas,
+#app .hud,
+#app .dialogue,
+#app .control-dock,
+#app .interact-hint,
+#app .toast,
+#app .region-badge,
+#app .violation-alert,
+#app .police-bark{
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+#app input,
+#app textarea,
+#app select,
+#app [contenteditable="true"]{
+  -webkit-user-select:text;
+  user-select:text;
+  -webkit-touch-callout:default;
+}
