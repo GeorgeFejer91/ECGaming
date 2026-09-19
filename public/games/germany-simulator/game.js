@@ -1,13 +1,44 @@
 (function(){
 "use strict";
-const canvas=document.getElementById("game"),ctx=canvas.getContext("2d"),keys=Object.create(null),WORLD={w:2400,h:2000};
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d"),keys=Object.create(null),WORLD={w:4800,h:4000};
 const player={x:1800,y:1760,r:16,energy:100};
 const state={started:false,modal:false,dialogue:false,wanted:0,offence:"AKTENLAGE: UNAUFFÄLLIG",wantedCooldown:0,runTimer:0,runWarned:false,roadTimer:0,roadWarned:false,jayCooldown:0,grassTimer:0,grassWarned:false,gardenCooldown:0,mission:0,forms:0,pfand:0,day:1,minutes:480,stadtbild:0,citizen:false,gameOver:false,rule:0,ruleTimer:0,lang:"de",voiceOn:true,region:"berlin",regionCooldown:0};
 let police=[],particles=[],width=innerWidth,height=innerHeight,dpr=1,last=performance.now();
-const roads=[{x:0,y:820,w:WORLD.w,h:260},{x:1050,y:0,w:260,h:WORLD.h}],crossings=[{x:1010,y:890,w:340,h:70},{x:1135,y:760,w:90,h:380}],schreber={x:90,y:1210,w:560,h:570};
-const policeGarden={x:650,y:1530,w:560,h:440};
+const roads=[
+ {x:0,y:820,w:WORLD.w,h:260},
+ {x:1050,y:0,w:260,h:WORLD.h},
+ {x:0,y:2000,w:WORLD.w,h:240},
+ {x:0,y:3000,w:WORLD.w,h:220},
+ {x:2400,y:0,w:220,h:WORLD.h},
+ {x:4400,y:0,w:180,h:WORLD.h}
+];
+const crossings=[
+ {x:1010,y:890,w:340,h:80},{x:1135,y:760,w:90,h:380},
+ {x:2360,y:890,w:300,h:80},{x:2465,y:760,w:90,h:380},
+ {x:4360,y:890,w:260,h:80},{x:4445,y:760,w:90,h:380},
+ {x:1010,y:2070,w:340,h:80},{x:1135,y:1940,w:90,h:360},
+ {x:2360,y:2070,w:300,h:80},{x:2465,y:1940,w:90,h:360},
+ {x:4360,y:2070,w:260,h:80},{x:4445,y:1940,w:90,h:360},
+ {x:1010,y:3060,w:340,h:80},{x:1135,y:2940,w:90,h:340},
+ {x:2360,y:3060,w:300,h:80},{x:2465,y:2940,w:90,h:340},
+ {x:4360,y:3060,w:260,h:80},{x:4445,y:2940,w:90,h:340},
+ {x:3590,y:2985,w:120,h:270}
+];
+const schreber={x:90,y:1210,w:560,h:570};
+const policeGarden={x:2850,y:3250,w:1500,h:650};
 const BORDER_Y=1120;
-const policePath={x1:1000,y1:1930,x2:540,y2:1470,width:140};
+const policePath={x1:4250,y1:3850,x2:3650,y2:3250,width:130};
+const districtLots=[
+ {x:2660,y:80,w:1650,h:620,fill:"#85827b"},
+ {x:2660,y:1180,w:1650,h:650,fill:"#88857e"},
+ {x:2660,y:2280,w:1650,h:520,fill:"#817f78"}
+];
+const districtLabels=[
+ {x:3000,y:120,text:"FAXVIERTEL"},
+ {x:3000,y:1220,text:"SPARKASSEN- UND POSTBEZIRK"},
+ {x:3000,y:2320,text:"RATHAUS- UND DIN-ZONE"},
+ {x:3150,y:3280,text:"POLIZEILICHER SCHREBERKOMPLEX"}
+];
 
 const props=[
  {x:130,y:1180,asset:"gartenzwerg",w:42,h:64},
@@ -22,13 +53,25 @@ const props=[
  {x:1010,y:720,asset:"baustelle",w:105,h:62,id:"baustelle",label:"BAUSTELLE"},
  {x:1320,y:1185,asset:"fahrrad",w:88,h:56,id:"fahrrad",label:"FAHRRAD"},
  {x:455,y:545,asset:"kaffee",w:48,h:66,id:"kaffee",label:"KAFFEEAUTOMAT",used:false},
- {x:575,y:1170,asset:"pfandautomat",w:54,h:70,id:"pfandautomat",label:"PFANDAUTOMAT"}
+ {x:575,y:1170,asset:"pfandautomat",w:54,h:70,id:"pfandautomat",label:"PFANDAUTOMAT"},
+ {x:2860,y:760,asset:"faxbillboard",w:210,h:118,id:"faxbillboard-nord",label:"FAX 3000 PRO"},
+ {x:3500,y:1880,asset:"faxbillboard",w:210,h:118,id:"faxbillboard-mitte",label:"FAX 3000 PRO"},
+ {x:3980,y:2890,asset:"faxbillboard",w:210,h:118,id:"faxbillboard-sued",label:"FAX 3000 PRO"},
+ {x:3050,y:700,asset:"faxgeraet",w:66,h:54,id:"faxgeraet",label:"FAX 3000"},
+ {x:2650,y:1160,asset:"faxkiosk",w:54,h:86,id:"faxkiosk",label:"ÖFFENTLICHES FAX"},
+ {x:2940,y:3340,asset:"polizeigarten",w:94,h:74,id:"polizei-garten-a",label:"RASENKOMPETENZ"},
+ {x:4250,y:3340,asset:"polizeigarten",w:94,h:74,id:"polizei-garten-b",label:"RASENKOMPETENZ"},
+ {x:3000,y:3600,asset:"gartenzwerg",w:44,h:66},
+ {x:3300,y:3450,asset:"gartenzwerg",w:44,h:66},
+ {x:4000,y:3700,asset:"gartenzwerg",w:44,h:66}
 ];
 const assetSources={
  currywurst:"./assets/currywurst.svg",bratwurst:"./assets/bratwurst.svg",brezel:"./assets/brezel.svg",
  pfand:"./assets/pfandflasche.svg",gartenzwerg:"./assets/gartenzwerg.svg",ordner:"./assets/ordner.svg",
  wartemarke:"./assets/wartemarke.svg",rasen:"./assets/rasen-verboten.svg",muell:"./assets/muelltrennung.svg",
- db:"./assets/db-verspaetung.svg",baustelle:"./assets/baustelle.svg",fahrrad:"./assets/fahrrad.svg",kaffee:"./assets/kaffeeautomat.svg",pfandautomat:"./assets/pfandautomat.svg"
+ db:"./assets/db-verspaetung.svg",baustelle:"./assets/baustelle.svg",fahrrad:"./assets/fahrrad.svg",kaffee:"./assets/kaffeeautomat.svg",pfandautomat:"./assets/pfandautomat.svg",
+ faxbillboard:"./assets/fax-billboard.svg",faxgeraet:"./assets/faxgeraet.svg",faxkiosk:"./assets/telefon-fax-kiosk.svg",
+ merkel:"./assets/merkel-cartoon.svg",polizeigarten:"./assets/polizei-garten-schild.svg"
 };
 const assets={};for(const key in assetSources){const img=new Image();img.src=assetSources[key];assets[key]=img}
 const policeBarks={
@@ -96,9 +139,15 @@ const buildings=[
 {id:"auslaender",name:"AUSLÄNDERBEHÖRDE",x:1840,y:190,w:430,h:280,hgt:130,doorX:2055,doorY:505,sign:"VORSPRACHE NUR NACH VORSPRACHE"},
 {id:"finanzamt",name:"FINANZAMT",x:1420,y:1260,w:360,h:265,hgt:120,doorX:1600,doorY:1555,sign:"STEUERN · NUMMERN · RÜCKFRAGEN"},
 {id:"krankenkasse",name:"KRANKENKASSE",x:1900,y:1260,w:340,h:260,hgt:90,doorX:2070,doorY:1550,sign:"BITTE BLEIBEN SIE GESUND"},
-{id:"polizei",name:"POLIZEI",x:710,y:1320,w:280,h:230,hgt:95,doorX:850,doorY:1580,sign:"ABSCHNITT 08"},
+{id:"polizei",name:"POLIZEI",x:2900,y:3300,w:650,h:360,hgt:185,doorX:3225,doorY:3690,sign:"ABSCHNITT 08 · GARTENAUFSICHT · RASENKOMPETENZ"},
 {id:"spaeti",name:"SPÄTI",x:130,y:620,w:250,h:145,hgt:55,doorX:255,doorY:795,sign:"PFAND · MATE · ALLES"},
-{id:"imbiss",name:"WURST-INSEL",x:1900,y:630,w:280,h:150,hgt:55,doorX:2040,doorY:810,sign:"BRATWURST · CURRYWURST"}];
+{id:"imbiss",name:"WURST-INSEL",x:1900,y:630,w:280,h:150,hgt:55,doorX:2040,doorY:810,sign:"BRATWURST · CURRYWURST"},
+{id:"faxamt",name:"BUNDESFAXAMT",x:2700,y:250,w:620,h:380,hgt:180,doorX:3010,doorY:660,sign:"DIGITALISIERUNG DURCH PAPIER"},
+{id:"tuev",name:"TÜV-ZENTRUM",x:3700,y:250,w:650,h:390,hgt:175,doorX:4025,doorY:670,sign:"BITTE BLEIBEN SIE PRÜFBAR"},
+{id:"sparkasse",name:"SPARKASSE",x:2750,y:1260,w:600,h:400,hgt:165,doorX:3050,doorY:1690,sign:"BERATUNG NUR MIT TERMIN"},
+{id:"post",name:"DEUTSCHE POST",x:3700,y:1260,w:650,h:400,hgt:170,doorX:4025,doorY:1690,sign:"BRIEF · FAX · WARTEMARKE"},
+{id:"rathaus",name:"RATHAUS",x:2750,y:2320,w:700,h:430,hgt:205,doorX:3100,doorY:2780,sign:"BÜRGERNÄHE NACH TERMINVEREINBARUNG"},
+{id:"baumarkt",name:"DIN-BAUMARKT",x:3700,y:2320,w:650,h:430,hgt:160,doorX:4025,doorY:2780,sign:"NORMGERECHTE SCHRAUBEN · ABTEILUNG 7"}];
 const missions=[
 {title:"ANMELDUNG I",text:"Gehen Sie zum Bürgeramt. Beantragen Sie die Erlaubnis, einen Antrag zu stellen.",target:"buergeramt",form:"a38"},
 {title:"ANMELDUNG II",text:"Die Wohnungsgeberbestätigung fehlt natürlich. Holen Sie sie bei der Hausverwaltung.",target:"hausverwaltung",form:"wohnung"},
@@ -118,8 +167,35 @@ const rules=[
 ["RuheV §2","Nach 22:00 Uhr ist sogar enthusiastisches Denken nur in Zimmerlautstärke zulässig."],
 ["§5.1","Wer wartet, hat durch sichtbares Warten seine Wartebereitschaft nachzuweisen."]];
 const npcLines=["Also das ist jetzt aber auch nicht so gedacht.","Kann man machen. Muss man aber wirklich nicht.","Ich möchte mich nicht beschweren, aber ich beschwere mich.","Dafür gibt es bestimmt ein Formular.","Früher war hier weniger Vorgang.","Sie stehen minimal im Weg.","Das ist bestimmt wegen der Baustelle. Die ist seit 2009 da.","Dafür bin ich nicht zuständig.","Ordnung muss schon sein.","Haben Sie dafür einen Termin?"];
-const npcs=[{x:520,y:720,name:"HERR KLEIN",line:0,vx:16,vy:0,min:470,max:900},{x:1470,y:670,name:"FRAU MÜLLER",line:3,vx:-13,vy:0,min:1360,max:1760},{x:720,y:1140,name:"HERR SCHULZ",line:6,vx:0,vy:12,min:1100,max:1280},{x:2150,y:1120,name:"FRAU NEUMANN",line:2,vx:0,vy:-10,min:1010,max:1240},{x:1500,y:1660,name:"HERR DIN",line:8,vx:14,vy:0,min:1360,max:1800}];
-const pickups=[{x:1980,y:870,type:"bratwurst",label:"BRATWURST",taken:false,value:35},{x:2110,y:880,type:"currywurst",label:"CURRYWURST",taken:false,value:50},{x:1870,y:880,type:"brezel",label:"BREZEL",taken:false,value:22},{x:420,y:930,type:"pfand",label:"PFAND",taken:false},{x:930,y:1120,type:"pfand",label:"PFAND",taken:false},{x:1360,y:940,type:"pfand",label:"PFAND",taken:false},{x:2260,y:1210,type:"pfand",label:"PFAND",taken:false}];
+const npcs=[
+ {x:520,y:720,name:"HERR KLEIN",line:0,vx:16,vy:0,min:470,max:900},
+ {x:1470,y:670,name:"FRAU MÜLLER",line:3,vx:-13,vy:0,min:1360,max:1760},
+ {x:720,y:1140,name:"HERR SCHULZ",line:6,vx:0,vy:12,min:1100,max:1280},
+ {x:2150,y:1120,name:"FRAU NEUMANN",line:2,vx:0,vy:-10,min:1010,max:1240},
+ {x:1500,y:1660,name:"HERR DIN",line:8,vx:14,vy:0,min:1360,max:1800},
+ {x:2900,y:720,name:"FRAU AKTENSTAPEL",line:3,vx:14,vy:0,min:2700,max:3350},
+ {x:4050,y:720,name:"HERR TÜV",line:8,vx:-12,vy:0,min:3820,max:4300},
+ {x:2920,y:1880,name:"FRAU SPARKASSE",line:5,vx:13,vy:0,min:2700,max:3350},
+ {x:4050,y:1880,name:"HERR POST",line:7,vx:-12,vy:0,min:3820,max:4300},
+ {x:2900,y:2860,name:"ANGELA MERKEL · SATIRE",line:0,vx:15,vy:0,min:2740,max:3400,special:"merkel",barkAt:0},
+ {x:4200,y:3450,name:"HERR RASENAUFSICHT",line:8,vx:0,vy:10,min:3330,max:3820}
+];
+const pickups=[
+ {x:1980,y:870,type:"bratwurst",label:"BRATWURST",taken:false,value:35},
+ {x:2110,y:880,type:"currywurst",label:"CURRYWURST",taken:false,value:50},
+ {x:1870,y:880,type:"brezel",label:"BREZEL",taken:false,value:22},
+ {x:420,y:930,type:"pfand",label:"PFAND",taken:false},
+ {x:930,y:1120,type:"pfand",label:"PFAND",taken:false},
+ {x:1360,y:940,type:"pfand",label:"PFAND",taken:false},
+ {x:2260,y:1210,type:"pfand",label:"PFAND",taken:false},
+ {x:2860,y:900,type:"pfand",label:"PFAND",taken:false},
+ {x:4100,y:900,type:"brezel",label:"BREZEL",taken:false,value:22},
+ {x:3000,y:1910,type:"pfand",label:"PFAND",taken:false},
+ {x:3950,y:1910,type:"currywurst",label:"CURRYWURST",taken:false,value:50},
+ {x:2850,y:2890,type:"bratwurst",label:"BRATWURST",taken:false,value:35},
+ {x:4100,y:2890,type:"pfand",label:"PFAND",taken:false},
+ {x:4550,y:2500,type:"pfand",label:"PFAND",taken:false}
+];
 const normObjects=[{x:2210,y:1190,type:"bin",fixed:false,label:"MÜLLTONNE 4,6° SCHIEF"},{x:1650,y:650,type:"chairs",fixed:false,label:"STÜHLE NICHT FLUCHTGERECHT"},{x:570,y:1140,type:"hedge",fixed:false,label:"HECKE 3 CM ZU INDIVIDUELL"}];
 const forms={
 a38:{code:"A38/1",title:"Passierschein A38 zur Beantragung eines weiteren Antrags",subtitle:"Bitte vollständig ausfüllen. Unvollständige Vollständigkeit gilt als unvollständig.",fields:[["text","VOLLSTÄNDIGER NAME"],["text","GEBURTSORT IN HEUTIGEN GEMEINDEGRENZEN"],["select","MELDESTATUS",["gemeldet","noch nicht gemeldet","gefühltermaßen gemeldet"]],["text","AKTENZEICHEN, FALLS BEREITS VORHANDEN"],["check","Ich bestätige, dass ich dieses Formular freiwillig unfreiwillig ausfülle."]]},
@@ -164,10 +240,18 @@ function microInteract(p){
  if(p.id==="baustelle"){openDialogue("BAUSTELLENLEITUNG",state.region==="berlin"?["This Baustelle is temporary permanent.","Completion is planned for Q4, year currently under review."]:["Diese Baustelle ist vorübergehend dauerhaft eingerichtet.","Die Fertigstellung ist für das vierte Quartal eines noch zu prüfenden Jahres vorgesehen."],"🚧");return}
  if(p.id==="fahrrad"){uiTone(1450,.06,"square",.03);setTimeout(()=>uiTone(1620,.05,"square",.025),55);openDialogue("FAHRRAD",state.region==="berlin"?["Klingeling. You are standing maybe slightly in the Radweg.","Please optimize your body position immediately."]:["Klingeling. Sie stehen geringfügig im Radweg.","Bitte korrigieren Sie Ihre Körperposition unverzüglich."],"🚲");return}
  if(p.id==="kaffee"){if(!p.used){p.used=true;player.energy=clamp(player.energy+24,0,100);uiTone(720,.08,"triangle",.035);toast(state.lang==="en"?"BÜRGERAMT COFFEE +24 ENERGY":"BÜRGERAMT-KAFFEE +24 ENERGIE");updateHud()}else toast(state.lang==="en"?"MACHINE SAYS: CLEANING":"AUTOMAT: REINIGUNG LÄUFT");return}
+ if(p.id&&p.id.startsWith("faxbillboard")){openDialogue("WERBUNG · FAX 3000 PRO",["NEU: FAX 3000 PRO.","Im Spiel angeblich 2,75× schneller beim Versand ausgedruckter Dokumente.","Digitalisierung ist, wenn das Papier schneller ankommt."],"FAX");return}
+ if(p.id==="faxgeraet"){openDialogue("FAX 3000 PRO",["Bereit. Papier eingelegt. Zukunft gestartet.","Bitte Dokument zuerst ausdrucken, unterschreiben, einscannen und anschließend faxen."],"FAX");return}
+ if(p.id==="faxkiosk"){openDialogue("ÖFFENTLICHES FAX / TELEFON",["20 Cent pro Minute. Faxen gilt als Fernkommunikation mit Belegpflicht.","Ein digitaler Upload ist leider aus technischen Gründen zu modern."],"☎");return}
  if(p.id==="pfandautomat"){if(state.pfand>0){const n=state.pfand;state.pfand=0;player.energy=clamp(player.energy+n*4,0,100);uiTone(880,.05,"square",.03);setTimeout(()=>uiTone(1100,.06,"square",.03),70);toast((state.lang==="en"?"DEPOSIT RECEIPT ":"PFANDBON ")+(n*.25).toFixed(2).replace(".",",")+" € · +"+n*4+" ENERGIE");updateHud()}else openDialogue("PFANDAUTOMAT",state.region==="berlin"?["No bottle detected. Insert asset first.","Bitte nicht gegen den Automaten kick-en."]:["Keine Flasche erkannt.","Bitte führen Sie zuerst ein pfandpflichtiges Gebinde zu."],"♻");return}
 }
 
-function interact(){if(state.dialogue){nextDialogue();return}if(state.modal)return;const m=missions[Math.min(state.mission,missions.length-1)];for(const b of buildings){if(dist(player.x,player.y,b.doorX,b.doorY)<112){if(b.id===m.target){if(state.mission===5){if(state.stadtbild>=3)openDialogue("AMT FÜR STADTBILD",["Ausgezeichnet. Die Mülltonne steht wieder parallel zur gefühlten Bordsteinkante.","Die Stadt ist nun statistisch 14 Prozent weniger individuell.","Stempel B: optische Unbedenklichkeit."],"✓",()=>{state.mission++;updateHud()});else openDialogue("AMT FÜR STADTBILD",["Gemäß der rein fiktiven Gestaltungsvorschrift ist das Stadtbild zu normieren.","Richten Sie die Mülltonne, die Stühle und die Hecke aus.","Der politische Aushang ist eine satirische Requisite und keine Tatsachenbehauptung."],"FM",()=>toast("3 STADTBILD-ABWEICHUNGEN MARKIERT"))}else bureaucrat(b,m)}else if(b.id==="imbiss")openDialogue("WURST-INSEL",["Bratwurst +35 Energie. Currywurst +50 Verwaltungsmut.","Senf ist kein gültiges Aktenzeichen."],"🌭");else openDialogue(b.name,state.region==="berlin"?["Sie sind hier basically richtig, aber für einen anderen process.","Try Zuständigkeit. Oder Tuesday. Tuesday ist beliebt."]:["Sie sind hier grundsätzlich richtig, aber für einen anderen Vorgang.","Versuchen Sie es mit Zuständigkeit. Oder Dienstag."],"§");return}}for(const n of npcs)if(dist(player.x,player.y,n.x,n.y)<92){openDialogue(n.name,[worldNpcLine(n.line),worldNpcLine((n.line+3)%npcLines.length)],"!");return}for(const p of props)if(p.id&&dist(player.x,player.y,p.x,p.y)<96){microInteract(p);return}for(const o of normObjects)if(!o.fixed&&dist(player.x,player.y,o.x,o.y)<92){if(state.mission===5){o.fixed=true;state.stadtbild++;toast("STADTBILD NORMIERT · "+o.label);updateHud()}else toast("DAS IST NOCH NICHT IHR VORGANG");return}toast("HIER IST NIEMAND ZUSTÄNDIG")}
+function interact(){if(state.dialogue){nextDialogue();return}if(state.modal)return;const m=missions[Math.min(state.mission,missions.length-1)];for(const b of buildings){if(dist(player.x,player.y,b.doorX,b.doorY)<112){if(b.id===m.target){if(state.mission===5){if(state.stadtbild>=3)openDialogue("AMT FÜR STADTBILD",["Ausgezeichnet. Die Mülltonne steht wieder parallel zur gefühlten Bordsteinkante.","Die Stadt ist nun statistisch 14 Prozent weniger individuell.","Stempel B: optische Unbedenklichkeit."],"✓",()=>{state.mission++;updateHud()});else openDialogue("AMT FÜR STADTBILD",["Gemäß der rein fiktiven Gestaltungsvorschrift ist das Stadtbild zu normieren.","Richten Sie die Mülltonne, die Stühle und die Hecke aus.","Der politische Aushang ist eine satirische Requisite und keine Tatsachenbehauptung."],"FM",()=>toast("3 STADTBILD-ABWEICHUNGEN MARKIERT"))}else bureaucrat(b,m)}else if(b.id==="imbiss")openDialogue("WURST-INSEL",["Bratwurst +35 Energie. Currywurst +50 Verwaltungsmut.","Senf ist kein gültiges Aktenzeichen."],"🌭");else openDialogue(b.name,state.region==="berlin"?["Sie sind hier basically richtig, aber für einen anderen process.","Try Zuständigkeit. Oder Tuesday. Tuesday ist beliebt."]:["Sie sind hier grundsätzlich richtig, aber für einen anderen Vorgang.","Versuchen Sie es mit Zuständigkeit. Oder Dienstag."],"§");return}}for(const n of npcs)if(dist(player.x,player.y,n.x,n.y)<92){
+ if(n.special==="merkel"){
+   openDialogue("ANGELA MERKEL · SATIRE",["Wir schaffen das.","Historisches Zitat von 2015; im Spiel wird es als wiederkehrende satirische NPC-Zeile verwendet."],"AM");
+ }else openDialogue(n.name,[worldNpcLine(n.line),worldNpcLine((n.line+3)%npcLines.length)],"!");
+ return
+}for(const p of props)if(p.id&&dist(player.x,player.y,p.x,p.y)<96){microInteract(p);return}for(const o of normObjects)if(!o.fixed&&dist(player.x,player.y,o.x,o.y)<92){if(state.mission===5){o.fixed=true;state.stadtbild++;toast("STADTBILD NORMIERT · "+o.label);updateHud()}else toast("DAS IST NOCH NICHT IHR VORGANG");return}toast("HIER IST NIEMAND ZUSTÄNDIG")}
 function collect(){for(const p of pickups){if(p.taken||dist(player.x,player.y,p.x,p.y)>34)continue;p.taken=true;uiTone(p.type==="pfand"?660:880,.1,"square",.04);if(p.type==="pfand"){state.pfand++;toast(state.lang==="en"?"DEPOSIT +1 · ASSET LIQUID AGAIN":"PFAND +1 · VERMÖGEN WIEDER LIQUID")}else{player.energy=clamp(player.energy+p.value,0,100);toast(p.label+" +"+p.value+" ENERGIE");particles.push({x:p.x,y:p.y,t:1,text:"+ "+p.label})}updateHud()}}
 function endGame(win){state.gameOver=true;state.modal=true;document.getElementById("end-modal").hidden=false;document.getElementById("end-kicker").textContent=win?"VERWALTUNGSVORGANG ABGESCHLOSSEN":"FIKTIVE SPIELFRIST ABGELAUFEN";document.getElementById("end-title").textContent=win?"EINBÜRGERUNG: VORLÄUFIG ERFOLGREICH":"AUSWEISUNG AUS DEM SPIEL";document.getElementById("end-copy").textContent=win?"Sie haben genügend Formulare ausgefüllt, Regeln überlebt und verdächtig viel Geduld nachgewiesen. Dieses Spiel bildet keine echte Einbürgerung ab.":"Die absichtlich absurde Drei-Tage-Frist ist abgelaufen. Reale Gesetze, Verfahren und Rechte sind anders. Hier müssen Sie leider noch einmal von vorne anfangen."}document.getElementById("restart").onclick=()=>location.reload();
 function update(dt){
@@ -222,11 +306,18 @@ function update(dt){
    const p=police[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
    p.x+=dx/d*p.speed*dt;p.y+=dy/d*p.speed*dt;
    if(d<260&&performance.now()>(p.barkAt||0)){p.barkAt=performance.now()+2200+Math.random()*1800;policeBark()}
-   if(d<30){police.splice(i,1);player.energy=Math.max(36,player.energy-12);player.x=1000;player.y=1930;state.wanted=Math.max(0,state.wanted-1);state.offence="PERSONALIEN FESTGESTELLT · HINWEIS ERTEILT";uiTone(180,.18,"sawtooth",.05);toast(state.lang==="en"?"POLICE ACTION · ESCORTED TO THE STATION GARDEN":"POLIZEILICHE MASSNAHME · IN DEN WACHEN-SCHREBERGARTEN BEGLEITET")}
+   if(d<30){police.splice(i,1);player.energy=Math.max(36,player.energy-12);player.x=policePath.x1;player.y=policePath.y1;state.wanted=Math.max(0,state.wanted-1);state.offence="PERSONALIEN FESTGESTELLT · HINWEIS ERTEILT";uiTone(180,.18,"sawtooth",.05);toast(state.lang==="en"?"POLICE ACTION · ESCORTED TO THE STATION GARDEN":"POLIZEILICHE MASSNAHME · IN DEN WACHEN-SCHREBERGARTEN BEGLEITET")}
    else if(state.wanted<2&&d>520)police.splice(i,1)
  }
 
- for(const n of npcs){if(n.vx){n.x+=n.vx*dt;if(n.x<n.min||n.x>n.max)n.vx*=-1}else{n.y+=n.vy*dt;if(n.y<n.min||n.y>n.max)n.vy*=-1}}
+ for(const n of npcs){
+   if(n.vx){n.x+=n.vx*dt;if(n.x<n.min||n.x>n.max)n.vx*=-1}else{n.y+=n.vy*dt;if(n.y<n.min||n.y>n.max)n.vy*=-1}
+   if(n.special==="merkel"&&dist(player.x,player.y,n.x,n.y)<240&&performance.now()>(n.barkAt||0)){
+     n.barkAt=performance.now()+8500;
+     toast("ANGELA MERKEL · SATIRE: „WIR SCHAFFEN DAS.“");
+     speak("Wir schaffen das.",false);
+   }
+ }
  state.ruleTimer+=dt;if(state.ruleTimer>8){state.ruleTimer=0;state.rule=(state.rule+1)%rules.length}
  for(const p of particles){p.t-=dt;p.y-=12*dt}particles=particles.filter(p=>p.t>0);
  collect();updateHud()
@@ -255,6 +346,7 @@ function drawPoliceDiagonalPath(){const dx=policePath.x2-policePath.x1,dy=police
 function drawGround(){
  ctx.fillStyle="#77756f";ctx.fillRect(0,0,width,height);
  poly([[0,0],[WORLD.w,0],[WORLD.w,WORLD.h],[0,WORLD.h]],"#89867f","#67655f");
+ districtLots.forEach(l=>groundRect(l,l.fill,"#77746d"));
 
  ctx.strokeStyle="rgba(45,45,42,.10)";ctx.lineWidth=1;
  for(let gx=0;gx<=WORLD.w;gx+=180){
@@ -274,8 +366,70 @@ function drawGround(){
  groundRect(policeGarden,"#68705e","#4d5149");
  drawPoliceDiagonalPath();
 }
-function drawBuilding(b){const corners=[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]],base=corners.map(p=>project(p[0],p[1],0)),top=corners.map(p=>project(p[0],p[1],b.hgt));if(base.some(p=>!p)||top.some(p=>!p))return;ctx.fillStyle="#5b5955";ctx.beginPath();ctx.moveTo(base[2].x,base[2].y);ctx.lineTo(base[3].x,base[3].y);ctx.lineTo(top[3].x,top[3].y);ctx.lineTo(top[2].x,top[2].y);ctx.closePath();ctx.fill();ctx.fillStyle="#74716b";ctx.beginPath();ctx.moveTo(base[1].x,base[1].y);ctx.lineTo(base[2].x,base[2].y);ctx.lineTo(top[2].x,top[2].y);ctx.lineTo(top[1].x,top[1].y);ctx.closePath();ctx.fill();ctx.fillStyle="#929088";ctx.beginPath();ctx.moveTo(top[0].x,top[0].y);for(let i=1;i<4;i++)ctx.lineTo(top[i].x,top[i].y);ctx.closePath();ctx.fill();ctx.strokeStyle="#4a4945";ctx.stroke();const sign=project(b.x+b.w*.5,b.y+b.h+5,b.hgt*.55);if(sign&&sign.s>.22){ctx.fillStyle="#eee9dd";ctx.font="900 "+Math.max(8,15*sign.s)+"px Arial";ctx.textAlign="center";ctx.fillText(b.name,sign.x,sign.y);ctx.font="700 "+Math.max(6,8*sign.s)+"px Arial";ctx.fillText(b.sign,sign.x,sign.y+12*sign.s);ctx.textAlign="left"}}
-function drawGarden(){for(let i=0;i<4;i++){const x=schreber.x+45+i*125,y=schreber.y+110,p=project(x,y,0);if(!p||p.s<.2)continue;ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.s,p.s);ctx.fillStyle="#8e887c";ctx.fillRect(-26,-42,52,42);ctx.fillStyle="#4d4c48";ctx.beginPath();ctx.moveTo(-32,-42);ctx.lineTo(0,-65);ctx.lineTo(32,-42);ctx.fill();ctx.restore()}const sign=project(schreber.x+schreber.w*.5,schreber.y+schreber.h-30,0);if(sign){ctx.fillStyle="#e5dfd2";ctx.fillRect(sign.x-92*sign.s,sign.y-28*sign.s,184*sign.s,25*sign.s);ctx.fillStyle="#171717";ctx.font="900 "+Math.max(7,10*sign.s)+"px Arial";ctx.textAlign="center";ctx.fillText("SCHREBERGÄRTEN · RASEN VERBOTEN",sign.x,sign.y-11*sign.s);ctx.textAlign="left"}const maze=project(930,1885,0);if(maze){ctx.fillStyle="#e5dfd2";ctx.fillRect(maze.x-86*maze.s,maze.y-30*maze.s,172*maze.s,27*maze.s);ctx.fillStyle="#171717";ctx.font="900 "+Math.max(7,10*maze.s)+"px Arial";ctx.textAlign="center";ctx.fillText("WACHEN-SCHREBERGARTEN · NICHT AUF DEN RASEN",maze.x,maze.y-12*maze.s);ctx.textAlign="left"}}
+function drawBuilding(b){
+ const H=b.hgt*1.5;
+ const corners=[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]],
+       base=corners.map(p=>project(p[0],p[1],0)),
+       top=corners.map(p=>project(p[0],p[1],H));
+ ctx.fillStyle="#585652";
+ ctx.beginPath();ctx.moveTo(base[2].x,base[2].y);ctx.lineTo(base[3].x,base[3].y);ctx.lineTo(top[3].x,top[3].y);ctx.lineTo(top[2].x,top[2].y);ctx.closePath();ctx.fill();
+ ctx.fillStyle="#706d67";
+ ctx.beginPath();ctx.moveTo(base[1].x,base[1].y);ctx.lineTo(base[2].x,base[2].y);ctx.lineTo(top[2].x,top[2].y);ctx.lineTo(top[1].x,top[1].y);ctx.closePath();ctx.fill();
+ ctx.fillStyle="#98958d";
+ ctx.beginPath();ctx.moveTo(top[0].x,top[0].y);for(let i=1;i<4;i++)ctx.lineTo(top[i].x,top[i].y);ctx.closePath();ctx.fill();ctx.strokeStyle="#484743";ctx.stroke();
+
+ // rows of front windows make the institutions read as actual multi-storey buildings.
+ for(let wx=b.x+55;wx<b.x+b.w-35;wx+=82){
+   for(let z=42;z<H-28;z+=50){
+     const q=project(wx,b.y+b.h+4,z);
+     const ws=Math.max(5,22*q.s),hs=Math.max(4,14*q.s);
+     ctx.fillStyle="#444541";ctx.fillRect(q.x-ws/2,q.y-hs/2,ws,hs);
+     ctx.fillStyle="rgba(225,220,207,.16)";ctx.fillRect(q.x-ws*.35,q.y-hs*.35,ws*.25,hs*.7);
+   }
+ }
+
+ // entrance, canopy and bureaucratic plaque.
+ const door=project(b.doorX,b.doorY+2,0),canopy=project(b.doorX,b.doorY+1,26);
+ ctx.fillStyle="#292a28";ctx.fillRect(door.x-16*door.s,door.y-32*door.s,32*door.s,32*door.s);
+ ctx.fillStyle="#b8b3a7";ctx.fillRect(canopy.x-25*canopy.s,canopy.y-4*canopy.s,50*canopy.s,5*canopy.s);
+ const plaque=project(b.doorX+36,b.doorY+1,35);
+ ctx.fillStyle="#ddd8cb";ctx.fillRect(plaque.x-18*plaque.s,plaque.y-9*plaque.s,36*plaque.s,16*plaque.s);
+
+ // roof vent / antenna.
+ const roof=project(b.x+b.w*.5,b.y+b.h*.5,H+16);
+ ctx.strokeStyle="#454440";ctx.lineWidth=Math.max(1,2*roof.s);
+ ctx.beginPath();ctx.moveTo(roof.x,roof.y);ctx.lineTo(roof.x,roof.y-28*roof.s);ctx.stroke();
+ ctx.fillStyle="#64615b";ctx.fillRect(roof.x-12*roof.s,roof.y-6*roof.s,24*roof.s,7*roof.s);
+
+ const sign=project(b.x+b.w*.5,b.y+b.h+8,H*.58);
+ if(sign.s>.2){
+   ctx.fillStyle="#eee9dd";ctx.font="900 "+Math.max(9,16*sign.s)+"px Arial";ctx.textAlign="center";ctx.fillText(b.name,sign.x,sign.y);
+   ctx.font="700 "+Math.max(6,8*sign.s)+"px Arial";ctx.fillText(b.sign,sign.x,sign.y+13*sign.s);ctx.textAlign="left";
+ }
+}
+function drawGarden(){
+ for(let i=0;i<4;i++){
+   const x=schreber.x+45+i*125,y=schreber.y+110,p=project(x,y,0);
+   ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.s,p.s);
+   ctx.fillStyle="#8e887c";ctx.fillRect(-26,-42,52,42);
+   ctx.fillStyle="#4d4c48";ctx.beginPath();ctx.moveTo(-32,-42);ctx.lineTo(0,-65);ctx.lineTo(32,-42);ctx.fill();ctx.restore()
+ }
+ const sign=project(schreber.x+schreber.w*.5,schreber.y+schreber.h-30,0);
+ ctx.fillStyle="#e5dfd2";ctx.fillRect(sign.x-92*sign.s,sign.y-28*sign.s,184*sign.s,25*sign.s);
+ ctx.fillStyle="#171717";ctx.font="900 "+Math.max(7,10*sign.s)+"px Arial";ctx.textAlign="center";
+ ctx.fillText("SCHREBERGÄRTEN · RASEN VERBOTEN",sign.x,sign.y-11*sign.s);ctx.textAlign="left";
+
+ // police allotment perimeter fencing.
+ const r=policeGarden,posts=[];
+ for(let x=r.x;x<=r.x+r.w;x+=120){posts.push([x,r.y],[x,r.y+r.h])}
+ for(let y=r.y;y<=r.y+r.h;y+=120){posts.push([r.x,y],[r.x+r.w,y])}
+ for(const [x,y] of posts){const p=project(x,y,25);ctx.fillStyle="#4f4e49";ctx.fillRect(p.x-2*p.s,p.y-24*p.s,4*p.s,24*p.s)}
+
+ const maze=project(policeGarden.x+policeGarden.w*.5,policeGarden.y+policeGarden.h-20,0);
+ ctx.fillStyle="#e5dfd2";ctx.fillRect(maze.x-115*maze.s,maze.y-30*maze.s,230*maze.s,27*maze.s);
+ ctx.fillStyle="#171717";ctx.font="900 "+Math.max(7,10*maze.s)+"px Arial";ctx.textAlign="center";
+ ctx.fillText("WACHEN-SCHREBERGARTEN · NUR AUF DEM WEG",maze.x,maze.y-12*maze.s);ctx.textAlign="left";
+}
 function drawBorderSign(){
  const p=project(1200,BORDER_Y,72);if(p.x<-220||p.x>width+220||p.y<-180||p.y>height+180)return;const s=p.s;
  ctx.save();ctx.translate(p.x,p.y);ctx.scale(s,s);
@@ -303,10 +457,38 @@ function sprite(x,y,label,type,accent){
  if(type==="person"||type==="police"){const body=type==="police"?"#303943":(accent||"#45443f");ctx.strokeStyle=body;ctx.lineWidth=5;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-4,-8);ctx.lineTo(-8+swing*.22,13);ctx.moveTo(4,-8);ctx.lineTo(8-swing*.22,13);ctx.moveTo(-7,-23);ctx.lineTo(-13-swing*.35,-5);ctx.moveTo(7,-23);ctx.lineTo(13+swing*.35,-5);ctx.stroke();ctx.fillStyle=body;ctx.fillRect(-9,-30,18,25);ctx.fillStyle="#d0c8b8";ctx.beginPath();ctx.arc(0,-39,8,0,Math.PI*2);ctx.fill();if(type==="police"){ctx.fillStyle="#222b34";ctx.fillRect(-10,-48,20,5);ctx.fillStyle="#eee";ctx.font="900 7px Arial";ctx.fillText("POL",-7,-13)}}
  if(type==="bin"){ctx.fillStyle="#555b54";ctx.fillRect(-15,-34,30,34)}if(type==="chairs"){ctx.strokeStyle="#4f4e49";ctx.lineWidth=3;ctx.strokeRect(-26,-22,20,22);ctx.strokeRect(7,-22,20,22)}if(type==="hedge"){ctx.fillStyle="#4e594a";ctx.fillRect(-36,-28,72,28)}
  if(label&&s>.28){ctx.fillStyle="#171717";ctx.font="800 8px Arial";ctx.textAlign="center";ctx.fillText(label,0,18);ctx.textAlign="left"}ctx.restore()}
+function drawMerkelNpc(n){
+ drawAsset("merkel",n.x,n.y,46,74);
+ const p=project(n.x,n.y,0);
+ if(p.x>-120&&p.x<width+120&&p.y>-140&&p.y<height+140){
+   ctx.fillStyle="#171717";ctx.font="800 "+Math.max(7,8*p.s)+"px Arial";ctx.textAlign="center";
+   ctx.fillText("ANGELA MERKEL · SATIRE",p.x,p.y+16*p.s);ctx.textAlign="left";
+ }
+}
+function drawDistrictLabels(){
+ for(const d of districtLabels){
+   const p=project(d.x,d.y,4);
+   if(p.x<-220||p.x>width+220||p.y<-120||p.y>height+120)continue;
+   ctx.fillStyle="rgba(226,221,210,.78)";
+   const w=Math.max(110,ctx.measureText(d.text).width+22);
+   ctx.fillRect(p.x-w/2,p.y-14,w,21);
+   ctx.fillStyle="#34332f";ctx.font="900 9px Arial";ctx.textAlign="center";ctx.fillText(d.text,p.x,p.y);ctx.textAlign="left";
+ }
+}
+
 function drawPoster(){const p=project(1570,530,90);if(p.x<-160||p.x>width+160||p.y<-180||p.y>height+180)return;const s=p.s;ctx.save();ctx.translate(p.x,p.y);ctx.scale(s,s);ctx.fillStyle="#ded8cb";ctx.fillRect(-58,-72,116,84);ctx.strokeStyle="#222";ctx.strokeRect(-58,-72,116,84);ctx.fillStyle="#777";ctx.beginPath();ctx.ellipse(0,-43,20,25,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="#494949";ctx.beginPath();ctx.moveTo(-22,-50);ctx.quadraticCurveTo(0,-72,24,-50);ctx.lineTo(17,-59);ctx.lineTo(-16,-59);ctx.closePath();ctx.fill();ctx.fillStyle="#222";ctx.font="900 8px Arial";ctx.textAlign="center";ctx.fillText("FRIEDRICH MERZ",0,-8);ctx.font="7px Arial";ctx.fillText("SATIRISCHER AUSHANG",0,3);ctx.restore()}
-function drawWorld(){drawGround();drawGarden();drawBorderSign();const drawables=[];for(const b of buildings)drawables.push({d:player.y-(b.y+b.h*.5),fn:()=>drawBuilding(b)});for(const n of npcs)drawables.push({d:player.y-n.y,fn:()=>sprite(n.x,n.y,n.name,"person","#4f4d48")});for(const p of police)drawables.push({d:player.y-p.y,fn:()=>sprite(p.x,p.y,"POLIZEI","police")});for(const p of pickups)if(!p.taken)drawables.push({d:player.y-p.y,fn:()=>sprite(p.x,p.y,p.label,p.type==="pfand"?"pfand":p.type)});for(const o of normObjects)drawables.push({d:player.y-o.y,fn:()=>sprite(o.x,o.y,o.fixed?"NORMIERT":"! "+o.label,o.type,o.fixed?"#3f5b43":"#6c3d37")});for(const prop of props)drawables.push({d:player.y-prop.y,fn:()=>drawAsset(prop.asset,prop.x,prop.y,prop.w,prop.h)});drawables.sort((a,b)=>b.d-a.d);for(const d of drawables)d.fn();drawPoster();for(const p of particles){const q=project(p.x,p.y,40);if(q){ctx.fillStyle="#111";ctx.font="800 10px Arial";ctx.textAlign="center";ctx.fillText(p.text,q.x,q.y);ctx.textAlign="left"}}drawPlayer()}
-function drawPlayer(){const x=width*.5,y=height*.58,swing=Math.sin(performance.now()/130)*9;ctx.save();ctx.translate(x,y);ctx.rotate((tilt.enabled?tilt.x:0)*.18);ctx.strokeStyle="#252525";ctx.lineWidth=7;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-5,-10);ctx.lineTo(-10+swing*.3,18);ctx.moveTo(5,-10);ctx.lineTo(10-swing*.3,18);ctx.moveTo(-9,-30);ctx.lineTo(-17-swing*.35,-7);ctx.moveTo(9,-30);ctx.lineTo(17+swing*.35,-7);ctx.stroke();ctx.fillStyle="#252525";ctx.fillRect(-12,-38,24,31);ctx.fillStyle="#d3cbbb";ctx.beginPath();ctx.arc(0,-49,11,0,Math.PI*2);ctx.fill();ctx.fillStyle="#eee9dd";ctx.font="900 9px Arial";ctx.textAlign="center";ctx.fillText(state.lang==="en"?"YOU":"SIE",0,27);ctx.restore()}
-function drawMinimap(){const mw=160,mh=118,x=width-mw-16,y=height-mh-44,sx=mw/WORLD.w,sy=mh/WORLD.h;ctx.save();ctx.globalAlpha=.9;ctx.fillStyle="#d7d2c5";ctx.fillRect(x,y,mw,mh);ctx.strokeStyle="#222";ctx.strokeRect(x,y,mw,mh);ctx.fillStyle="#5d5b57";roads.forEach(r=>ctx.fillRect(x+r.x*sx,y+r.y*sy,r.w*sx,r.h*sy));ctx.fillStyle="#6c7166";ctx.fillRect(x+schreber.x*sx,y+schreber.y*sy,schreber.w*sx,schreber.h*sy);ctx.strokeStyle="#222";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y+BORDER_Y*sy);ctx.lineTo(x+mw,y+BORDER_Y*sy);ctx.stroke();const m=missions[Math.min(state.mission,missions.length-1)],b=buildings.find(q=>q.id===m.target);if(b){ctx.fillStyle="#762f29";ctx.fillRect(x+b.doorX*sx-3,y+b.doorY*sy-3,6,6)}ctx.fillStyle="#111";ctx.beginPath();ctx.arc(x+player.x*sx,y+player.y*sy,3,0,Math.PI*2);ctx.fill();ctx.restore()}
+function drawWorld(){drawGround();drawGarden();drawBorderSign();drawDistrictLabels();const drawables=[];for(const b of buildings)drawables.push({d:player.y-(b.y+b.h*.5),fn:()=>drawBuilding(b)});for(const n of npcs)drawables.push({d:player.y-n.y,fn:()=>n.special==="merkel"?drawMerkelNpc(n):sprite(n.x,n.y,n.name,"person","#4f4d48")});for(const p of police)drawables.push({d:player.y-p.y,fn:()=>sprite(p.x,p.y,"POLIZEI","police")});for(const p of pickups)if(!p.taken)drawables.push({d:player.y-p.y,fn:()=>sprite(p.x,p.y,p.label,p.type==="pfand"?"pfand":p.type)});for(const o of normObjects)drawables.push({d:player.y-o.y,fn:()=>sprite(o.x,o.y,o.fixed?"NORMIERT":"! "+o.label,o.type,o.fixed?"#3f5b43":"#6c3d37")});for(const prop of props)drawables.push({d:player.y-prop.y,fn:()=>drawAsset(prop.asset,prop.x,prop.y,prop.w,prop.h)});drawables.sort((a,b)=>b.d-a.d);for(const d of drawables)d.fn();drawPoster();for(const p of particles){const q=project(p.x,p.y,40);if(q){ctx.fillStyle="#111";ctx.font="800 10px Arial";ctx.textAlign="center";ctx.fillText(p.text,q.x,q.y);ctx.textAlign="left"}}drawPlayer()}
+function drawPlayer(){
+ const center=project(player.x,player.y,0),s=clamp(center.s,.42,1.12),x=width*.5,y=height*.58,swing=Math.sin(performance.now()/145)*8;
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ ctx.strokeStyle="#252525";ctx.lineWidth=5;ctx.lineCap="round";
+ ctx.beginPath();ctx.moveTo(-4,-8);ctx.lineTo(-8+swing*.22,13);ctx.moveTo(4,-8);ctx.lineTo(8-swing*.22,13);
+ ctx.moveTo(-7,-23);ctx.lineTo(-13-swing*.35,-5);ctx.moveTo(7,-23);ctx.lineTo(13+swing*.35,-5);ctx.stroke();
+ ctx.fillStyle="#252525";ctx.fillRect(-9,-30,18,25);
+ ctx.fillStyle="#d3cbbb";ctx.beginPath();ctx.arc(0,-39,8,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#eee9dd";ctx.font="900 8px Arial";ctx.textAlign="center";ctx.fillText(state.lang==="en"?"YOU":"SIE",0,18);ctx.restore();
+}
+function drawMinimap(){const mw=160,mh=118,x=width-mw-16,y=height-mh-44,sx=mw/WORLD.w,sy=mh/WORLD.h;ctx.save();ctx.globalAlpha=.9;ctx.fillStyle="#d7d2c5";ctx.fillRect(x,y,mw,mh);ctx.strokeStyle="#222";ctx.strokeRect(x,y,mw,mh);ctx.fillStyle="#5d5b57";roads.forEach(r=>ctx.fillRect(x+r.x*sx,y+r.y*sy,r.w*sx,r.h*sy));ctx.fillStyle="#6c7166";ctx.fillRect(x+schreber.x*sx,y+schreber.y*sy,schreber.w*sx,schreber.h*sy);ctx.fillRect(x+policeGarden.x*sx,y+policeGarden.y*sy,policeGarden.w*sx,policeGarden.h*sy);ctx.strokeStyle="#222";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y+BORDER_Y*sy);ctx.lineTo(x+mw,y+BORDER_Y*sy);ctx.stroke();const m=missions[Math.min(state.mission,missions.length-1)],b=buildings.find(q=>q.id===m.target);if(b){ctx.fillStyle="#762f29";ctx.fillRect(x+b.doorX*sx-3,y+b.doorY*sy-3,6,6)}ctx.fillStyle="#111";ctx.beginPath();ctx.arc(x+player.x*sx,y+player.y*sy,3,0,Math.PI*2);ctx.fill();ctx.restore()}
 function nearestInteract(){let label="",best=122;for(const b of buildings){const d=dist(player.x,player.y,b.doorX,b.doorY);if(d<best){best=d;label=b.name}}for(const n of npcs){const d=dist(player.x,player.y,n.x,n.y);if(d<best){best=d;label=state.region==="berlin"?"COMPLAINT LISTENING":"BESCHWERDE ANHÖREN"}}for(const p of props){if(!p.id)continue;const d=dist(player.x,player.y,p.x,p.y);if(d<best){best=d;label=p.label}}for(const o of normObjects){if(o.fixed)continue;const d=dist(player.x,player.y,o.x,o.y);if(d<best){best=d;label="AUSRICHTEN"}}const e=document.getElementById("interact-hint");e.hidden=!label;e.textContent=label?"E · "+label:""}
 function draw(){ctx.clearRect(0,0,width,height);drawWorld();drawMinimap();nearestInteract()}
 const NOTE={
