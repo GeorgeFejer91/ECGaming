@@ -3,126 +3,141 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#030305" />
+    <meta name="theme-color" content="#020302" />
     <meta
       name="description"
-      content="Other Side — hold your breath in the dark. The light at the end of the tunnel only draws nearer while you hold. The whole crossing takes about three minutes."
+      content="Other Side — a browser-only phone breathing experiment disguised as a suspiciously premium near-death experience."
     />
     <link rel="icon" href="../../favicon.svg" />
-    <title>Other Side · Breathing Through · EC Games</title>
     <link rel="stylesheet" href="./styles.css" />
+    <title>Other Side · NDE™ Simulator · EC Games</title>
   </head>
   <body>
-    <a class="skip-link" href="#tunnel">Skip to the tunnel</a>
-
-    <main id="app" class="app-shell">
+    <main id="desktop-app" class="desktop-only app-shell">
       <header class="app-header">
-        <a class="brand brand-light" href="../../" aria-label="EC Games home">
+        <a class="brand" href="../../" aria-label="EC Games home">
           <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
           <span>EC GAMES</span>
         </a>
-        <p class="brand-title">BREATHING THROUGH TO THE OTHER SIDE</p>
-        <div class="header-actions">
-          <button id="mute-btn" class="hud-button" type="button" aria-pressed="false">
-            SOUND ON
-          </button>
-        </div>
+        <p class="brand-title">NDE™ SIMULATOR / OTHER SIDE</p>
+        <button id="sound-btn" class="pill-button" type="button" aria-pressed="false">
+          ENABLE SOUND
+        </button>
       </header>
 
-      <section class="stage" aria-label="The tunnel">
-        <canvas id="tunnel" class="tunnel-canvas" aria-label="A dark tunnel with a light at the far end"></canvas>
+      <section class="stage" aria-label="Near-death simulation tunnel">
+        <canvas id="tunnel" class="tunnel-canvas"></canvas>
+
+        <div class="ambient-copy" aria-hidden="true">
+          <span>NEAR-DEATH EXPERIENCE, MINUS THE DEATH</span>
+          <span>ECGAMES / NDE-03 / CONSCIOUSNESS MAY VARY</span>
+        </div>
 
         <div id="hud" class="hud" hidden>
-          <div class="hud-legend">
-            <span id="state-label" class="state-label">BREATH</span>
-            <span id="hold-hint" class="hold-hint">release the breath</span>
+          <div class="nde-badge"><span></span>NDE SIMULATION IN PROGRESS</div>
+          <div class="hud-center">
+            <strong id="state-label" class="state-label">BODY SIGNAL</strong>
+            <span id="state-copy" class="state-copy">continue breathing normally</span>
           </div>
-          <div id="progress-track" class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Distance to the light">
-            <div id="progress-fill" class="progress-fill"></div>
-          </div>
-          <div class="hud-metrics">
-            <span id="elapsed-label">00:00 elapsed</span>
-            <span id="hold-timer">00:00 held</span>
-            <span id="journey-pct">0% of the way</span>
-          </div>
-          <button id="hold-btn" class="hold-button" type="button">H O L D<br /><small>your breath</small></button>
-        </div>
-      </section>
-
-      <section id="start-screen" class="overlay start-overlay" aria-label="Begin the crossing">
-        <div class="overlay-card">
-          <p class="eyebrow">AN ECG · BREATH GAME</p>
-          <h1>the other side</h1>
-          <p class="lede">
-            There is a light at the far end of this tunnel. It only draws
-            nearer while you hold your breath. Let go and it waits for you.
-            The whole crossing takes about three minutes of holding.
-          </p>
-
-          <fieldset class="input-mode">
-            <legend>Choose how to hold your breath</legend>
-            <label class="mode-option">
-              <input type="radio" name="mode" value="manual" checked />
-              <span><b>Hold key / button</b><small>Spacebar or the big HOLD button — works everywhere.</small></span>
-            </label>
-            <label class="mode-option">
-              <input type="radio" name="mode" value="phone" />
-              <span><b>Belly breathing sensor</b><small>Hear your breath still with the phone on your belly.</small></span>
-            </label>
-            <label class="mode-option">
-              <input type="radio" name="mode" value="simulate" />
-              <span><b>Auto-play showcase</b><small>The full crossing plays itself, no sensor needed.</small></span>
-            </label>
-          </fieldset>
-
-          <p id="sense-note" class="sense-note"></p>
-
-          <button id="begin-btn" class="begin-button" type="button">BEGIN THE CROSSING</button>
-          <p class="fine-print">
-            A meditative art piece. Never hold until you feel faint — breathe
-            whenever you need to and continue again.
-          </p>
-        </div>
-      </section>
-
-      <section id="end-screen" class="overlay end-overlay" aria-hidden="true" hidden>
-        <div class="overlay-card">
-          <p class="eyebrow">YOU HELD THROUGH</p>
-          <h1>you are here</h1>
-          <p class="lede">
-            The light reached you and you passed through to the other side.
-            Stay in the brightness as long as you like — then begin again.
-          </p>
-          <div class="end-actions">
-            <button id="again-btn" class="begin-button" type="button">CROSS AGAIN</button>
-            <a class="back-link" href="../../">BACK TO EC GAMES</a>
+          <div class="hud-bottom">
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-track">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div class="hud-metrics">
+              <span id="session-time">00:00 SESSION</span>
+              <span id="still-time">00:00 STILL</span>
+              <span id="journey-pct">0% TOWARD THE LIGHT</span>
+            </div>
           </div>
         </div>
+
+        <section id="pair-screen" class="overlay pair-overlay">
+          <div class="pair-card">
+            <p class="eyebrow">NEAR-DEATH EXPERIENCE™ / HOME EDITION</p>
+            <h1>the other side</h1>
+            <p class="tagline">For best results, remain alive.</p>
+            <p class="intro">
+              Your phone becomes the breath sensor. Put it flat on your belly,
+              screen facing up. The tunnel advances during respiratory stillness.
+              Breathe whenever you need: the three-minute target is cumulative.
+            </p>
+
+            <div class="pair-grid">
+              <div class="qr-shell">
+                <canvas id="pair-qr" width="260" height="260" aria-label="QR code for phone sensor mode"></canvas>
+                <span>SCAN WITH PHONE</span>
+              </div>
+              <div class="pair-copy">
+                <ol>
+                  <li><b>Scan</b><span>Open this exact experience on your phone.</span></li>
+                  <li><b>Place</b><span>Lay the phone flat against your belly.</span></li>
+                  <li><b>Permit</b><span>Tap once for motion access. No login. No naming ritual. No lobby.</span></li>
+                </ol>
+                <p id="pair-status" class="pair-status" role="status">OPENING PRIVATE BODY-SENSOR LINK…</p>
+                <a id="pair-link" class="action-button" href="#" target="_blank" rel="noopener">
+                  OPEN SENSOR ON THIS DEVICE
+                </a>
+              </div>
+            </div>
+
+            <div class="legal-strip">
+              <span>NOT A MEDICAL DEVICE</span>
+              <span>NOT AN ACTUAL AFTERLIFE</span>
+              <span>PLEASE CONTINUE BREATHING</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="end-screen" class="overlay end-overlay" hidden>
+          <div class="end-card">
+            <p class="eyebrow">SIMULATED TRANSCENDENCE COMPLETE</p>
+            <h1>you are still here</h1>
+            <p class="intro">
+              Congratulations. The light was rendered locally and no metaphysical
+              provider was contacted.
+            </p>
+            <button id="again-btn" class="action-button" type="button">RE-ENTER THE TUNNEL</button>
+            <a class="back-link" href="../../">RETURN TO THE LIVING / EC GAMES</a>
+          </div>
+        </section>
       </section>
 
-      <section id="maker-screen" class="overlay maker-overlay" role="dialog" aria-modal="true" aria-labelledby="maker-title">
-        <div class="overlay-card maker-card">
-          <p class="eyebrow">THE HANDSHAKE</p>
-          <h1 id="maker-title">who is your maker?</h1>
-          <p class="maker-note">
-            Name the maker whose breath you are about to keep. The tunnel
-            asks before it lets you in.
-          </p>
-          <form id="maker-form" class="maker-form" novalidate>
-            <label class="maker-field">
-              <span>YOUR MAKER'S NAME</span>
-              <input id="maker-name" name="maker" type="text" maxlength="40" autocomplete="off" placeholder="write a name" required />
-            </label>
-            <button id="maker-ok" class="begin-button" type="submit">ANSWER</button>
-          </form>
-          <p id="maker-feedback" class="maker-feedback" aria-live="assertive" hidden>It's Yahweh or No Way!</p>
+      <footer class="app-footer">THE LIGHT IS A UI ELEMENT · THE BREATH IS REAL · USE ACCORDINGLY</footer>
+    </main>
+
+    <main id="phone-app" class="phone-only phone-shell">
+      <header class="phone-header">
+        <span>EC GAMES / OTHER SIDE</span>
+        <strong>BODY SENSOR</strong>
+      </header>
+      <section class="phone-stage">
+        <p class="phone-eyebrow">NDE™ AUXILIARY SENSOR</p>
+        <h1>put this phone<br />on your belly</h1>
+        <p class="phone-copy">
+          Screen facing up. Breathe normally. This page uses whatever browser motion
+          sensors are actually available and falls back gracefully.
+        </p>
+
+        <div class="phone-visual" aria-hidden="true">
+          <div id="phone-disc" class="phone-disc"></div>
+          <div class="phone-reticle"></div>
         </div>
-      </section>
 
-      <footer class="app-footer">
-        <span>DARKNESS IS THE DOOR — THE BREATH IS THE KEY</span>
+        <div class="phone-state">
+          <strong id="phone-phase">WAITING</strong>
+          <span id="phone-status">One tap is required for motion access.</span>
+          <small id="phone-sensor-mode">sensor path not started</small>
+        </div>
+
+        <button id="phone-connect" class="action-button phone-connect" type="button">
+          ALLOW MOTION & CONNECT
+        </button>
+      </section>
+      <footer class="phone-footer">
+        EXPERIMENTAL RESPIRATORY MOTION SURROGATE · KEEP BREATHING WHENEVER YOU NEED
       </footer>
     </main>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
