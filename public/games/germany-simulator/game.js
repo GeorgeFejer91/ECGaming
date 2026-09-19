@@ -260,13 +260,49 @@ function drawPlayer(){const x=width*.5,y=height*.58,swing=Math.sin(performance.n
 function drawMinimap(){const mw=160,mh=118,x=width-mw-16,y=height-mh-44,sx=mw/WORLD.w,sy=mh/WORLD.h;ctx.save();ctx.globalAlpha=.9;ctx.fillStyle="#d7d2c5";ctx.fillRect(x,y,mw,mh);ctx.strokeStyle="#222";ctx.strokeRect(x,y,mw,mh);ctx.fillStyle="#5d5b57";roads.forEach(r=>ctx.fillRect(x+r.x*sx,y+r.y*sy,r.w*sx,r.h*sy));ctx.fillStyle="#6c7166";ctx.fillRect(x+schreber.x*sx,y+schreber.y*sy,schreber.w*sx,schreber.h*sy);ctx.strokeStyle="#222";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y+BORDER_Y*sy);ctx.lineTo(x+mw,y+BORDER_Y*sy);ctx.stroke();const m=missions[Math.min(state.mission,missions.length-1)],b=buildings.find(q=>q.id===m.target);if(b){ctx.fillStyle="#762f29";ctx.fillRect(x+b.doorX*sx-3,y+b.doorY*sy-3,6,6)}ctx.fillStyle="#111";ctx.beginPath();ctx.arc(x+player.x*sx,y+player.y*sy,3,0,Math.PI*2);ctx.fill();ctx.restore()}
 function nearestInteract(){let label="",best=122;for(const b of buildings){const d=dist(player.x,player.y,b.doorX,b.doorY);if(d<best){best=d;label=b.name}}for(const n of npcs){const d=dist(player.x,player.y,n.x,n.y);if(d<best){best=d;label=state.region==="berlin"?"COMPLAINT LISTENING":"BESCHWERDE ANHÖREN"}}for(const p of props){if(!p.id)continue;const d=dist(player.x,player.y,p.x,p.y);if(d<best){best=d;label=p.label}}for(const o of normObjects){if(o.fixed)continue;const d=dist(player.x,player.y,o.x,o.y);if(d<best){best=d;label="AUSRICHTEN"}}const e=document.getElementById("interact-hint");e.hidden=!label;e.textContent=label?"E · "+label:""}
 function draw(){ctx.clearRect(0,0,width,height);drawWorld();drawMinimap();nearestInteract()}
-const NOTE={C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,B4:493.88,C5:523.25,D5:587.33,E5:659.25,F5:698.46,G5:783.99};
-const melody=[["G4",.5],["G4",.5],["A4",.5],["B4",1],["C5",.5],["B4",.5],["A4",1],["G4",1],["D5",.5],["D5",.5],["C5",.5],["B4",1],["A4",.5],["B4",.5],["C5",1],["B4",1],["A4",.5],["G4",.5],["A4",.5],["B4",1],["C5",.5],["D5",.5],["E5",1],["D5",.5],["C5",.5],["B4",1],["A4",1],["G4",1]];
+const NOTE={
+ B3:246.94,C4:261.63,D4:293.66,E4:329.63,FS4:369.99,G4:392,A4:440,B4:493.88,
+ C5:523.25,D5:587.33,E5:659.25,FS5:739.99,G5:783.99,A5:880,B5:987.77
+};
+// "Erika" melody, rendered from notation as a local WebAudio chiptune.
+// Durations are quarter-note units; null denotes the characteristic pause.
+const erikaA=[
+ ["B4",1.5],["C5",.5],["D5",1],["D5",1],["D5",1],["G5",1],["G5",1],["B5",1],
+ ["B5",1.5],["A5",.5],["G5",1],[null,3],
+ ["FS5",1],["G5",1],["A5",1],[null,3],
+ ["B5",1.5],["A5",.5],["G5",1],[null,3]
+];
+const erikaB=[
+ ["D5",1.5],["G5",.5],["FS5",1],["FS5",1],["FS5",1],["FS5",1],["E5",1],["FS5",1],
+ ["G5",1],[null,3],
+ ["FS5",1.5],["G5",.5],["A5",1],["A5",1],["A5",1],["A5",1],
+ ["D5",1.5],["C5",.5],["B4",1],[null,3]
+];
+const melody=[...erikaA,...erikaA,...erikaB,...erikaA];
 let audio=null,musicTimer=null,musicOn=true;
 function chip(a,freq,when,dur,type="square",gain=.045){const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.0001,when);g.gain.linearRampToValueAtTime(gain,when+.01);g.gain.setValueAtTime(gain,when+dur*.75);g.gain.exponentialRampToValueAtTime(.0001,when+dur);o.connect(g).connect(a.destination);o.start(when);o.stop(when+dur+.02)}
-function scheduleTheme(){if(!audio||!musicOn)return;const beat=.19,start=audio.currentTime+.05;let t=start;for(let i=0;i<melody.length;i++){const n=melody[i][0],l=melody[i][1],dur=l*beat*2;chip(audio,NOTE[n],t,dur*.9,"square",.04);const bass=i%4<2?"C4":"G4";chip(audio,NOTE[bass]/2,t,dur*.95,"triangle",.025);if(i%2===0)chip(audio,NOTE.C5*2,t,.035,"square",.009);t+=dur}clearTimeout(musicTimer);musicTimer=setTimeout(scheduleTheme,Math.max(100,(t-audio.currentTime-.08)*1000))}
+function stamp(a,when,gain=.025){const o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.setValueAtTime(95,when);o.frequency.exponentialRampToValueAtTime(55,when+.055);g.gain.setValueAtTime(gain,when);g.gain.exponentialRampToValueAtTime(.0001,when+.07);o.connect(g).connect(a.destination);o.start(when);o.stop(when+.08)}
+function scheduleTheme(){
+ if(!audio||!musicOn)return;
+ const quarter=.5,start=audio.currentTime+.05;let t=start,beatIndex=0;
+ for(const [note,quarters] of melody){
+   const dur=quarters*quarter;
+   if(note){
+     chip(audio,NOTE[note],t,Math.max(.07,dur*.88),"square",.031);
+     const bassCycle=["G4","D4","E4","D4"],bass=bassCycle[Math.floor(beatIndex/2)%bassCycle.length];
+     chip(audio,NOTE[bass]/2,t,Math.max(.06,dur*.92),"triangle",.017);
+   }else{
+     // Replace the historical pause with neutral 8-bit percussion rather than a recording.
+     stamp(audio,t,.021);stamp(audio,t+quarter,.018);stamp(audio,t+quarter*2,.021);
+   }
+   if(note&&beatIndex%2===0)stamp(audio,t,.006);
+   t+=dur;beatIndex+=quarters;
+ }
+ clearTimeout(musicTimer);
+ musicTimer=setTimeout(scheduleTheme,Math.max(100,(t-audio.currentTime-.12)*1000));
+}
 function startMusic(){if(!musicOn)return;if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();audio.resume();scheduleTheme()}
-document.getElementById("mute").onclick=()=>{musicOn=!musicOn;document.getElementById("mute").textContent=musicOn?"MUSIC ON":"MUSIC OFF";if(musicOn)startMusic();else clearTimeout(musicTimer)};
+document.getElementById("mute").onclick=()=>{musicOn=!musicOn;document.getElementById("mute").textContent=musicOn?"ERIKA 8-BIT ON":"ERIKA 8-BIT OFF";if(musicOn)startMusic();else clearTimeout(musicTimer)};
 async function startGame(withTilt){startMusic();if(withTilt)await enableTilt();else setSensor("KEYBOARD / TOUCH");state.started=true;state.region=regionOf(player.y);document.getElementById("intro").classList.add("hidden");const lines=state.region==="berlin"?["Welcome in Berlin. Hier reden wir erstmal practical Denglisch.","Your mission ist simple: become German citizen in drei completely fictional Behördentagen.","Aber careful: auf Schrebergarten grass kommt sofort die Polizei. No discussion.","First go Richtung border. Hinter DEUTSCHLAND wird nicht mehr gedenglischt."]:[ "Willkommen in Deutschland.","Ihr Ziel: Werden Sie innerhalb von drei völlig fiktiven Behördentagen deutscher Staatsbürger.","Dazu benötigen Sie vor allem Formulare. Sehr viele Formulare.","Wenn Sie den Rasen im Schrebergarten betreten, kommt die Polizei sofort."];openDialogue(state.region==="berlin"?"WELCOME TO BERLIN":"WILLKOMMEN IN DEUTSCHLAND",lines,"DE",()=>toast(state.lang==="en"?"FIRST PROCEDURE · BÜRGERAMT":"ERSTER VORGANG · BÜRGERAMT"));updateHud()}
 document.querySelectorAll(".lang").forEach(btn=>btn.onclick=()=>{state.lang=btn.dataset.lang;document.documentElement.lang=state.lang;document.querySelectorAll(".lang").forEach(b=>b.classList.toggle("active",b===btn));document.getElementById("start").textContent=state.lang==="en"?"START GAME · ENABLE TILT":"SPIEL STARTEN · TILT AKTIVIEREN";document.getElementById("keyboard-start").textContent=state.lang==="en"?"START WITHOUT TILT":"OHNE TILT STARTEN";updateHud()});
 document.getElementById("start").onclick=()=>startGame(true);document.getElementById("keyboard-start").onclick=()=>startGame(false);document.getElementById("recenter").onclick=()=>{if(!tilt.enabled)enableTilt();else calibrateTilt()};document.getElementById("dock-recenter").onclick=()=>{if(!tilt.enabled)enableTilt();else calibrateTilt()};
@@ -281,4 +317,15 @@ appSurface.addEventListener("selectstart",event=>{if(!editableTarget(event.targe
 appSurface.addEventListener("dragstart",event=>{if(!editableTarget(event.target))event.preventDefault()});
 
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}updateHud();requestAnimationFrame(loop);
+})();
+
+/* Kiosk-style browser behavior: suppress all text selection/copy UI. */
+(()=>{
+  for(const type of ["contextmenu","selectstart","dragstart","copy","cut"]){
+    document.addEventListener(type,event=>event.preventDefault(),{capture:true});
+  }
+  document.addEventListener("selectionchange",()=>{
+    const selection=window.getSelection&&window.getSelection();
+    if(selection&&!selection.isCollapsed)selection.removeAllRanges();
+  });
 })();
