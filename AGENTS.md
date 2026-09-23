@@ -13,3 +13,7 @@ local worktree. As soon as the scoped checks pass:
 Never force-push. Never include unrelated or unvalidated worktree changes just
 to publish quickly. If overlapping local work prevents a safe focused commit,
 report that blocker immediately.
+
+## HTML UI skill route
+
+For text-bearing HTML/CSS interface work, read [for-ai/SKILLS.md](./for-ai/SKILLS.md) before editing.
