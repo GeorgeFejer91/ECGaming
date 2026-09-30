@@ -16,6 +16,11 @@ async function request(phone: Page, url: string, name: string) {
   await phone.getByRole("textbox", { name: "Pilot name", exact: true }).fill(name);
   await phone.getByRole("button", { name: "Request wheel", exact: true }).click();
 }
+async function requestCockpit(cockpit: Page, url: string, name: string) {
+  await cockpit.goto(url);
+  await cockpit.getByRole("textbox", { name: "Pilot name", exact: true }).fill(name);
+  await cockpit.getByRole("button", { name: "Request cockpit", exact: true }).click();
+}
 async function phoneState(page: Page) {
   return page.evaluate(async () => {
     const hub = (await import("/src/flight-session/hub.ts")).getFlightSessionHub();
@@ -81,4 +86,28 @@ test("multiple towers require a choice and route the request only to that tower"
   await phone.getByRole("button", { name: `Ground Control ${id}`, exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Pilot requests" })).toBeVisible();
   await expect(other.getByRole("dialog", { name: "Pilot requests" })).toBeHidden();
+});
+
+test("direct cockpit requests add view-only sessions without replacing the phone pilot", async ({ page, context }) => {
+  const url = await ground(page);
+  const phone = await context.newPage();
+  await request(phone, url, "Pilot");
+  const approval = page.getByRole("dialog", { name: "Pilot requests" });
+  await approval.getByRole("button", { name: "Let pilot fly" }).click();
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await expect.poll(async () => (await phoneState(page)).name).toBe("Pilot");
+
+  const firstView = await context.newPage(), secondView = await context.newPage();
+  const cockpitUrl = new URL("/session-cockpit/", url).href;
+  await requestCockpit(firstView, cockpitUrl, "Observer One");
+  await expect(approval).toContainText("Observer One wants to join the cockpit view.");
+  await approval.getByRole("button", { name: "Open cockpit view" }).click();
+  await expect(firstView.locator("#session-link")).toHaveText("Connected");
+
+  await requestCockpit(secondView, cockpitUrl, "Observer Two");
+  await expect(approval).toContainText("Observer Two wants to join the cockpit view.");
+  await approval.getByRole("button", { name: "Open cockpit view" }).click();
+  await expect(secondView.locator("#session-link")).toHaveText("Connected");
+  await expect(phone.locator("#connection-status")).toHaveText("Connected");
+  await expect.poll(async () => (await phoneState(page)).name).toBe("Pilot");
 });

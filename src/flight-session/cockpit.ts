@@ -9,8 +9,12 @@ import { CockpitRecoveryGate } from "../game/ground-cockpit";
 import { installFlightSteering } from "../ui/flight-steering";
 import { FlightFlags } from "../protocol/flight-frame";
 import { AIRCRAFT_CATALOG } from "../game/aircraft";
+import { PilotRequest } from "../phone-tilt/pilot-request";
+import { cleanPilotName } from "../phone-tilt/pilot-name";
+import { validTower } from "../phone-tilt/pilot-lobby";
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const directVisit = !location.hash;
 let invitation = readTiltInvitation(location.hash);
 if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 const link = new TiltLink("controller");
@@ -24,6 +28,7 @@ const xr = element<HTMLButtonElement>("session-xr");
 let started = false, ready = false, aircraftReady = false, beat = -1, configKey = "";
 let loop: ReturnType<typeof setInterval> | undefined;
 let wakeLock: WakeLockSentinel | undefined;
+let cockpitRequest: PilotRequest | undefined;
 const select = document.createElement("select"); select.setAttribute("aria-label", "Aircraft");
 for (const aircraft of AIRCRAFT_CATALOG) { const option = document.createElement("option"); option.value = aircraft.id; option.textContent = aircraft.label; select.append(option); }
 select.value = game.snapshot().aircraftId;
@@ -74,7 +79,7 @@ function connect() {
   if (!invitation || link.active) return;
   element("session-entry").hidden = true;
   element("session-flight-status").hidden = element("session-sensor").hidden = element("session-disconnect").hidden = false;
-  loop = setInterval(tick, 1000 / 30); void link.start(invitation); void keepAwake();
+  loop = setInterval(tick, 1000 / 60); void link.start(invitation); void keepAwake();
 }
 start.addEventListener("click", () => { tick(); if (!ready) return; started = true; game.restart(); start.hidden = true; });
 element("session-disconnect").addEventListener("click", stop);
@@ -88,3 +93,20 @@ document.addEventListener("visibilitychange", () => { tick(); if (document.hidde
 window.addEventListener("pagehide", () => { stop(); releaseSteering(); game.dispose(); });
 
 if (invitation && isSecureContext && window.top === window.self) connect();
+else if (directVisit && isSecureContext && window.top === window.self) {
+  const hint = new URLSearchParams(location.search).get("tower") ?? "";
+  if (!hint || validTower(hint)) {
+    const form = element<HTMLFormElement>("cockpit-entry");
+    form.hidden = false;
+    cockpitRequest = new PilotRequest(form, hint, accepted => {
+      invitation = accepted; form.hidden = true; connect();
+    }, "cockpit");
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const field = element<HTMLInputElement>("cockpit-pilot-name");
+      const name = cleanPilotName(field.value);
+      if (!name) { field.value = ""; field.reportValidity(); return; }
+      cockpitRequest?.start(name);
+    });
+  }
+}

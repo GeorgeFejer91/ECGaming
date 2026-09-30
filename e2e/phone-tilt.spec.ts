@@ -80,9 +80,13 @@ test("phone tilt authenticates, steers the target, trims speed, and releases sta
   expect(await phone.evaluate(() => (window as any).motionPermissionRequests)).toBe(1);
   await expect(dialog.locator("canvas").first()).toBeHidden();
   await expect(phone.getByRole("button", { name: "Centre", exact: true })).toBeEnabled();
+  await phone.evaluate(() => { (window as any).orientationSample = { beta: 0, gamma: -40 }; });
   await phone.getByRole("button", { name: "Centre", exact: true }).click();
+  await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent?.tilt)).toMatchObject({ x: 0, y: 0, active: true });
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.active)).toBe(true);
   await phone.evaluate(() => { (window as any).orientationSample = { beta: -24, gamma: -65 }; });
+  await expect.poll(() => phone.evaluate(() => (window as any).lastTestIntent?.tilt?.x)).toBeGreaterThan(.7);
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
   await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.y)).toBeGreaterThan(.5);
   await expect(phone.locator("#steering-yoke")).toBeVisible();
@@ -191,15 +195,15 @@ test("tilt starts and centres automatically, with a live local gyro and stale-in
     await phone.evaluate(() => { (window as any).orientationSample = { beta: 0, gamma: -40 }; (window as any).sendOrientation = true; });
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeLessThan(-.7);
     await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
-    // Rotating the phone into the opposite landscape grip centres the next real reading.
+    // Browser screen-rotation bookkeeping must not interrupt the fixed sideways grip.
     await phone.evaluate(() => {
       Object.defineProperty(screen.orientation, "angle", { configurable: true, get: () => 270 });
-      (window as any).orientationSample = { beta: 0, gamma: 40 };
       screen.orientation.dispatchEvent(new Event("change"));
     });
-    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(0.00 80 80) translate(0 0.00)");
+    await expect(phone.locator("#attitude-horizon")).toHaveAttribute("transform", "rotate(24.00 80 80) translate(0 -25.00)");
     await expect(phone.locator("#centre")).toHaveAttribute("data-state", "live");
-    await phone.evaluate(() => { (window as any).orientationSample = { beta: 24, gamma: 40 }; });
+    await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeLessThan(-.7);
+    await phone.evaluate(() => { (window as any).orientationSample = { beta: -48, gamma: -65 }; });
     await expect.poll(() => page.evaluate(() => (window as any).phoneFlight.phoneController.read()?.x)).toBeGreaterThan(.7);
   } finally { await context.close(); }
 });
@@ -248,16 +252,25 @@ test("the phone is an edge-to-edge yoke with reachable controls on phones and ta
     for (const selector of ["#steering-yoke", "#tilt-pad"]) {
       expect(await phone.locator(selector).boundingBox()).toEqual({ x: 0, y: 0, ...viewport });
     }
-    const buttons = await phone.locator("#controls button:visible").evaluateAll(elements => elements.map(el => {
+    const buttons = await phone.locator("#controls button:visible:not(.exit-pilot)").evaluateAll(elements => elements.map(el => {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, height: r.height, width: r.width, fits: el.scrollWidth <= el.clientWidth };
     }));
     for (const bounds of buttons) {
-      expect(bounds.x).toBeGreaterThanOrEqual(viewport.width * .26);
-      expect(bounds.right).toBeLessThanOrEqual(viewport.width * .74);
+      if (viewport.width > viewport.height) {
+        expect(bounds.x).toBeGreaterThanOrEqual(viewport.width * .26);
+        expect(bounds.right).toBeLessThanOrEqual(viewport.width * .74);
+      } else {
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.right).toBeLessThanOrEqual(viewport.width);
+      }
       expect(bounds.y).toBeGreaterThanOrEqual(0); expect(bounds.bottom).toBeLessThanOrEqual(viewport.height);
       expect(bounds.height).toBeGreaterThanOrEqual(44); expect(bounds.width).toBeGreaterThanOrEqual(44);
       expect(bounds.fits).toBe(true);
     }
+    const exit = await phone.locator(".exit-pilot").boundingBox();
+    expect(exit!.x).toBeGreaterThanOrEqual(0); expect(exit!.y).toBeGreaterThanOrEqual(0);
+    expect(exit!.x + exit!.width).toBeLessThanOrEqual(viewport.width);
+    expect(exit!.y + exit!.height).toBeLessThanOrEqual(viewport.height);
     expect(await phone.locator(".yoke-hub").evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
     if (viewport.width === 844 || viewport.width === 320) await phone.screenshot({ path: testInfo.outputPath(`full-surface-yoke-${viewport.width}.png`) });
   }
@@ -271,6 +284,10 @@ test("the phone is an edge-to-edge yoke with reachable controls on phones and ta
   await phone.mouse.move(mode!.x + mode!.width / 2, mode!.y + mode!.height / 2); await phone.mouse.down();
   expect(await phone.evaluate(() => (window as any).lastTestIntent.tilt)).toMatchObject({ x: 0, y: 0 });
   await phone.mouse.up();
+  await expect(phone.getByRole("button", { name: "Exit pilot" })).toBeVisible();
+  await phone.getByRole("button", { name: "Exit pilot" }).click();
+  await expect(phone.locator("#controls")).toBeHidden();
+  await expect(phone.locator("#connection-status")).toContainText("Disconnected");
   const visibleWords = await phone.evaluate(() => {
     const result: string[] = [], walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {

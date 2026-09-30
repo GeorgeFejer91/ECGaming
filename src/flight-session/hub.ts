@@ -10,6 +10,7 @@ export class FlightSessionHub extends EventTarget {
   readonly signal = new RelayAuthority();
   readonly phone = new TiltLink("target");
   readonly cockpit = new TiltLink("target");
+  readonly cockpitViewers = new Set<TiltLink>();
   client?: TiltLink;
   phoneSelected = false;
   speedEnabled = true;
@@ -33,9 +34,25 @@ export class FlightSessionHub extends EventTarget {
     if (role === "phone") this.phoneSelected = true;
     await this[role].start(invitation);
   }
+  async pairCockpitViewer(invitation: TiltInvitation) {
+    const link = new TiltLink("target");
+    link.getRelay = () => {
+      if (!this.coordinator) return null;
+      const { x, y, active } = this.phone.authority.expire(performance.now());
+      return { ...this.signal.state("cockpit", performance.now()), steering: this.phoneSelected ? { x, y, active } : neutralControls(),
+        phoneSelected: this.phoneSelected, speedEnabled: this.speedEnabled };
+    };
+    link.addEventListener("status", () => { if (!link.active) this.cockpitViewers.delete(link); });
+    this.cockpitViewers.add(link);
+    await link.start(invitation);
+    return link;
+  }
   stop(role: "phone" | "cockpit") {
     if (role === "phone") this.phoneSelected = false;
     this[role].stop();
+  }
+  stopCockpitViewer(link: TiltLink) {
+    this.cockpitViewers.delete(link); link.stop();
   }
   selectSource(source: SourceId) {
     if (this.signal.source === source) return;
@@ -59,5 +76,8 @@ export class FlightSessionHub extends EventTarget {
     return this.phone.snapshot();
   }
 }
-let hub: FlightSessionHub | undefined;
-export const getFlightSessionHub = () => hub ??= new FlightSessionHub();
+const hubKey = "__ecgamingFlightSessionHub";
+export const getFlightSessionHub = () => {
+  const global = globalThis as typeof globalThis & { [hubKey]?: FlightSessionHub };
+  return global[hubKey] ??= new FlightSessionHub();
+};

@@ -9,7 +9,8 @@ import { randomToken } from "../vendor/brsp/src/brsp.js";
 const ROOM = "ecgaming_pilot_requests_v1", PREFIX = "ecg_pilot_", CHANNEL = "ecg_pilot_request_v1";
 const token = /^[A-Za-z0-9_-]{16}$/;
 export const validTower = (value: string) => /^[A-Za-z0-9_]{8}$/.test(value);
-export type PilotMessage = { kind: "request"; id: string; name: string } |
+export type PilotRequestMode = "pilot" | "cockpit";
+export type PilotMessage = { kind: "request"; id: string; name: string; mode: PilotRequestMode } |
   { kind: "accepted"; id: string; invitation: TiltInvitation } |
   { kind: "declined" | "cancel"; id: string };
 export function parsePilotMessage(data: unknown): PilotMessage | undefined {
@@ -18,7 +19,8 @@ export function parsePilotMessage(data: unknown): PilotMessage | undefined {
     const v = JSON.parse(data);
     if (!v || typeof v !== "object" || typeof v.id !== "string" || !token.test(v.id)) return;
     const keys = Object.keys(v).sort().join(",");
-    if (v.kind === "request" && keys === "id,kind,name" && typeof v.name === "string" && v.name && v.name === cleanPilotName(v.name)) return v;
+    if (v.kind === "request" && keys === "id,kind,mode,name" && typeof v.name === "string" && v.name && v.name === cleanPilotName(v.name) &&
+      ["pilot", "cockpit"].includes(String(v.mode))) return v;
     if (["declined", "cancel"].includes(v.kind) && keys === "id,kind") return v;
     if (v.kind === "accepted" && keys === "id,invitation,kind" && v.invitation &&
       Object.keys(v.invitation).sort().join(",") === "room,secret" &&
@@ -40,6 +42,8 @@ export class PilotLobby extends EventTarget {
   private selectedPeer = "";
   private settle?: ReturnType<typeof setTimeout>;
   private expiry?: ReturnType<typeof setInterval>;
+  private advertise?: ReturnType<typeof setInterval>;
+  private reconnect?: ReturnType<typeof setInterval>;
   private deadlines = new Map<string, number>();
   constructor(readonly role: "tower" | "pilot", private hint = "") { super(); }
   async start() {
@@ -55,8 +59,9 @@ export class PilotLobby extends EventTarget {
       const stream = item?.streamID ?? item?.streamId ?? "";
       if (typeof stream !== "string" || !stream.startsWith(PREFIX) || !validTower(stream.slice(PREFIX.length)) || this.sources.size >= 32) return;
       const id = stream.slice(PREFIX.length);
+      const fresh = !this.sources.has(id);
       this.sources.set(id, { id, label: `Ground Control ${id}` });
-      if (this.role !== "pilot" || this.selected) return;
+      if (this.role !== "pilot" || this.selected || !fresh) return;
       clearTimeout(this.settle);
       this.settle = setTimeout(() => {
         if (!current() || this.selected) return;
@@ -90,7 +95,11 @@ export class PilotLobby extends EventTarget {
       await sdk.connect(); if (!current()) return;
       const room = `${ROOM}_${location.host.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 48)}`;
       await sdk.joinRoom({ room, password: false }); if (!current()) return;
-      if (this.role === "tower") await sdk.announce({ streamID: PREFIX + this.towerId, label: `Ground Control ${this.towerId}` });
+      if (this.role === "tower") {
+        const announce = () => void sdk.announce({ streamID: PREFIX + this.towerId, label: `Ground Control ${this.towerId}` }).catch(() => {});
+        announce();
+        this.advertise = setInterval(() => { if (current()) announce(); }, 2500);
+      }
       if (current()) emit(this, "status", this.role === "tower" ? "ready" : "Looking for Ground Control…");
     } catch (error) { if (current()) { this.stop(); throw error; } }
   }
@@ -99,7 +108,13 @@ export class PilotLobby extends EventTarget {
     this.selected = id;
     emit(this, "status", `Connecting to Ground Control ${id}…`);
     const sdk = this.sdk;
-    try { await sdk.view(PREFIX + id, { audio: false, video: false, downloads: false, allowresources: false }); }
+    const view = () => sdk.view(PREFIX + id, { audio: false, video: false, downloads: false, allowresources: false });
+    clearInterval(this.reconnect);
+    this.reconnect = setInterval(() => {
+      if (!this.sdk || this.peers.size || this.selected !== id) { clearInterval(this.reconnect); return; }
+      void view().catch(() => {});
+    }, 1500);
+    try { await view(); }
     catch { if (this.sdk === sdk) emit(this, "status", "Could not reach this tower. Try again."); }
   }
   private bind(peer: string, channel: RTCDataChannel) {
@@ -123,11 +138,12 @@ export class PilotLobby extends EventTarget {
   closePeer(peer: string) {
     if (!this.peers.has(peer)) return;
     const channel = this.peers.get(peer); this.peers.delete(peer); this.deadlines.delete(peer);
+    if (this.selectedPeer === peer) this.selectedPeer = "";
     channel?.close(); emit(this, "closed", peer);
   }
   stop() {
     ++this.generation; this.abort?.abort(); this.abort = undefined;
-    clearTimeout(this.settle); clearInterval(this.expiry);
+    clearTimeout(this.settle); clearInterval(this.expiry); clearInterval(this.advertise); clearInterval(this.reconnect);
     for (const peer of [...this.peers.keys()]) this.closePeer(peer);
     const sdk = this.sdk; this.sdk = undefined;
     this.sources.clear(); this.selected = this.selectedPeer = "";

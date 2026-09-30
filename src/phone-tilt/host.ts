@@ -144,6 +144,10 @@ export class PhoneTiltHost {
     update();
     const pair = document.createElement("button"); pair.type = "button"; pair.textContent = "Pair separate cockpit";
     this.pairCockpit = pair;
+    const requestLink = document.createElement("a");
+    requestLink.textContent = "Open request cockpit";
+    requestLink.href = getPilotReception().cockpitUrl();
+    requestLink.target = "_blank"; requestLink.rel = "noopener noreferrer";
     const stop = document.createElement("button"); stop.type = "button"; stop.textContent = "Disconnect cockpit"; stop.hidden = true;
     const canvas = document.createElement("canvas"); canvas.hidden = true; canvas.setAttribute("aria-label", "Scan to join the separate cockpit");
     const anchor = document.createElement("a"); anchor.textContent = "Open cockpit"; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.hidden = true;
@@ -170,7 +174,7 @@ export class PhoneTiltHost {
       const detail = (event as CustomEvent).detail; status.textContent = detail.message;
       if (detail.ready || !detail.active) this.clearCockpitQr();
     }, { signal: this.abort.signal });
-    section.append(label, source, info, pair, stop, canvas, anchor, status); this.relayPanel.append(section);
+    section.append(label, source, info, pair, requestLink, stop, canvas, anchor, status); this.relayPanel.append(section);
   }
   private clearQr() {
     ++this.qrRequest; this.url = "";

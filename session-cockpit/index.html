@@ -12,6 +12,14 @@
       <header class="session-toolbar"><h1>EC Gaming · Cockpit</h1><p id="session-link" role="status">Scan a cockpit QR code from Ground Control.</p><button id="session-disconnect" hidden>Disconnect</button></header>
       <section class="session-entry" id="session-entry">
         <h2>Your flight session</h2><p>Scan a cockpit QR code to join.</p>
+        <form id="cockpit-entry" class="cockpit-entry" hidden>
+          <label for="cockpit-pilot-name">Pilot name</label>
+          <div>
+            <input id="cockpit-pilot-name" name="pilot" type="text" maxlength="32" autocomplete="given-name" enterkeyhint="go" placeholder="Your name" required />
+            <button type="submit">Request cockpit</button>
+          </div>
+          <p id="cockpit-request-status" role="status"></p>
+        </form>
       </section>
       <section id="session-flight-status" class="session-flight-status" hidden>
         <p id="session-signal" role="status">Waiting for the selected H10 source.</p>

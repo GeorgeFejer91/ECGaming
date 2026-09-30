@@ -23,7 +23,7 @@ it("generates 130 Hz ECG with R peaks on the practice beat clock and no resume b
   expect(resume.microvolts).toHaveLength(1); expect(resume.beats).toEqual([60_000]);
 });
 
-it("relays one tactile pulse per fresh practice beat and stops for off, hidden, stale or another source", () => {
+it("relays one tactile pulse per fresh Ground Control beat and stops for off, hidden, stale or another source", () => {
   const output = vi.fn(), heartbeat = new PracticeHeartbeat(output);
   const relay = new RelayAuthority().state("phone", 0);
   relay.frame = { sequence: 1, beatCounter: 1, beatAgeMs: 40, altitude: .2, throttle: .5, traffic: .5, quality: 1,
@@ -39,9 +39,13 @@ it("relays one tactile pulse per fresh practice beat and stops for off, hidden, 
   heartbeat.update(relay, true, true); expect(output).toHaveBeenLastCalledWith(100);
   heartbeat.pause(); heartbeat.update(relay, true, true);
   expect(output.mock.calls.filter(([ms]) => ms > 0)).toHaveLength(2);
+  relay.frame.flags = FlightFlags.physicalPolar | FlightFlags.controlReady; relay.frame.beatCounter++;
+  expect(heartbeat.update(relay, true, true)).toBe(true);
+  expect(output.mock.calls.filter(([ms]) => ms > 0)).toHaveLength(3);
+  relay.frame.flags = FlightFlags.beatDetectorReady | FlightFlags.controlReady; relay.frame.beatCounter++;
+  expect(heartbeat.update(relay, true, true)).toBe(true);
+  expect(output.mock.calls.filter(([ms]) => ms > 0)).toHaveLength(4);
   relay.frame.flags = 0; expect(heartbeat.update(relay, true, true)).toBe(false);
-  relay.frame.flags = FlightFlags.physicalPolar | FlightFlags.controlReady;
-  expect(heartbeat.update(relay, true, true)).toBe(false);
   relay.frame.flags = FlightFlags.simulation | FlightFlags.controlReady; relay.source = "phone";
   expect(heartbeat.update(relay, true, true)).toBe(false);
 });
