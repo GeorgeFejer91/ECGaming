@@ -1,4 +1,3 @@
-import QRCode from "qrcode";
 import { BreathLink, type BreathState } from "../src/phone-breather/link";
 import { createBreathInvitation, breathControllerUrl, type BreathInvitation } from "../src/phone-breather/invitation";
 import { BreathLobby, type BreathMessage } from "../src/phone-breather/breath-lobby";
@@ -7,14 +6,7 @@ import "./styles.css";
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id)! as T;
 
-const pairBtn = byId<HTMLButtonElement>("pair-btn");
 const fullscreenBtn = byId<HTMLButtonElement>("fullscreen-btn");
-const pairDialog = byId<HTMLDialogElement>("pair-dialog");
-const pairClose = byId<HTMLButtonElement>("pair-close");
-const pairStop = byId<HTMLButtonElement>("pair-stop");
-const qrCanvas = byId<HTMLCanvasElement>("qr-canvas");
-const pairLink = byId<HTMLAnchorElement>("pair-link");
-const pairStatus = byId("pair-status");
 
 const statusDot = byId("status-dot");
 const statusText = byId("status-text");
@@ -42,7 +34,6 @@ breathLink.acceptSource = offer => {
   breathLink.sourceOffer = offer;
 };
 let currentInvitation: BreathInvitation | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 let lobbyStarted = false;
 let lobbyStarting = false;
@@ -338,67 +329,12 @@ function resetVisuals() {
   badgeDot.classList.remove("connected");
 }
 
-function showPairing(invitation: BreathInvitation) {
-  currentInvitation = invitation;
-  const url = breathControllerUrl(location.href, invitation);
-  pairLink.href = url;
-
-  pairStatus.textContent = "Generating QR code\u2026";
-  pairDialog.showModal();
-
-  QRCode.toCanvas(qrCanvas, url, { width: 280, margin: 4, errorCorrectionLevel: "M" })
-    .then(() => {
-      pairStatus.textContent = "Waiting for phone to connect\u2026";
-    })
-    .catch(() => {
-      pairStatus.textContent = "QR code failed. Use the link below.";
-    });
-}
-
-function hidePairing() {
-  pairDialog.close();
-  qrCanvas.getContext("2d")?.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-  pairLink.removeAttribute("href");
-  currentInvitation = null;
-}
-
 function ensureInvitation() {
   if (!currentInvitation) {
     const invitation = createBreathInvitation(hostName);
     currentInvitation = invitation;
   }
-  const url = breathControllerUrl(location.href, currentInvitation);
-  pairLink.href = url;
   return currentInvitation;
-}
-
-function showQR() {
-  const url = breathControllerUrl(location.href, currentInvitation!);
-  pairStatus.textContent = "Scan this QR code with your phone.";
-  pairDialog.showModal();
-  QRCode.toCanvas(qrCanvas, url, { width: 280, margin: 4, errorCorrectionLevel: "M" }).catch(() => {
-    pairStatus.textContent = "QR code failed. Use the link below.";
-  });
-}
-
-function stopPairing() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  breathLink.stop();
-  hidePairing();
-  resetVisuals();
-}
-
-function scheduleReconnect() {
-  if (!currentInvitation) return;
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(() => {
-    if (breathLink.active && !breathLink.ready) {
-      breathLink.start(currentInvitation!);
-    }
-  }, 3000);
 }
 
 function storedHostName() {
@@ -409,7 +345,7 @@ function storedHostName() {
 function buildNameDialog() {
   nameDialog.className = "name-dialog";
   nameDialog.setAttribute("aria-label", "Who is your maker");
-  const form = document.createElement("form"); form.method = "dialog";
+  const form = document.createElement("form");
   const title = document.createElement("h2"); title.textContent = "Who is your maker?";
   const copy = document.createElement("p"); copy.textContent = "This screen is the god a phone will approach. Name the maker whose breath the person keeps.";
   const label = document.createElement("label");
@@ -430,11 +366,11 @@ function buildNameDialog() {
     nameInput.disabled = save.disabled = true;
     nameStatus.textContent = "It's Yahweh or No Way!";
     nameStatus.classList.add("maker-verdict");
-    try { localStorage.setItem("ecgaming-breath-host-name-v1", next); } catch { /* Persistence is helpful, not required. */ }
+    try { localStorage.setItem("ecgaming-breath-host-name-v1", next); } catch { }
     window.setTimeout(() => {
       hostNameConfirmed = true; gateResolving = false;
       nameInput.disabled = save.disabled = false;
-      if (nameDialog.open) nameDialog.close();
+      nameDialog.close();
       currentLobby?.setHostName(next);
       ensureLobby();
       resetVisuals();
@@ -443,9 +379,8 @@ function buildNameDialog() {
         breathLink.pilotName = "Phone";
         void breathLink.start(currentInvitation!);
       }
-      showQR();
       if (hostName) nameStatus.classList.remove("maker-verdict");
-    }, 2600);
+    }, 150);
   });
   nameDialog.append(form);
   document.body.append(nameDialog);
@@ -479,18 +414,19 @@ function decline(peer: string, id: string) {
 
 async function accept(peer: string, id: string) {
   if (busy || pendingRequests.get(peer)?.id !== id || !currentLobby) return;
+  const request = pendingRequests.get(peer);
+  const requesterName = request?.row?.querySelector("p")?.textContent?.match(/^(.+) asks to draw close/)?.[1] || "Phone";
   busy = true;
   try {
-ensureInvitation();
+    ensureInvitation();
     await breathLink.stop({ emitStatus: false });
-    breathLink.pilotName = "Phone";
+    breathLink.pilotName = requesterName;
     await breathLink.start(currentInvitation!);
     if (!currentLobby.send(peer, { kind: "accepted", id, invitation: currentInvitation! })) {
       return;
     }
     acceptedPeers.add(peer);
     removeRequest(peer);
-    showQR();
   } finally { busy = false; }
 }
 
@@ -553,21 +489,12 @@ function startLobbyMonitor() {
 
 breathLink.addEventListener("status", (event: Event) => {
   const detail = (event as CustomEvent).detail;
-  if (!detail.active && detail.reconnectable) {
-    scheduleReconnect();
-  }
   if (!detail.active && !detail.reconnectable) {
-    hidePairing();
     resetVisuals();
   }
 });
 
 breathLink.addEventListener("ready", () => {
-  hidePairing();
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
 });
 
 breathLink.addEventListener("state", (event: Event) => {
@@ -576,14 +503,6 @@ breathLink.addEventListener("state", (event: Event) => {
     updateVisuals(state);
   }
 });
-
-pairBtn.addEventListener("click", () => {
-  if (!hostNameConfirmed) { showNameDialog(); return; }
-  ensureInvitation(); showQR(); startLobbyMonitor();
-  if (!breathLink.active) { breathLink.pilotName = "Phone"; void breathLink.start(currentInvitation!); }
-});
-pairClose.addEventListener("click", () => stopPairing());
-pairStop.addEventListener("click", () => stopPairing());
 
 fullscreenBtn.addEventListener("click", async () => {
   try {
@@ -601,12 +520,6 @@ document.addEventListener("fullscreenchange", () => {
   fullscreenBtn.textContent = document.fullscreenElement ? "EXIT FULLSCREEN" : "FULLSCREEN";
 });
 
-pairDialog.addEventListener("close", () => {
-  if (breathLink.active && !breathLink.ready) {
-    stopPairing();
-  }
-});
-
 buildNameDialog();
 buildRequestDialog();
 hostName = storedHostName();
@@ -619,7 +532,6 @@ window.addEventListener("pagehide", () => {
   cancelAnimationFrame(animationFrame);
   breathLink.stop({ emitStatus: false });
   currentLobby?.stop();
-  if (reconnectTimer) clearTimeout(reconnectTimer);
   if (lobbyMonitor) clearInterval(lobbyMonitor);
 });
 

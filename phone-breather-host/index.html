@@ -19,7 +19,6 @@
         </a>
         <h1>Phone Breather</h1>
         <div class="header-actions">
-          <button id="pair-btn" class="hud-button emphasis" type="button" aria-label="Pair phone">PAIR PHONE</button>
           <button id="fullscreen-btn" class="hud-button" type="button">FULLSCREEN</button>
         </div>
       </header>
@@ -59,29 +58,8 @@
           <span class="status-dot" id="status-dot" aria-hidden="true"></span>
           <span id="status-text">Not connected</span>
         </div>
-        <p class="status-hint" id="status-hint">Tap "PAIR PHONE" to generate a QR code for your phone.</p>
+        <p class="status-hint" id="status-hint">Name your maker, then share this screen's name with the person holding the phone.</p>
       </section>
-
-      <dialog id="pair-dialog" class="pair-dialog" aria-label="Phone pairing">
-        <div class="pair-dialog-content">
-          <header class="pair-dialog-header">
-            <h2>Pair Your Phone</h2>
-            <button id="pair-close" class="dialog-close" type="button" aria-label="Close">&times;</button>
-          </header>
-          <div class="pair-dialog-body">
-            <p class="pair-instruction">Scan this QR code with your phone, or tap "Open on Phone" below.</p>
-            <div class="qr-container">
-              <canvas id="qr-canvas" aria-label="QR code for phone pairing"></canvas>
-            </div>
-            <a id="pair-link" class="button primary" href="#" target="_blank" rel="noopener">Open on Phone</a>
-            <p class="pair-hint">Your phone will prompt for a name, then connect here.</p>
-            <div id="pair-status" class="pair-status" role="status" aria-live="polite">Generating QR code…</div>
-          </div>
-          <footer class="pair-dialog-footer">
-            <button id="pair-stop" class="button ghost" type="button">Stop Pairing</button>
-          </footer>
-        </div>
-      </dialog>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>
