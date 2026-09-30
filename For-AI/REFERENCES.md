@@ -4,8 +4,8 @@ Reference revisions are pinned here so future agents can reproduce the reasoning
 
 ## Sensor Zoo
 
-Repository: https://github.com/tszheichoi/sensor-zoo  
-Revision inspected: `f60f525685d8733cc2cd60cd39110cce74365fbe` (main, 2026-08-23)  
+Repository: https://github.com/tszheichoi/sensor-zoo
+Revision inspected: `f60f525685d8733cc2cd60cd39110cce74365fbe` (main, 2026-08-23)
 License: MIT
 
 Relevant ideas:
@@ -20,9 +20,9 @@ ECGaming adaptation: use these principles in the shared browser sensor layer. Do
 
 ## Lyn Phan: Mobile Phone Breathing Detection
 
-Repository: https://github.com/lynphan/Mobile-Phone-Breathing-Detection  
-Project page: https://lynphan.github.io/Mobile-Phone-Breathing-Detection/  
-Revision inspected: `36508a29dc1f84e19af6a6517c093ca14ba81b62` (main, 2021-05-16)  
+Repository: https://github.com/lynphan/Mobile-Phone-Breathing-Detection
+Project page: https://lynphan.github.io/Mobile-Phone-Breathing-Detection/
+Revision inspected: `36508a29dc1f84e19af6a6517c093ca14ba81b62` (main, 2021-05-16)
 Repository does not declare a license in GitHub metadata.
 
 Relevant ideas:
