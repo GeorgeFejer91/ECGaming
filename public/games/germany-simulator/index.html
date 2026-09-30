@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#77756f">
+  <meta name="description" content="Germany Simulator — a fictional 2.5D bureaucratic open-world parody.">
+  <title>Germany Simulator · EC Games</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main id="app">
+  <canvas id="game" aria-label="Germany Simulator pseudo-3D game world"></canvas>
+  <header class="hud top">
+    <div class="logo"><b>GERMANY</b><span>SIMULATOR</span><small>GRAND THEFT AMT</small></div>
+    <div class="wanted"><small>ORDNUNGSSTATUS</small><div id="stars"></div><em id="offence">AKTENLAGE: UNAUFFÄLLIG</em></div>
+    <div class="sensor"><small>STEUERUNG</small><b id="sensor-state">KEYBOARD</b><button id="recenter" type="button">NEU KALIBRIEREN</button></div>
+  </header>
+  <aside class="hud mission"><small>AKTUELLER VORGANG</small><b id="mission-title">ANMELDUNG</b><p id="mission-text"></p><div class="progress"><i id="mission-progress"></i></div></aside>
+  <aside class="hud stats"><span>ENERGIE <b id="energy">100</b></span><span>FORMULARE <b id="forms">0</b></span><span>PFAND <b id="pfand">0</b></span><span>TAG <b id="day">1/3</b></span></aside>
+  <aside id="region-badge" class="region-badge"><small>REGION</small><b id="region-name">BERLIN</b><span id="region-language">Denglisch-Zone</span></aside>
+  <aside class="hud rule"><small>REGEL DES AUGENBLICKS</small><b id="rule-id">§17.3b</b><p id="rule-text"></p></aside>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="police-bark" class="police-bark" hidden><b>POLIZEI</b><span id="police-bark-text"></span></div>
+  <section id="violation-alert" class="violation-alert" hidden aria-live="assertive"><small id="violation-law">§</small><b id="violation-title">ORDNUNGSWIDRIGKEIT</b><p id="violation-text"></p><div id="violation-stars"></div></section>
+  <section id="border-alert" class="border-alert" hidden aria-live="polite"><small>SPRACHGRENZE</small><b id="border-title">DEUTSCHLAND</b><p id="border-copy">AB HIER NUR NOCH DEUTSCH.</p></section>
+  <div id="interact-hint" class="interact-hint" hidden>INTERAGIEREN · E</div>
+  <section id="dialogue" class="dialogue" hidden><div id="portrait" class="portrait">§</div><div class="dialogue-copy"><small id="speaker">SACHBEARBEITUNG</small><p id="dialogue-text"></p><span id="voice-state" class="voice-state">SPRECHENDE BEHÖRDE</span></div><div class="dialogue-actions"><button id="dialogue-speak" type="button" aria-label="Repeat spoken dialogue">🔊</button><button id="dialogue-next" type="button">WEITER</button></div></section>
+  <section id="form-modal" class="modal" hidden><form id="bureaucracy-form" class="paper"><div class="paper-head"><span>BUNDESREPUBLIK · SPIELFORMULAR</span><span id="form-code">A38</span></div><h2 id="form-title">Antrag auf Antragstellung</h2><p id="form-subtitle"></p><div id="form-fields" class="form-fields"></div><div class="paper-actions"><span id="form-error"></span><button type="submit">EINREICHEN</button></div></form></section>
+  <section id="end-modal" class="modal" hidden><div class="end-card"><small id="end-kicker">VERWALTUNGSVORGANG</small><h1 id="end-title"></h1><p id="end-copy"></p><button id="restart" type="button">NOCH EIN VORGANG</button></div></section>
+  <section id="intro" class="intro"><div class="intro-noise"></div><div class="intro-card">
+      <p class="eyebrow">EC GAMES PRESENTS</p><h1><span>GERMANY</span><b>SIMULATOR</b></h1><p class="strap">GRAND THEFT AMT</p>
+      <p class="lede">A 2.5D open-world administration simulator. The streets are gray. The forms are beige. The lawn is forbidden.</p>
+      <div class="language-choice" role="group" aria-label="Choose language"><span>SPRACHE / LANGUAGE</span><button class="lang active" data-lang="de" type="button">Deutsch</button><button class="lang" data-lang="en" type="button">English</button></div>
+      <div class="intro-grid"><div><b>PHONE</b><span>Tilt forward/back to walk. Bank left/right to strafe.</span></div><div><b>DESKTOP</b><span>WASD / arrows move. Shift runs suspiciously fast. E interacts.</span></div></div>
+      <button id="start" type="button">SPIEL STARTEN · TILT AKTIVIEREN</button><button id="keyboard-start" class="secondary" type="button">OHNE TILT STARTEN</button>
+      <p id="intro-status">Motion sensing is optional. Keyboard and touch fallback remain available.</p><p class="music-credit">8-bit instrumental arrangement of “Erika” (Herms Niel, 1938), synthesized locally in Web Audio.</p>
+      <p class="world-note">World rule: Berlin speaks Denglisch. Cross the BERLIN / DEUTSCHLAND border and the characters switch to pure German.</p>
+  </div></section>
+  <nav class="control-dock" aria-label="Tilt and touch controls"><button id="dock-recenter" class="utility" type="button"><span class="dock-icon">↻</span><span class="fraktur">Zentrieren</span></button><div class="dpad"><button data-key="ArrowLeft" aria-label="Left">◀<span class="fraktur">Links</span></button><button data-key="ArrowUp" aria-label="Forward">▲<span class="fraktur">Vor</span></button><button data-key="ArrowDown" aria-label="Back">▼<span class="fraktur">Zurück</span></button><button data-key="ArrowRight" aria-label="Right">▶<span class="fraktur">Rechts</span></button></div><button class="action" data-key="KeyE"><span class="dock-icon">E</span><span class="fraktur">Reden</span></button></nav>
+  <footer><span>WASD / TILT · MOVE</span><span>SHIFT · SUSPICIOUSLY FAST</span><span>E · INTERACT</span><button id="mute" type="button">ERIKA 8-BIT ON</button><button id="voice-toggle" type="button">VOICE ON</button><a href="../../">EC GAMES</a><span>SATIRE · FICTIONAL RULES · NOT LEGAL OR IMMIGRATION ADVICE</span></footer>
+</main>
+<script src="./game.js"></script>
+</body>
+</html>
