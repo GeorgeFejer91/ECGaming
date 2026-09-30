@@ -406,3 +406,137 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Other Side: direct QR sensor mode. Keep the generic Phone Breather UI unchanged. */
+html[data-experience="other-side"] {
+  --bg: #030403;
+  --bg-elevated: #070a08;
+  --fg: #eeeadd;
+  --fg-muted: #7f8c82;
+  --accent: #bce3c8;
+  --accent-bright: #effff0;
+  --accent-dim: #526d5c;
+  --card: rgba(8, 13, 10, 0.88);
+  --border: rgba(188, 227, 201, 0.18);
+  --focus: #effff0;
+  --success: #bce3c8;
+}
+
+html[data-experience="other-side"] body {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(188, 227, 201, .08), transparent 34%),
+    #030403;
+}
+
+html[data-experience="other-side"] .controller-shell {
+  min-height: 100dvh;
+}
+
+html[data-experience="other-side"] .controller-header {
+  border-bottom-color: rgba(188, 227, 201, .12);
+  background: linear-gradient(180deg, rgba(7, 10, 8, .95), rgba(3, 4, 3, .68));
+}
+
+html[data-experience="other-side"] .brand-mark i {
+  background: var(--accent);
+  border-radius: 0;
+}
+
+html[data-experience="other-side"] .entry-card {
+  max-width: 390px;
+  border-color: rgba(188, 227, 201, .22);
+  border-radius: 2px;
+  background: rgba(7, 10, 8, .82);
+  box-shadow: 0 0 70px rgba(188, 227, 201, .06);
+}
+
+html[data-experience="other-side"] .entry-eyebrow {
+  color: var(--accent);
+  letter-spacing: .22em;
+}
+
+html[data-experience="other-side"] .entry-card h2 {
+  margin-bottom: .7rem;
+  font-family: "Times New Roman", serif;
+  font-size: clamp(2rem, 10vw, 3rem);
+  font-weight: 400;
+  line-height: .9;
+  text-transform: lowercase;
+}
+
+html[data-experience="other-side"] #host-name-field[hidden] {
+  display: none;
+}
+
+html[data-experience="other-side"] .name-input-row:has(#host-name-field) {
+  display: block;
+}
+
+html[data-experience="other-side"] .other-side-connect {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 999px;
+  background: rgba(188, 227, 201, .08);
+  border-color: rgba(188, 227, 201, .5);
+  color: var(--accent-bright);
+  letter-spacing: .08em;
+}
+
+html[data-experience="other-side"] .other-side-connect:hover:not(:disabled) {
+  background: rgba(188, 227, 201, .16);
+}
+
+html[data-experience="other-side"] .entry-feedback {
+  margin-top: .2rem;
+  color: #859188;
+  line-height: 1.5;
+}
+
+html[data-experience="other-side"] .controls-section {
+  justify-content: center;
+  overflow: hidden;
+}
+
+html[data-experience="other-side"] .metrics-grid {
+  display: none;
+}
+
+html[data-experience="other-side"] .breath-svg {
+  max-width: min(62vw, 300px);
+  filter: drop-shadow(0 0 50px rgba(188, 227, 201, .22));
+}
+
+html[data-experience="other-side"] .phase-label {
+  color: var(--accent-bright);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+html[data-experience="other-side"] .host-name {
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+html[data-experience="other-side"] .instruction-card {
+  max-width: 420px;
+  margin-inline: auto;
+  border: 0;
+  background: transparent;
+  color: #7e8b82;
+}
+
+html[data-experience="other-side"] #disconnect-btn {
+  max-width: 420px;
+  margin-inline: auto;
+  border-radius: 999px;
+}
+
+html[data-experience="other-side"] .controller-footer {
+  border-top-color: rgba(188, 227, 201, .1);
+}
+
+html[data-experience="other-side"] .controller-footer .footer-link {
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}

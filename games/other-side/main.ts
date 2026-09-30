@@ -1,3 +1,8 @@
+import "@fontsource/barlow-condensed/500.css";
+import "@fontsource/cormorant-garamond/400.css";
+import QRCode from "qrcode";
+import { BreathLink, type BreathState } from "../../src/phone-breather/link";
+import { createBreathInvitation, breathControllerUrl } from "../../src/phone-breather/invitation";
 import "./styles.css";
 
 const TOTAL_HOLD_MS = 180_000;
@@ -6,7 +11,6 @@ const GRACE_MS = 1_200;
 const RING_COUNT = 16;
 const RING_POINTS = 26;
 
-type InputMode = "manual" | "phone" | "simulate";
 type Phase = "start" | "run" | "complete";
 
 const clamp = (value: number, min: number, max: number) =>
@@ -40,15 +44,11 @@ const progressTrack = $<HTMLElement>("progress-track");
 const elapsedLabel = $<HTMLElement>("elapsed-label");
 const holdTimer = $<HTMLElement>("hold-timer");
 const journeyPct = $<HTMLElement>("journey-pct");
-const holdBtn = $<HTMLButtonElement>("hold-btn");
-const beginBtn = $<HTMLButtonElement>("begin-btn");
 const againBtn = $<HTMLButtonElement>("again-btn");
 const muteBtn = $<HTMLButtonElement>("mute-btn");
-const senseNote = $<HTMLElement>("sense-note");
-const makerScreen = $<HTMLElement>("maker-screen");
-const makerForm = $<HTMLFormElement>("maker-form");
-const makerName = $<HTMLInputElement>("maker-name");
-const makerFeedback = $<HTMLElement>("maker-feedback");
+const pairQr = $<HTMLCanvasElement>("pair-qr");
+const pairLink = $<HTMLAnchorElement>("pair-link");
+const pairStatus = $<HTMLElement>("pair-status");
 
 let W = 0;
 let H = 0;
@@ -97,47 +97,6 @@ function spawnMote(anywhere: boolean): Mote {
     glint: Math.random() < 0.16,
   };
 }
-
-class StillnessLock {
-  private calib: number[] = [];
-  private baseline = 0;
-  private lastTime = -1;
-  private energy = 0;
-  private readonly samples = 150;
-  calibrated = false;
-  holding = false;
-
-  accept(z: number, timeMs: number) {
-    if (!this.calibrated) {
-      this.calib.push(z);
-      if (this.calib.length >= this.samples) {
-        this.baseline =
-          this.calib.reduce((a, b) => a + b, 0) / this.calib.length;
-        this.energy = 0;
-        this.calibrated = true;
-      }
-      return;
-    }
-    const dt = clamp((timeMs - this.lastTime) / 1000, 0.005, 0.25);
-    this.lastTime = timeMs;
-    const deviation = Math.abs(z - this.baseline);
-    const alpha = Math.min(1, dt / 0.4);
-    this.energy = this.energy + (deviation - this.energy) * alpha;
-    this.holding = this.energy < 0.055;
-  }
-
-  get progress01() {
-    return this.calibrated
-      ? 1
-      : clamp(this.calib.length / this.samples, 0, 0.99);
-  }
-
-  get energy01() {
-    return clamp(this.energy / 0.25, 0, 1);
-  }
-}
-
-const phoneSense = new StillnessLock();
 
 class Tone {
   private audio: AudioContext | null = null;
@@ -263,7 +222,6 @@ class Tone {
 
 const tone = new Tone();
 
-let mode: InputMode = "manual";
 let phase: Phase = "start";
 let heldMs = 0;
 let elapsedMs = 0;
@@ -274,86 +232,44 @@ let completionT = 0;
 let releaseWave = 0;
 let runStart = 0;
 let revealedEnd = false;
-let holdingKey = false;
-let holdingPointer = false;
-let motionAttached = false;
-let motionNoteTimer = 0;
 let lastFrame = 0;
+let remoteState: BreathState | null = null;
+let remoteStateAt = -Infinity;
+let autoStartAt = 0;
+let audioEnabled = false;
+
+const breathLink = new BreathLink("target");
+const invitation = createBreathInvitation();
+const controllerUrl = new URL(breathControllerUrl(location.href, invitation));
+controllerUrl.searchParams.set("experience", "other-side");
+pairLink.href = controllerUrl.href;
+
+void QRCode.toCanvas(pairQr, controllerUrl.href, {
+  width: 256,
+  margin: 2,
+  errorCorrectionLevel: "M",
+  color: { dark: "#11110f", light: "#f1eee3" },
+}).catch(() => {
+  pairStatus.textContent = "QR unavailable. Open the phone link instead.";
+  pairStatus.classList.add("is-error");
+});
+
+function remoteFresh(now = performance.now()) {
+  return !!remoteState && breathLink.ready && now - remoteStateAt < 1_000;
+}
 
 const holdingNow = (): boolean => {
-  if (phase !== "run") return false;
-  if (mode === "manual") return holdingKey || holdingPointer;
-  if (mode === "simulate") return true;
-  return phoneSense.calibrated && phoneSense.holding;
+  if (phase !== "run" || !remoteFresh()) return false;
+  return (
+    remoteState!.connected &&
+    remoteState!.confidence01 > 0.3 &&
+    remoteState!.phase === 0 &&
+    remoteState!.flow01 < 0.22
+  );
 };
 
-const progress01 = () => (phase === "complete" ? 1 : heldMs / TOTAL_HOLD_MS);
-
-function updateSenseNote() {
-  if (mode === "manual") {
-    senseNote.textContent = "";
-  } else if (mode === "phone") {
-    senseNote.textContent = phoneSense.calibrated
-      ? "Sensor ready — lying still means holding your breath."
-      : "Listening for belly motion… keep the phone still to calibrate.";
-  } else {
-    senseNote.textContent =
-      "Showcase: the crossing plays itself in three minutes.";
-  }
-}
-
-function attachMotion() {
-  if (motionAttached) return;
-  motionAttached = true;
-  window.addEventListener("devicemotion", onMotion, { passive: true });
-}
-
-function onMotion(event: DeviceMotionEvent) {
-  const accel = event.accelerationIncludingGravity;
-  if (!accel) return;
-  const z = accel.z ?? 0;
-  phoneSense.accept(z, performance.now());
-  if (!phoneSense.calibrated && phase === "start") {
-    senseNote.textContent = `Calibrating… ${Math.round(
-      phoneSense.progress01 * 100,
-    )}%`;
-  }
-  motionNoteTimer = 0;
-}
-
-async function requestMotionPermission(): Promise<boolean> {
-  const DME = DeviceMotionEvent as unknown as {
-    requestPermission?: () => Promise<string>;
-  };
-  if (typeof DME.requestPermission === "function") {
-    try {
-      return (await DME.requestPermission()) === "granted";
-    } catch {
-      return false;
-    }
-  }
-  return true;
-}
-
-async function enablePhoneMode() {
-  attachMotion();
-  updateSenseNote();
-  motionNoteTimer = performance.now();
-  const granted = await requestMotionPermission();
-  if (!granted) {
-    senseNote.textContent =
-      "Motion permission blocked — use the hold button instead.";
-  }
-}
-
-function resetToStart() {
-  phase = "start";
-  hud.hidden = true;
-  endScreen.hidden = true;
-  endScreen.setAttribute("aria-hidden", "true");
-  startScreen.hidden = false;
-  updateSenseNote();
-}
+const progress01 = () =>
+  phase === "complete" ? 1 : clamp(heldMs / TOTAL_HOLD_MS, 0, 1);
 
 function begin() {
   phase = "run";
@@ -366,6 +282,7 @@ function begin() {
   lightPos = 0.96;
   holding = false;
   lastHeldAt = -Infinity;
+  autoStartAt = 0;
   endScreen.hidden = true;
   endScreen.setAttribute("aria-hidden", "true");
   startScreen.hidden = true;
@@ -379,80 +296,75 @@ function finish() {
   tone.complete();
 }
 
-beginBtn.addEventListener("click", begin);
-againBtn.addEventListener("click", resetToStart);
+function setPairStatus(message: string, state: "idle" | "ready" | "error" = "idle") {
+  pairStatus.textContent = message;
+  pairStatus.classList.toggle("is-ready", state === "ready");
+  pairStatus.classList.toggle("is-error", state === "error");
+}
 
-beginBtn.disabled = true;
-makerName.disabled = false;
-makerName.focus();
+breathLink.addEventListener("status", ((event: CustomEvent<{ message: string; active: boolean; ready: boolean }>) => {
+  if (event.detail.ready) {
+    setPairStatus("PHONE CONNECTED // WAITING FOR A BREATH SIGNAL", "ready");
+  } else if (event.detail.active) {
+    setPairStatus("OPENING PRIVATE BODY-SENSOR LINK…");
+  } else {
+    setPairStatus("PHONE LINK INTERRUPTED // RESCAN IF NEEDED", "error");
+  }
+}) as EventListener);
 
-let makerDismiss: number | undefined;
-makerForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const maker = makerName.value.trim();
-  if (!maker) {
-    makerName.focus();
+breathLink.addEventListener("ready", () => {
+  setPairStatus("PHONE CONNECTED // PLACE IT FLAT ON YOUR BELLY", "ready");
+});
+
+breathLink.addEventListener("state", ((event: CustomEvent<BreathState>) => {
+  if (!breathLink.ready) return;
+  remoteState = event.detail;
+  remoteStateAt = performance.now();
+  if (phase === "start" && event.detail.confidence01 > 0.3) {
+    setPairStatus("BODY SIGNAL ACQUIRED // PLEASE REMAIN MORTAL", "ready");
+    if (!autoStartAt) autoStartAt = performance.now() + 1_600;
+  }
+}) as EventListener);
+
+void breathLink.start(invitation).catch(() => {
+  setPairStatus("COULD NOT OPEN THE PHONE LINK // REFRESH TO TRY AGAIN", "error");
+});
+
+againBtn.addEventListener("click", () => {
+  void tone.start();
+  if (remoteFresh()) {
+    begin();
+  } else {
+    phase = "start";
+    hud.hidden = true;
+    endScreen.hidden = true;
+    endScreen.setAttribute("aria-hidden", "true");
+    startScreen.hidden = false;
+    setPairStatus("PHONE SIGNAL LOST // RESCAN TO RE-ENTER", "error");
+  }
+});
+
+muteBtn.textContent = "ENABLE SOUND";
+muteBtn.setAttribute("aria-pressed", "true");
+muteBtn.addEventListener("click", async () => {
+  await tone.start();
+  if (!audioEnabled) {
+    audioEnabled = true;
+    tone.muted = false;
+    muteBtn.textContent = "SOUND ON";
+    muteBtn.setAttribute("aria-pressed", "false");
     return;
   }
-  void tone.start();
-  tone.bell(392, 0, 0.05, 2.2);
-  tone.bell(587.33, 0.18, 0.03, 1.6);
-  makerName.disabled = true;
-  makerScreen.classList.add("maker-done");
-  makerForm.hidden = true;
-  makerFeedback.hidden = false;
-  if (makerDismiss) window.clearTimeout(makerDismiss);
-  makerDismiss = window.setTimeout(() => {
-    makerScreen.hidden = true;
-    makerScreen.setAttribute("aria-hidden", "true");
-    beginBtn.disabled = false;
-    beginBtn.focus();
-  }, 2600);
-});
-
-const modeRadios = Array.from(
-  document.querySelectorAll<HTMLInputElement>('input[name="mode"]'),
-);
-modeRadios.forEach((radio) =>
-  radio.addEventListener("change", () => {
-    mode = radio.value as InputMode;
-    if (mode === "phone") void enablePhoneMode();
-    updateSenseNote();
-  }),
-);
-
-window.addEventListener("keydown", (e) => {
-  if (e.key !== " ") return;
-  if (phase === "run") {
-    e.preventDefault();
-    holdingKey = true;
-  } else if (phase === "start" && document.activeElement === beginBtn) {
-    beginBtn.click();
-    e.preventDefault();
-  }
-});
-window.addEventListener("keyup", (e) => {
-  if (e.key === " ") holdingKey = false;
-});
-
-holdBtn.addEventListener("pointerdown", (e) => {
-  e.preventDefault();
-  holdingPointer = true;
-});
-window.addEventListener("pointerup", () => {
-  holdingPointer = false;
-});
-window.addEventListener("pointercancel", () => {
-  holdingPointer = false;
-});
-
-muteBtn.addEventListener("click", () => {
   const muted = tone.toggleMute();
   muteBtn.textContent = muted ? "SOUND OFF" : "SOUND ON";
   muteBtn.setAttribute("aria-pressed", String(muted));
 });
 
 function tick(now: number, dt: number) {
+  if (phase === "start" && autoStartAt && now >= autoStartAt && remoteFresh(now)) {
+    begin();
+  }
+
   if (phase === "run") {
     elapsedMs = now - runStart;
     const wasHolding = holding;
@@ -483,50 +395,59 @@ function tick(now: number, dt: number) {
     }
   }
 
-  const goal = phase === "complete" ? 0.01 : lerp(0.96, 0.06, progress01());
+  const goal =
+    phase === "complete" ? 0.01 : lerp(0.96, 0.06, progress01());
   lightPos += (goal - lightPos) * (1 - Math.pow(0.03, dt));
   releaseWave = Math.max(0, releaseWave - dt * 0.5);
-
-  if (motionNoteTimer && phase === "start" && mode === "phone") {
-    if (now - motionNoteTimer > 5000) {
-      motionNoteTimer = 0;
-      senseNote.textContent =
-        "No motion events yet — this needs a phone with the sensor.";
-    }
-  }
-
   tone.update(progress01());
+}
+
+function holdCopy(pct: number) {
+  if (pct >= 94) return "THE LIGHT HAS OPENED A SUPPORT TICKET";
+  if (pct >= 78) return "ANCESTRAL CUSTOMER SERVICE IS STILL BUFFERING";
+  if (pct >= 55) return "TUNNEL VISION UPGRADED TO PREMIUM";
+  if (pct >= 28) return "METAPHYSICAL LATENCY: ACCEPTABLE";
+  return "STILLNESS MOVES THE SIMULATION FORWARD";
 }
 
 function updateHud() {
   if (phase !== "run") return;
   const progress = progress01();
   const pct = Math.round(progress * 100);
-  progressFill.style.width = `${pct}%`;
+  progressFill.style.width = String(pct) + "%";
   progressTrack.setAttribute("aria-valuenow", String(pct));
-  elapsedLabel.textContent = `${formatTime(elapsedMs)} elapsed`;
-  holdTimer.textContent = `${formatTime(heldMs)} held`;
-  journeyPct.textContent = `${pct}% of the way`;
+  elapsedLabel.textContent = formatTime(elapsedMs) + " SESSION";
+  holdTimer.textContent = formatTime(heldMs) + " STILL";
+  journeyPct.textContent = String(pct) + "% TOWARD THE LIGHT";
 
-  stateLabel.classList.remove("holding", "withdrawing");
-  holdBtn.classList.toggle("held", holding);
+  stateLabel.classList.remove("holding", "withdrawing", "signal-lost");
+
+  if (!remoteFresh()) {
+    stateLabel.classList.add("signal-lost");
+    stateLabel.textContent = "BODY SIGNAL LOST";
+    holdHint.textContent = "PHONE ON BELLY · SCREEN UP · CONTINUE BREATHING";
+    return;
+  }
 
   if (pct >= 100) {
-    stateLabel.textContent = "you reached the light";
-    holdHint.textContent = "breathe — you are through";
+    stateLabel.textContent = "YOU REACHED THE LIGHT";
+    holdHint.textContent = "BREATHE · THE AFTERLIFE WAS A FRONT-END EFFECT";
     return;
   }
+
   if (holding) {
     stateLabel.classList.add("holding");
-    stateLabel.textContent = "HOLDING YOUR BREATH";
-    holdHint.textContent =
-      pct >= 88 ? "the light is almost here — hold" : "hold and the light advances";
+    stateLabel.textContent = "THE LIGHT HAS NOTICED YOU";
+    holdHint.textContent = holdCopy(pct);
     return;
   }
+
   stateLabel.classList.add("withdrawing");
-  stateLabel.textContent = "BREATHING";
+  stateLabel.textContent = "RESPIRATION DETECTED";
   holdHint.textContent =
-    heldMs === 0 ? "hold to begin" : "hold again — the light waits";
+    heldMs === 0
+      ? "GOOD. STAY ALIVE. STILLNESS WILL START THE CROSSING."
+      : "GOOD DECISION. BREATHE WHENEVER YOU NEED. PROGRESS IS CUMULATIVE.";
 }
 
 function ringR(z: number) {
@@ -584,7 +505,7 @@ function drawRing(ring: StreamRing, now: number) {
   ctx.moveTo(points[0][0], points[0][1]);
   for (let k = 1; k < points.length; k++) ctx.lineTo(points[k][0], points[k][1]);
   ctx.closePath();
-  ctx.strokeStyle = rgba(200, 191, 141, 0.34 * glow + 0.035 * wallFade);
+  ctx.strokeStyle = rgba(188, 226, 205, 0.34 * glow + 0.035 * wallFade);
   ctx.lineWidth = clamp(r * 0.006, 0.5, 3);
   ctx.stroke();
 
@@ -593,7 +514,7 @@ function drawRing(ring: StreamRing, now: number) {
   for (let k = 1; k < points.length; k++)
     ctx.lineTo(points[k][0] + 1, points[k][1] + 1);
   ctx.closePath();
-  ctx.strokeStyle = rgba(120, 118, 140, 0.14 * wallFade);
+  ctx.strokeStyle = rgba(90, 112, 103, 0.14 * wallFade);
   ctx.lineWidth = clamp(r * 0.012, 1, 5);
   ctx.stroke();
 }
@@ -638,31 +559,31 @@ function drawLight(now: number, swell: number, arrival: number) {
   const cy = vy;
 
   const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, haloR);
-  halo.addColorStop(0, rgba(243, 231, 168, lightA * 0.8));
-  halo.addColorStop(0.35, rgba(243, 231, 168, lightA * 0.4));
-  halo.addColorStop(0.7, rgba(141, 135, 94, lightA * 0.18));
+  halo.addColorStop(0, rgba(214, 242, 221, lightA * 0.8));
+  halo.addColorStop(0.35, rgba(214, 242, 221, lightA * 0.4));
+  halo.addColorStop(0.7, rgba(118, 150, 132, lightA * 0.18));
   halo.addColorStop(1, rgba(8, 8, 12, 0));
   ctx.fillStyle = halo;
   ctx.fillRect(cx - haloR, cy - haloR, haloR * 2, haloR * 2);
 
   const mid = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 2);
-  mid.addColorStop(0, rgba(255, 251, 230, lightA));
-  mid.addColorStop(0.45, rgba(243, 231, 168, lightA * 0.75));
-  mid.addColorStop(1, rgba(141, 135, 94, 0));
+  mid.addColorStop(0, rgba(252, 255, 244, lightA));
+  mid.addColorStop(0.45, rgba(214, 242, 221, lightA * 0.75));
+  mid.addColorStop(1, rgba(118, 150, 132, 0));
   ctx.fillStyle = mid;
   ctx.fillRect(cx - coreR * 2, cy - coreR * 2, coreR * 4, coreR * 4);
 
   const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
-  core.addColorStop(0, rgba(255, 251, 230, 1));
-  core.addColorStop(0.5, rgba(255, 248, 214, 0.9));
-  core.addColorStop(1, rgba(243, 231, 168, 0.25));
+  core.addColorStop(0, rgba(252, 255, 244, 1));
+  core.addColorStop(0.5, rgba(239, 255, 240, 0.9));
+  core.addColorStop(1, rgba(214, 242, 221, 0.25));
   ctx.fillStyle = core;
   ctx.fillRect(cx - coreR, cy - coreR, coreR * 2, coreR * 2);
 
   ctx.save();
   ctx.setLineDash([coreR * 0.4, coreR * 0.16]);
   ctx.lineDashOffset = -now * 0.00032;
-  ctx.strokeStyle = rgba(255, 251, 230, 0.22 + arrival * 0.45);
+  ctx.strokeStyle = rgba(252, 255, 244, 0.22 + arrival * 0.45);
   ctx.lineWidth = clamp(coreR * 0.02, 1, 3);
   ctx.beginPath();
   ctx.arc(cx, cy, coreR * 1.18, 0, Math.PI * 2);
@@ -672,7 +593,7 @@ function drawLight(now: number, swell: number, arrival: number) {
 
   if (holding) {
     const ring = ctx.createRadialGradient(cx, cy, coreR * 1.3, cx, cy, coreR * 2.1);
-    ring.addColorStop(0, rgba(255, 251, 230, 0.12));
+    ring.addColorStop(0, rgba(252, 255, 244, 0.12));
     ring.addColorStop(1, rgba(3, 3, 5, 0));
     ctx.fillStyle = ring;
     ctx.fillRect(cx - coreR * 2.1, cy - coreR * 2.1, coreR * 4.2, coreR * 4.2);
@@ -703,7 +624,7 @@ function drawMotes() {
     ctx.fillStyle = rgba(235, 228, 200, 0.04 + 0.5 * proximity);
     ctx.fillRect(x, y, mote.size, mote.size);
     if (mote.glint && proximity > 0.35) {
-      ctx.strokeStyle = rgba(255, 251, 230, proximity * 0.5);
+      ctx.strokeStyle = rgba(252, 255, 244, proximity * 0.5);
       ctx.lineWidth = 0.6;
       ctx.beginPath();
       ctx.moveTo(x - mote.size * 2, y);
@@ -744,9 +665,9 @@ function drawVignette(arrival: number) {
 
 function renderOtherSide() {
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#16120c");
-  sky.addColorStop(0.55, "#3a2f1d");
-  sky.addColorStop(1, "#0c0a07");
+  sky.addColorStop(0, "#e8f2e8");
+  sky.addColorStop(0.48, "#9fb9a7");
+  sky.addColorStop(1, "#111713");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
@@ -754,9 +675,9 @@ function renderOtherSide() {
   const cy = H * 0.44;
   const wide = Math.hypot(W, H);
   const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, wide * 0.7);
-  glow.addColorStop(0, rgba(255, 251, 230, 0.95));
-  glow.addColorStop(0.3, rgba(243, 231, 168, 0.6));
-  glow.addColorStop(0.7, rgba(200, 191, 141, 0.22));
+  glow.addColorStop(0, rgba(252, 255, 244, 0.95));
+  glow.addColorStop(0.3, rgba(214, 242, 221, 0.6));
+  glow.addColorStop(0.7, rgba(188, 226, 205, 0.22));
   glow.addColorStop(1, rgba(8, 8, 12, 0));
   ctx.fillStyle = glow;
   ctx.fillRect(cx - wide, cy - wide, wide * 2, wide * 2);
@@ -766,7 +687,7 @@ function renderOtherSide() {
     const x =
       cx + Math.sin(mote.angle + mote.phase * 3) * wide * 0.5 * mote.radial;
     const y = cy + wide * 0.34 - mote.z * wide * 0.9;
-    ctx.fillStyle = rgba(255, 248, 214, 0.5 + mote.phase * 0.2);
+    ctx.fillStyle = rgba(239, 255, 240, 0.5 + mote.phase * 0.2);
     ctx.fillRect(x, y, mote.size * 1.4, mote.size * 1.4);
   }
   ctx.globalAlpha = 1;
@@ -815,8 +736,8 @@ function render(now: number, dt: number) {
   const fogR = ringR(lightPos) * 7;
   const fog = ctx.createRadialGradient(vx, vy, 0, vx, vy, fogR);
   const fogAlpha = 0.05 + 0.3 * smoothstep(arrival);
-  fog.addColorStop(0, rgba(243, 231, 168, fogAlpha));
-  fog.addColorStop(0.5, rgba(141, 135, 94, fogAlpha * 0.35));
+  fog.addColorStop(0, rgba(214, 242, 221, fogAlpha));
+  fog.addColorStop(0.5, rgba(118, 150, 132, fogAlpha * 0.35));
   fog.addColorStop(1, rgba(3, 3, 5, 0));
   ctx.fillStyle = fog;
   ctx.fillRect(0, 0, W, H);

@@ -2,6 +2,7 @@ import { BreathLink, type BreathSignal } from "../src/phone-breather/link";
 import { readBreathInvitation, type BreathInvitation } from "../src/phone-breather/invitation";
 import { BreathLobby, type BreathMessage, type BreathHost } from "../src/phone-breather/breath-lobby";
 import { LynphanBreathDetector } from "../src/phone-breather/lynphan";
+import { requestBreathMotionPermission, WebBreathMotionSource } from "../src/phone-breather/web-motion";
 import { randomToken } from "../src/vendor/brsp/src/brsp.js";
 import "./styles.css";
 
@@ -14,6 +15,8 @@ const entryFeedback = byId("entry-feedback");
 const hostChoices = byId("host-choices");
 const entrySection = byId("entry-section");
 const controlsSection = byId("controls-section");
+const otherSideMode = new URLSearchParams(location.search).get("experience") === "other-side";
+if (otherSideMode) document.documentElement.dataset.experience = "other-side";
 
 const statusIndicator = byId("status-indicator");
 const statusText = byId("status-text");
@@ -43,8 +46,8 @@ const breathLink = new BreathLink("controller");
 const breath = new LynphanBreathDetector();
 let currentInvitation: BreathInvitation | null = null;
 let godName = "";
-let motionPermissionGranted = false;
 let sensorActive = false;
+let sensorModeLabel = "motion sensor";
 
 let lobby: BreathLobby | undefined;
 let lobbyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -86,7 +89,7 @@ function updateVisuals(signal: BreathSignal) {
     ? `${Math.round(signal.bpm)}`
     : "\u2014";
   statusIndicator.className = "status-indicator connected";
-  statusText.textContent = `Connected to host`;
+  statusText.textContent = otherSideMode ? `Body signal live · ${sensorModeLabel}` : `Connected to host · ${sensorModeLabel}`;
 }
 
 function setConnecting(message = "Connecting\u2026") {
@@ -111,68 +114,72 @@ function setDisconnected(message = "Disconnected") {
 function showControls(hostName: string) {
   entrySection.hidden = true;
   controlsSection.hidden = false;
-  hostNameEl.textContent = godName ? `Union with ${godName}` : `Host: ${hostName}`;
+  hostNameEl.textContent = otherSideMode ? "BODY SENSOR LIVE" : (godName ? `Union with ${godName}` : `Host: ${hostName}`);
 }
 
 function showEntry(message = "Enter your name to connect to the breath host.") {
   entrySection.hidden = false;
   controlsSection.hidden = true;
   entryFeedback.textContent = message;
-  nameInput.value = "";
+  nameInput.value = otherSideMode ? "Breather" : "";
   setDisconnected();
 }
 
-async function requestMotionPermission(): Promise<boolean> {
-  const DeviceMotionEventCtor = window.DeviceMotionEvent as typeof DeviceMotionEvent & {
-    requestPermission?: () => Promise<string>;
-  };
-  if (typeof DeviceMotionEventCtor.requestPermission === "function") {
-    try {
-      const permission = await DeviceMotionEventCtor.requestPermission();
-      return permission === "granted";
-    } catch {
-      return false;
+const motionSource = new WebBreathMotionSource({
+  frequencyHz: 60,
+  onSample: (sample) => {
+    if (!sensorActive) return;
+    const snapshot = breath.pushSample(
+      { x: sample.x / 9.80665, y: sample.y / 9.80665, z: sample.z / 9.80665 },
+      sample.timeMs,
+    );
+    const grossMotionPenalty = Math.max(
+      0.15,
+      1 - sample.angularSpeedRadPerSecond / 1.4,
+    );
+    const sensorConfidence =
+      (0.72 + 0.28 * sample.fusionConfidence01) * grossMotionPenalty;
+    const signal: BreathSignal = {
+      volume01: snapshot.volume01,
+      phase: snapshot.phase,
+      flow01: snapshot.flow01,
+      confidence01: Math.max(
+        0,
+        Math.min(1, snapshot.confidence01 * sensorConfidence),
+      ),
+      timestamp: sample.timeMs,
+      bpm: snapshot.bpm > 0 ? snapshot.bpm : undefined,
+    };
+    breathLink.send(signal);
+    updateVisuals(signal);
+  },
+  onStatus: (status) => {
+    sensorModeLabel = status.mode
+      ? status.mode.replaceAll("-", " ")
+      : "motion sensor";
+    if (sensorActive && controlsSection.hidden) {
+      entryFeedback.textContent = status.message;
     }
-  }
-  return true;
-}
+  },
+});
 
 async function startSensing(): Promise<boolean> {
   if (sensorActive) return true;
-  const granted = await requestMotionPermission();
+  const granted = await requestBreathMotionPermission();
   if (!granted) {
-    entryFeedback.textContent = "Motion permission denied. Enable in browser settings.";
+    entryFeedback.textContent =
+      "Motion permission denied or no accelerometer is available in this browser.";
     return false;
   }
-  motionPermissionGranted = true;
+  breath.reset();
   sensorActive = true;
-  window.addEventListener("devicemotion", handleMotion, { passive: true });
+  motionSource.start();
   return true;
 }
 
 function stopSensing() {
   sensorActive = false;
-  window.removeEventListener("devicemotion", handleMotion);
-}
-
-function handleMotion(event: DeviceMotionEvent) {
-  const accel = event.accelerationIncludingGravity;
-  if (!accel || accel.x === null || accel.y === null || accel.z === null) return;
-
-  const now = performance.now();
-  const snapshot = breath.pushSample({ x: accel.x, y: accel.y, z: accel.z }, now);
-
-  const signal: BreathSignal = {
-    volume01: snapshot.volume01,
-    phase: snapshot.phase,
-    flow01: snapshot.flow01,
-    confidence01: snapshot.confidence01,
-    timestamp: now,
-    bpm: snapshot.bpm > 0 ? snapshot.bpm : undefined,
-  };
-
-  breathLink.send(signal);
-  updateVisuals(signal);
+  motionSource.stop();
 }
 
 function connect(invitation: BreathInvitation) {
@@ -388,7 +395,35 @@ breathLink.addEventListener("state", (event: Event) => {
 
 const initialInvitation = readBreathInvitation(location.hash);
 godName = initialInvitation?.maker ?? "";
-if (initialInvitation) {
+
+if (otherSideMode && initialInvitation) {
+  nameInput.value = "Breather";
+  nameInput.required = false;
+  document.querySelector<HTMLElement>('label[for="controller-name"]')?.setAttribute("hidden", "");
+  nameInput.parentElement?.setAttribute("hidden", "");
+  document.querySelector<HTMLElement>('label[for="host-name-field"]')?.setAttribute("hidden", "");
+  hostNameInput.hidden = true;
+
+  const submitBtn = nameForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.textContent = "ALLOW MOTION & CONNECT";
+    submitBtn.classList.add("other-side-connect");
+  }
+
+  const eyebrow = document.querySelector<HTMLElement>(".entry-eyebrow");
+  const title = document.querySelector<HTMLElement>(".entry-card h2");
+  const headerTitle = document.querySelector<HTMLElement>(".header-center h1");
+  const instruction = document.querySelector<HTMLElement>(".instruction-card p");
+  if (eyebrow) eyebrow.textContent = "OTHER SIDE // BODY SENSOR";
+  if (title) title.textContent = "put this phone on your belly";
+  if (headerTitle) headerTitle.textContent = "Other Side Sensor";
+  if (instruction) {
+    instruction.textContent =
+      "Keep the phone flat against your belly, screen facing up. Breathe whenever you need. The desktop tunnel reacts automatically.";
+  }
+  entryFeedback.textContent =
+    "One tap grants motion access and connects this phone to the tunnel. No account, name, or public-room search.";
+} else if (initialInvitation) {
   entryFeedback.textContent = godName
     ? `You are the person. You approach ${godName}. Enter your name to draw close.`
     : "Enter your name, then Connect to pair with the breath screen.";
