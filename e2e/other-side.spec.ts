@@ -5,6 +5,16 @@ test("Other Side pairs a body signal, advances during stillness, and holds progr
   const errors: string[] = [];
   context.on("page", device => device.on("pageerror", error => errors.push(error.message)));
   page.on("pageerror", error => errors.push(error.message));
+  await context.addInitScript(() => {
+    const request = window.requestAnimationFrame.bind(window);
+    (window as any).testFrameCount = 0;
+    window.requestAnimationFrame = callback => request(timestamp => {
+      (window as any).testFrameCount++;
+      (window as any).testFrameTimestamp = timestamp;
+      (window as any).testFrameExecution = performance.now();
+      callback(timestamp);
+    });
+  });
   await context.addInitScript(installTiltSdkFixture);
   await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* deterministic test transport */" }));
   await page.goto("./games/other-side/");
@@ -35,6 +45,10 @@ test("Other Side pairs a body signal, advances during stillness, and holds progr
       sdkStarts: (window as any).testSdkStarts,
       status: document.querySelector("#pair-status")?.textContent,
       visibility: document.visibilityState,
+      frames: (window as any).testFrameCount,
+      frameTimestamp: (window as any).testFrameTimestamp,
+      frameExecution: (window as any).testFrameExecution,
+      observedAt: performance.now(),
     })) }));
     throw error;
   }

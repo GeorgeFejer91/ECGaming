@@ -62,20 +62,21 @@ async function connectPhone(phone: Page, name = "Tilda") {
 
 async function driveHolds(phone: Page) {
   await phone.evaluate(() => {
-    const periodMs = 5000, amplitude = 0.12, start = performance.now();
+    const periodMs = 10_000, inhaleMs = 1200, exhaleMs = 1800;
+    const amplitude = 0.12, start = performance.now();
     (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 };
     (window as any).sendAccel = true;
     (window as any).qrMotionCount = 0;
     addEventListener("devicemotion", () => (window as any).qrMotionCount++);
     (window as any).accelTimer = setInterval(() => {
-      // Same 12 BPM bellows and rest interval as the detector's unit fixtures.
+      // A seven-second rest lets the 60-sample debounce drain even at 10 Hz.
       const elapsed = performance.now() - start;
       const phase = elapsed % periodMs;
-      // Four breaths establish the signal; then hold the phone still.
-      const excursion = elapsed >= 4 * periodMs ? 0 : phase < periodMs * 0.24
-        ? amplitude * phase / (periodMs * 0.24)
-        : phase < periodMs * 0.6
-          ? amplitude * (1 - (phase - periodMs * 0.24) / (periodMs * 0.36))
+      // Finish four pulses, then leave the phone still.
+      const excursion = elapsed >= 3 * periodMs + inhaleMs + exhaleMs ? 0 : phase < inhaleMs
+        ? amplitude * phase / inhaleMs
+        : phase < inhaleMs + exhaleMs
+          ? amplitude * (1 - (phase - inhaleMs) / exhaleMs)
           : 0;
       // Preserve the fixture's gravity baseline when breathing begins.
       (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 + excursion };
@@ -180,8 +181,7 @@ test("phone pairs by QR, streams belly motion, and the tunnel light advances on 
   await expect(page.locator("#phase-label")).toHaveText(/Inhale|Exhale|Hold/);
 
   const first = await tunnelProgress(page);
-  // The current detector's first confident hold appears after about 20 seconds
-  // of this bellows pattern; allow subsequent holds to accumulate progress.
+  // The slower bellows also produces confident holds at constrained sample rates.
   try {
     await expect.poll(() => tunnelProgress(page), { timeout: 40_000 }).toBeGreaterThan(first + 0.002);
   } catch (error) {
