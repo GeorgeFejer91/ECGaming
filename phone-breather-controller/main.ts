@@ -168,7 +168,7 @@ function handleMotion(event: DeviceMotionEvent) {
     flow01: snapshot.flow01,
     confidence01: snapshot.confidence01,
     timestamp: now,
-    bpm: snapshot.bpm > 0 ? snapshot.bpm : undefined,
+    ...(snapshot.bpm > 0 ? { bpm: snapshot.bpm } : {}),
   };
 
   breathLink.send(signal);

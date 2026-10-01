@@ -49,16 +49,20 @@ async function connectPhone(phone: Page, name = "Tilda") {
 
 async function driveHolds(phone: Page) {
   await phone.evaluate(() => {
-    const base = 9.8;
-    (window as any).accelSample = { x: 0.1, y: base, z: base };
+    const periodMs = 5000, amplitude = 0.12, start = performance.now();
+    (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 };
     (window as any).sendAccel = true;
-    let step = 0;
     (window as any).accelTimer = setInterval(() => {
-      step += 1;
-      const t = step * 120;
-      const cycle = t % 1200;
-      (window as any).accelSample = { x: 0.1, y: base, z: cycle < 150 ? base + 1.2 : base };
-    }, 120);
+      // Same 12 BPM bellows and rest interval as the detector's unit fixtures.
+      const phase = (performance.now() - start) % periodMs;
+      const excursion = phase < periodMs * 0.24
+        ? amplitude * phase / (periodMs * 0.24)
+        : phase < periodMs * 0.6
+          ? amplitude * (1 - (phase - periodMs * 0.24) / (periodMs * 0.36))
+          : 0;
+      // Preserve the fixture's gravity baseline when breathing begins.
+      (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 + excursion };
+    }, 16);
   });
 }
 
@@ -137,6 +141,8 @@ test("host names their maker and gets the Yahweh verdict before broadcasting", a
 
 test("phone pairs by QR, streams belly motion, and the tunnel light advances on breath holds", async ({ page, context }, testInfo) => {
   test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
   await page.goto("./phone-breather-host/");
   await nameHost(page);
 
@@ -144,6 +150,7 @@ test("phone pairs by QR, streams belly motion, and the tunnel light advances on 
   const phone = await openController(context, href);
   await connectPhone(phone);
   await driveHolds(phone);
+  await page.bringToFront();
 
   await expect(page.locator("#connection-badge")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("#status-text")).toContainText("Tilda", { timeout: 30_000 });
@@ -151,7 +158,10 @@ test("phone pairs by QR, streams belly motion, and the tunnel light advances on 
   await expect(page.locator("#phase-label")).toHaveText(/Inhale|Exhale|Hold/);
 
   const first = await tunnelProgress(page);
-  await expect.poll(() => tunnelProgress(page), { timeout: 20_000 }).toBeGreaterThan(first + 0.002);
+  // The current detector's first confident hold appears after about 20 seconds
+  // of this bellows pattern; allow subsequent holds to accumulate progress.
+  await expect.poll(() => tunnelProgress(page), { timeout: 40_000 }).toBeGreaterThan(first + 0.002);
+  expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("phone-breather-host-tunnel.png") });
 });
 

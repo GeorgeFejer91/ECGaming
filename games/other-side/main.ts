@@ -85,6 +85,8 @@ void QRCode.toCanvas(qr, url, {
 });
 
 const link = new BreathLink("target");
+link.pilotName = "Phone";
+link.acceptSource = offer => { link.sourceOffer = offer; };
 const fresh = (now = performance.now()) =>
   !!remote && link.ready && now - remoteAt < 1200;
 const progress = () => clamp(stillMs / TOTAL_STILL_MS, 0, 1);

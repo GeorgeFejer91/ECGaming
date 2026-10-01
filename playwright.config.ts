@@ -10,7 +10,7 @@ export default defineConfig({
   use: {
     // Use the same software WebGL backend locally and on GPU-less CI runners.
     // The companion tests represent separate foreground devices in three tabs.
-    launchOptions: { args: ["--use-angle=swiftshader", "--disable-backgrounding-occluded-windows"] },
+    launchOptions: { args: ["--use-angle=swiftshader", "--disable-backgrounding-occluded-windows", "--disable-background-timer-throttling", "--disable-renderer-backgrounding"] },
     baseURL: "http://127.0.0.1:4179/",
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],

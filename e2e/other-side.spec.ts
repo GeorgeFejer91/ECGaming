@@ -1,29 +1,36 @@
 import { expect, test } from "@playwright/test";
+import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
-test("Other Side starts a crossing and the light advances in showcase mode", async ({
-  page,
-}) => {
+test("Other Side pairs a body signal, advances during stillness, and holds progress when the signal is lost", async ({ page, context }) => {
+  await context.addInitScript(installTiltSdkFixture);
+  await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* deterministic test transport */" }));
   await page.goto("./games/other-side/");
   await expect(page.locator("#tunnel")).toBeVisible();
-  await expect(page.locator("#maker-screen")).toBeVisible();
+  await expect(page.locator("#pair-screen")).toBeVisible();
+  await expect(page.locator("#hud")).toBeHidden();
 
-  await page.getByLabel("YOUR MAKER'S NAME").fill("Yahweh");
-  await page.getByRole("button", { name: "ANSWER" }).click();
-  await expect(page.locator("#maker-feedback")).toHaveText("It's Yahweh or No Way!");
-  await expect(page.locator("#maker-screen")).toBeHidden();
-  await expect(page.getByRole("button", { name: "BEGIN THE CROSSING" })).toBeEnabled();
+  const href = await page.locator("#pair-link").getAttribute("href");
+  const invitation = new URLSearchParams(new URL(href!).hash.slice(1));
+  const phone = await context.newPage();
+  await phone.goto("./");
+  await phone.evaluate(async ({ room, secret }) => {
+    const modulePath = "/src/phone-breather/link.ts";
+    const { BreathLink } = await import(modulePath);
+    const link = new BreathLink("controller");
+    link.pilotName = "Phone";
+    await link.start({ room, secret });
+    const timer = setInterval(() => link.send({ volume01: 0.5, phase: 0, flow01: 0, confidence01: 1, timestamp: performance.now() }), 100);
+    (window as any).stopBodySignal = () => { clearInterval(timer); void link.stop(); };
+  }, { room: invitation.get("room"), secret: invitation.get("secret") });
 
-  await expect(page.locator("#start-screen")).toBeVisible();
-  await page.getByRole("radio", { name: "Auto-play showcase" }).check();
-  await page.getByRole("button", { name: "BEGIN THE CROSSING" }).click();
-
-  await expect(page.locator("#start-screen")).toBeHidden();
+  await expect(page.locator("#pair-screen")).toBeHidden({ timeout: 15_000 });
   await expect(page.locator("#hud")).toBeVisible();
-  await expect(page.locator("#state-label")).toHaveText("HOLDING YOUR BREATH");
+  await expect(page.locator("#state-label")).toHaveText("THE LIGHT HAS NOTICED YOU");
+  await expect.poll(() => page.locator("#progress-fill").evaluate(element => parseFloat(element.style.width))).toBeGreaterThan(0);
 
-  await expect(page.locator("#hold-timer")).not.toHaveText("00:00 held");
-  const width = await page
-    .locator("#progress-fill")
-    .evaluate((element) => Number(element.style.width.replace("%", "")));
-  expect(width).toBeGreaterThan(0);
+  await phone.evaluate(() => (window as any).stopBodySignal());
+  await expect(page.locator("#state-label")).toHaveText("BODY SIGNAL LOST");
+  const held = await page.locator("#progress-fill").getAttribute("style");
+  await page.waitForTimeout(1300);
+  await expect(page.locator("#progress-fill")).toHaveAttribute("style", held!);
 });
