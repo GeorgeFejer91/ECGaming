@@ -54,8 +54,10 @@ async function driveHolds(phone: Page) {
     (window as any).sendAccel = true;
     (window as any).accelTimer = setInterval(() => {
       // Same 12 BPM bellows and rest interval as the detector's unit fixtures.
-      const phase = (performance.now() - start) % periodMs;
-      const excursion = phase < periodMs * 0.24
+      const elapsed = performance.now() - start;
+      const phase = elapsed % periodMs;
+      // Four breaths establish the signal; then hold the phone still.
+      const excursion = elapsed >= 4 * periodMs ? 0 : phase < periodMs * 0.24
         ? amplitude * phase / (periodMs * 0.24)
         : phase < periodMs * 0.6
           ? amplitude * (1 - (phase - periodMs * 0.24) / (periodMs * 0.36))
