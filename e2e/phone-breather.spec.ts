@@ -7,11 +7,24 @@ test.beforeEach(async ({ context }) => {
 });
 
 async function nameHost(page: Page, name = "Yahweh") {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
   const dialog = page.getByRole("dialog", { name: "Who is your maker" });
   await dialog.getByLabel("Your maker's name").fill(name);
   await dialog.getByRole("button", { name: "ANSWER" }).click();
   await expect(dialog.getByText("It's Yahweh or No Way!")).toBeVisible({ timeout: 15_000 });
-  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  try {
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+  } catch (error) {
+    console.log("HOST STARTUP FAILURE", JSON.stringify({ errors, state: await page.evaluate(() => ({
+      sdkStarts: (window as any).testSdkStarts,
+      makerOpen: document.querySelector<HTMLDialogElement>('dialog[aria-label="Who is your maker"]')?.open,
+      inputDisabled: document.querySelector<HTMLInputElement>('dialog[aria-label="Who is your maker"] input')?.disabled,
+      status: document.querySelector("#status-text")?.textContent,
+      visibility: document.visibilityState,
+    })) }));
+    throw error;
+  }
   await expect(page.locator("#status-text")).toContainText("broadcasting");
 }
 

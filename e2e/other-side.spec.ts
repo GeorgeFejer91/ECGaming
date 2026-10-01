@@ -2,6 +2,9 @@ import { expect, test } from "@playwright/test";
 import { installTiltSdkFixture } from "./fixtures/tilt-sdk";
 
 test("Other Side pairs a body signal, advances during stillness, and holds progress when the signal is lost", async ({ page, context }) => {
+  const errors: string[] = [];
+  context.on("page", device => device.on("pageerror", error => errors.push(error.message)));
+  page.on("pageerror", error => errors.push(error.message));
   await context.addInitScript(installTiltSdkFixture);
   await context.route("**/vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", route => route.fulfill({ contentType: "text/javascript", body: "/* deterministic test transport */" }));
   await page.goto("./games/other-side/");
@@ -23,7 +26,16 @@ test("Other Side pairs a body signal, advances during stillness, and holds progr
     (window as any).stopBodySignal = () => { clearInterval(timer); void link.stop(); };
   }, { room: invitation.get("room"), secret: invitation.get("secret") });
 
-  await expect(page.locator("#pair-screen")).toBeHidden({ timeout: 15_000 });
+  try {
+    await expect(page.locator("#pair-screen")).toBeHidden({ timeout: 15_000 });
+  } catch (error) {
+    console.log("OTHER SIDE PAIRING FAILURE", JSON.stringify({ errors, state: await page.evaluate(() => ({
+      sdkStarts: (window as any).testSdkStarts,
+      status: document.querySelector("#pair-status")?.textContent,
+      visibility: document.visibilityState,
+    })) }));
+    throw error;
+  }
   await expect(page.locator("#hud")).toBeVisible();
   await expect(page.locator("#state-label")).toHaveText("THE LIGHT HAS NOTICED YOU");
   await expect.poll(() => page.locator("#progress-fill").evaluate(element => parseFloat(element.style.width))).toBeGreaterThan(0);
