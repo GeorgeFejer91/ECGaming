@@ -25,6 +25,8 @@ test("Other Side pairs a body signal, advances during stillness, and holds progr
     const timer = setInterval(() => link.send({ volume01: 0.5, phase: 0, flow01: 0, confidence01: 1, timestamp: performance.now() }), 100);
     (window as any).stopBodySignal = () => { clearInterval(timer); void link.stop(); };
   }, { room: invitation.get("room"), secret: invitation.get("secret") });
+  // Observe the target as a foreground device so its animation clock can run.
+  await page.bringToFront();
 
   try {
     await expect(page.locator("#pair-screen")).toBeHidden({ timeout: 15_000 });

@@ -65,6 +65,8 @@ async function driveHolds(phone: Page) {
     const periodMs = 5000, amplitude = 0.12, start = performance.now();
     (window as any).accelSample = { x: 0, y: 9.8, z: 0.15 };
     (window as any).sendAccel = true;
+    (window as any).qrMotionCount = 0;
+    addEventListener("devicemotion", () => (window as any).qrMotionCount++);
     (window as any).accelTimer = setInterval(() => {
       // Same 12 BPM bellows and rest interval as the detector's unit fixtures.
       const elapsed = performance.now() - start;
@@ -166,6 +168,11 @@ test("phone pairs by QR, streams belly motion, and the tunnel light advances on 
   await connectPhone(phone);
   await driveHolds(phone);
   await page.bringToFront();
+  await page.evaluate(() => {
+    (window as any).qrFrameCount = 0;
+    const count = () => { (window as any).qrFrameCount++; requestAnimationFrame(count); };
+    requestAnimationFrame(count);
+  });
 
   await expect(page.locator("#connection-badge")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("#status-text")).toContainText("Tilda", { timeout: 30_000 });
@@ -175,7 +182,15 @@ test("phone pairs by QR, streams belly motion, and the tunnel light advances on 
   const first = await tunnelProgress(page);
   // The current detector's first confident hold appears after about 20 seconds
   // of this bellows pattern; allow subsequent holds to accumulate progress.
-  await expect.poll(() => tunnelProgress(page), { timeout: 40_000 }).toBeGreaterThan(first + 0.002);
+  try {
+    await expect.poll(() => tunnelProgress(page), { timeout: 40_000 }).toBeGreaterThan(first + 0.002);
+  } catch (error) {
+    console.log("QR SIGNAL FAILURE", JSON.stringify({ errors,
+      phone: await phone.evaluate(() => ({ motionCount: (window as any).qrMotionCount, signal: (window as any).lastTestIntent?.signal })),
+      host: await page.evaluate(() => ({ frames: (window as any).qrFrameCount, progress: document.querySelector<HTMLElement>("#tunnel-canvas")?.dataset.progress, phase: document.querySelector("#phase-label")?.textContent })),
+    }));
+    throw error;
+  }
   expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("phone-breather-host-tunnel.png") });
 });
