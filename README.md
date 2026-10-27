@@ -1,5 +1,15 @@
 # EC Gaming
 
+## Systole: The Quiet Vessel
+
+[Play Systole](https://georgefejer91.github.io/ECGaming/games/systole/) is a standalone cardiac spacecraft navigator. [Polar Plane](https://georgefejer91.github.io/ECGaming/ground-control/) remains available alongside it.
+
+Choose the Quiet Vessel or Ember Reliquary, connect a worn Polar H10, and select the heart or breathing metric that controls height. Use A/D, arrows, drag, phone steering, gamepad, or WebXR to steer through luminous passages. **Practice heartbeat** provides an explicitly simulated way to play without a sensor. Signal loss holds navigation; recovery uses the shared readiness gate. The **Signal settings** dialog retains calibration, mappings, broadcasting, simulator, and settings import/export. Music, session CSV, remote beacon/cockpit, and local ECG on the ship's sensor vanes use the same owners as Polar Plane.
+
+Collisions with drifting asteroids and ruins are enabled by default. The spacecraft ruptures into 58 individually identified BodyParts3D vessel meshes; **Reassemble vessel** resets the course and clears fragments. Disable impacts in **Navigation options** for a gentler passage. Motion is artistic, not a physiological simulation. [Asset provenance and anatomical limitations](docs/SYSTOLE-ASSET-PROVENANCE.md) document the source, license, conversion, and hashes.
+
+The new route is generated from the existing control document by Vite. Space visuals and UI live in `src/systole/`; acquisition, mappings, transport, and readiness remain shared. Original cover artwork was generated with the built-in image tool; its prompt ships beside the image. No assets from the games used as visual references are redistributed.
+
 **EC Gaming turns live ECG and chest-motion signals into browser games.** The first game, Heartbeat Flight, is a low-poly airplane experience that runs as a normal 3D web app and can enter immersive WebXR on a compatible headset.
 
 [Play Heartbeat Flight](https://georgefejer91.github.io/ECGaming/) · [Protocol](docs/PROTOCOL.md) · [Hardware validation](docs/HARDWARE-VALIDATION.md)

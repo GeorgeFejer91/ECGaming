@@ -1,11 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createGameHeartbeatMessage,
   isFreshGameHeartbeatMessage,
   isGameHeartbeatMessage,
+  GameHeartbeatPublisher,
 } from "../src/game/heartbeat-channel";
 
 describe("game heartbeat channel", () => {
+  it("ignores a queued heartbeat after teardown and closes only once", () => {
+    let closed = false;
+    const post = vi.fn(() => { if (closed) throw new DOMException("Channel is closed", "InvalidStateError"); });
+    const close = vi.fn(() => { closed = true; });
+    vi.stubGlobal("BroadcastChannel", class { postMessage = post; close = close; });
+    try {
+      const publisher = new GameHeartbeatPublisher("ground-control");
+      const input = { source: "polar-rr" as const, beatCounter: 1, ageMs: 0, confidence: 1, physicalPolar: true, simulated: false, ready: true };
+      publisher.publish(input);
+      expect(post).toHaveBeenCalledTimes(1);
+      publisher.close(); publisher.close();
+      expect(() => publisher.publish({ ...input, beatCounter: 2 })).not.toThrow();
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it("creates a bounded versioned message", () => {
     const message = createGameHeartbeatMessage(
       "ground-control",

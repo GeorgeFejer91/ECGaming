@@ -436,3 +436,4 @@ if (invitation || invalidInvitation) {
   });
   element("flight-main").append(exit);
 }
+import "./systole/companion";

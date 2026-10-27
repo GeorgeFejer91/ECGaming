@@ -198,3 +198,5 @@
     justify-content: space-between;
   }
 }
+.systole-cover img { width: 100%; height: 100%; object-fit: cover; }
+.systole-menu-card { border-color: #7c7159; }

@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { isSystole } from "../systole/theme";
+import { loadSpacecraft } from "../systole/spacecraft";
 
 export const AIRCRAFT_MAX_WIDTH = 3.2;
 export const AIRCRAFT_MAX_HEIGHT = 2.5;
@@ -20,6 +22,16 @@ export interface AircraftDefinition {
 }
 
 const AIRCRAFT_DEFINITIONS = [
+  {
+    id: "systole-quiet", label: "Quiet Vessel",
+    assetPath: "/assets/systole/anatomy-heart.glb",
+    sourceUrl: "https://github.com/organui/heart-3d", license: "CC-BY-4.0", rotation: [0, 0, 0],
+  },
+  {
+    id: "systole-ember", label: "Ember Reliquary",
+    assetPath: "/assets/systole/anatomy-heart.glb",
+    sourceUrl: "https://github.com/organui/heart-3d", license: "CC-BY-4.0", rotation: [0, 0, 0],
+  },
   {
     id: "cardiac-ventricle",
     label: "Ventricle Glider",
@@ -216,11 +228,11 @@ const AIRCRAFT_DEFINITIONS = [
 // Only the two project-authored cardiac aircraft are offered to players.
 // Keep legacy definitions available internally for fallback/source metadata.
 export const AIRCRAFT_CATALOG = AIRCRAFT_DEFINITIONS.filter(
-  ({ id }) => id === "cardiac-ventricle" || id === "cardiac-aorta",
+  ({ id }) => isSystole() ? id.startsWith("systole-") : id === "cardiac-ventricle" || id === "cardiac-aorta",
 );
 export type AircraftId = (typeof AIRCRAFT_DEFINITIONS)[number]["id"];
 export type AircraftCatalogEntry = (typeof AIRCRAFT_DEFINITIONS)[number];
-export const DEFAULT_AIRCRAFT_ID: AircraftId = "cardiac-ventricle";
+export const DEFAULT_AIRCRAFT_ID: AircraftId = isSystole() ? "systole-quiet" : "cardiac-ventricle";
 
 export interface AircraftPersona {
   name: string;
@@ -229,6 +241,8 @@ export interface AircraftPersona {
 
 /** Player-facing hangar callsigns; source/credit labels remain in the catalog. */
 export const AIRCRAFT_PERSONAS = {
+  "systole-quiet": { name: "The Quiet Vessel", tagline: "Something in the dark is still beating." },
+  "systole-ember": { name: "Ember Reliquary", tagline: "Carry the last warmth beyond the stars." },
   "cardiac-ventricle": {
     name: "Ventricle Glider",
     tagline: "A heart in flight. Every beat leaves a trace.",
@@ -665,6 +679,7 @@ const loadGltf = (url: string) => new GLTFLoader().loadAsync(url);
 export async function loadAircraftVisual(
   id: AircraftId,
 ): Promise<AircraftVisual> {
+  if (id.startsWith("systole-")) return { id, ...await loadSpacecraft(id, flightAssetUrl("assets/systole/anatomy-heart.glb")) };
   if (id === "ecgaming-classic") {
     return createProceduralAircraftVisual();
   }

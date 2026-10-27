@@ -1,4 +1,5 @@
 import { isAircraftId, type AircraftId } from "../game/aircraft";
+import { companionUrl } from "../systole/theme";
 
 export interface RemotePilotInvitation {
   streamId: string;
@@ -18,8 +19,7 @@ export function readRemotePilotInvitation(hash: string): RemotePilotInvitation |
 
 /** Selects an existing public ECGaming broadcast; this is not a secret/auth token. */
 export function remotePilotUrl(towerUrl: string, invitation: RemotePilotInvitation): string {
-  const url = new URL("../flight/", towerUrl);
-  url.search = "";
+  const url = companionUrl("flight", towerUrl);
   const params = new URLSearchParams({ pilot: invitation.streamId, session: invitation.sessionId });
   if (invitation.aircraftId) params.set("aircraft", invitation.aircraftId);
   url.hash = params.toString();

@@ -1,4 +1,5 @@
 import { BRSPConnection, type BrspTransport } from "../vendor/brsp/src/brsp.js";
+import { companionUrl } from "../systole/theme";
 import { VdoNinjaTransport } from "../vendor/brsp/src/vdo-ninja-transport.js";
 import { TILT_SCOPE, TiltAuthority, type TiltControls, type TiltState, validControls, validTiltState } from "./controls";
 import type { TiltInvitation } from "./invitation";
@@ -15,7 +16,7 @@ export function loadTiltSdk(): Promise<void> {
   if (sdkLoading) return sdkLoading;
   sdkLoading = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = new URL("../vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", location.href).href;
+    script.src = new URL("../vendor/vdoninja/1.5.5/vdoninja-sdk.min.js", companionUrl("controller", location.href)).href;
     const timer = setTimeout(() => failed(), 15_000);
     const failed = () => { clearTimeout(timer); script.remove(); sdkLoading = undefined; reject(new Error("Connection software could not load. Please try again.")); };
     script.onload = () => { clearTimeout(timer); typeof globalThis.VDONinjaSDK === "function" ? resolve() : failed(); };

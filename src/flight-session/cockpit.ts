@@ -1,4 +1,5 @@
 import "./cockpit.css";
+import "../systole/companion";
 import { CONTROL_RELAY_MS, TiltLink } from "../phone-tilt/link";
 import { readTiltInvitation } from "../phone-tilt/invitation";
 import { neutralControls } from "../phone-tilt/controls";

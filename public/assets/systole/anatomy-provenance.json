@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "retrieved": "2026-10-27",
+  "dataset": "BodyParts3D 4.0",
+  "sourceRepository": "https://github.com/organui/heart-3d",
+  "sourceCommit": "c72ce6654ff8e282942f97750d3104f55ef4fc3d",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "officialLicenseUrl": "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html",
+  "credit": "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International.",
+  "verification": {
+    "date": "2026-10-27",
+    "sourceHashMatched": true,
+    "currentOfficialMappingHashesMatched": true,
+    "allSourceElementMappingsMatched": true,
+    "sourceVesselGeometryReconstruction": "Exact position/normal bytes and original triangle indices after undoing local rebase",
+    "threeLoaderMeshes": {
+      "heart": 11,
+      "vessels": 58
+    },
+    "independentClinicalReview": false,
+    "originalArchiveConversionReproduced": false
+  },
+  "files": [
+    {
+      "file": "anatomy-attribution.md",
+      "bytes": 2613,
+      "sha256": "0664997b6df4da140f6b876783ce75e7ce5cfbb2f72b5e1076f29562f7072af6",
+      "modification": "Created for ECGaming; see anatomy-attribution.md and docs/SYSTOLE-ASSET-PROVENANCE.md"
+    },
+    {
+      "file": "anatomy-heart.glb",
+      "bytes": 2524400,
+      "sha256": "b80a727d022a4ab07ccfcf15caccc228eaccb6d69ec0e72923324946ac35a946",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/heart.glb",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "anatomy-prepare-vessels.py",
+      "bytes": 9494,
+      "sha256": "7b0e58050e4e49faa5cdb606f85591a2bd8e824ba2e02a365041826d9c286172",
+      "modification": "Created for ECGaming; see anatomy-attribution.md and docs/SYSTOLE-ASSET-PROVENANCE.md"
+    },
+    {
+      "file": "anatomy-upstream-manifest.json",
+      "bytes": 17301,
+      "sha256": "b6bc6cbb1fdaef9ce81098c33ae4f6cc99e7327a01020715e893f2c4e478de06",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/manifest.json",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "anatomy-vessels-manifest.json",
+      "bytes": 41072,
+      "sha256": "e593e0fe22e4858272c4d28efc961d97bbae198b2b9d95a4c1dc53cf3fe3a2c5",
+      "modification": "Created for ECGaming; see anatomy-attribution.md and docs/SYSTOLE-ASSET-PROVENANCE.md"
+    },
+    {
+      "file": "anatomy-vessels.glb",
+      "bytes": 875800,
+      "sha256": "82fdd41fec12f99c9fca9278740363fd0f834c67dd453ad74d158e86f4f68e8c",
+      "modification": "Created for ECGaming; see anatomy-attribution.md and docs/SYSTOLE-ASSET-PROVENANCE.md"
+    },
+    {
+      "file": "licenses/BodyParts3D-license-2026-10-27.html.txt",
+      "bytes": 14694,
+      "sha256": "301bfad6dd4b01d29ba80edcd2c6fa3b822be819974655840e53334d7f216f96",
+      "sourceUrl": "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
+    },
+    {
+      "file": "licenses/CC-BY-4.0.txt",
+      "bytes": 18657,
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "sourceUrl": "https://creativecommons.org/licenses/by/4.0/legalcode.txt"
+    },
+    {
+      "file": "licenses/OrganUI-ATTRIBUTION.md",
+      "bytes": 1993,
+      "sha256": "991f3cae6ba7da56318db91c5178f2f946db4930011df5ceeb79fee3178d3f6f",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/ATTRIBUTION.md",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "licenses/OrganUI-MIT.txt",
+      "bytes": 1077,
+      "sha256": "46e98dd0037b8e707769c95187747742f66f191a21010759c74e9a1d8218b46a",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/LICENSE",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "licenses/OrganUI-MODEL-PROVENANCE.md",
+      "bytes": 7042,
+      "sha256": "3045d6755d9551ee26789e2591403ffd026bc5a5957d8f26aeb8835d20138de8",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/docs/MODEL_PROVENANCE.md",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "licenses/OrganUI-selected-mappings.tsv",
+      "bytes": 2818,
+      "sha256": "57970fe2605cc5764f337fe7a65ea4db12a2143f4c3944af6caa81f9627ec9c0",
+      "sourceUrl": "https://raw.githubusercontent.com/organui/heart-3d/c72ce6654ff8e282942f97750d3104f55ef4fc3d/docs/model-source/selected-mappings.tsv",
+      "modification": "Unchanged downloaded bytes"
+    },
+    {
+      "file": "licenses/README.md",
+      "bytes": 1209,
+      "sha256": "7a12e5bf3e61803f0f458578dd266841e1145c75702c30f7d327589ddf7e5a1b",
+      "modification": "Created for ECGaming; see anatomy-attribution.md and docs/SYSTOLE-ASSET-PROVENANCE.md"
+    }
+  ]
+}

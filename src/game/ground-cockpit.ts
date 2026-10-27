@@ -19,8 +19,9 @@ import {
   type GenerativeVariant,
 } from "./generative-music";
 import { decoratePhoneButton } from "../phone-tilt/button";
+import { isSystole } from "../systole/theme";
 
-const AIRCRAFT_KEY = "ecgaming-aircraft-v1";
+const AIRCRAFT_KEY = isSystole() ? "systole-spacecraft-v1" : "ecgaming-aircraft-v1";
 const MUSIC_KEY = "ecgaming-music-enabled-v1";
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -244,6 +245,7 @@ export class GroundCockpit extends EventTarget {
     setText("ground-aircraft-status", "LOADING // PREPARING FLIGHT MODEL");
     try {
       const previewPromise = this.preview.setAircraft(id).catch((error) => {
+        if (isSystole()) throw error;
         console.warn("Aircraft hangar preview failed", error);
         return id;
       });
@@ -263,12 +265,12 @@ export class GroundCockpit extends EventTarget {
       localStorage.setItem(AIRCRAFT_KEY, actualId);
       setText(
         "ground-aircraft-status",
-        "READY // RING-SAFE // ANIMATED PROPELLER",
+        isSystole() ? "VESSEL READY // PULSE DRIVE ONLINE" : "READY // RING-SAFE // ANIMATED PROPELLER",
       );
     } catch (error) {
       if (request !== this.aircraftRequest) return;
       console.error(error);
-      setText("ground-aircraft-status", "HANGAR HOLD // AIRCRAFT UNAVAILABLE");
+      setText("ground-aircraft-status", isSystole() ? "VESSEL UNAVAILABLE — choose a vessel to retry" : "HANGAR HOLD // AIRCRAFT UNAVAILABLE");
     } finally {
       if (request === this.aircraftRequest) {
         this.aircraftLoading = false;
@@ -392,7 +394,7 @@ export class GroundCockpit extends EventTarget {
     const reward = element("cockpit-reward");
     reward.replaceChildren();
     const praise = document.createElement("strong");
-    praise.textContent = "NICE FLYING!";
+    praise.textContent = isSystole() ? "PASSAGE FOUND" : "NICE FLYING!";
     const value = document.createElement("span");
     value.textContent = `+${points}`;
     reward.append(praise, value);
@@ -415,6 +417,7 @@ export class GroundCockpit extends EventTarget {
       return false;
     }
     await this.aircraftReady;
+    if (!this.aircraftIsReady()) return false;
     await this.sound.unlock();
     this.started = true;
     this.effectiveReady = this.recovery.begin(

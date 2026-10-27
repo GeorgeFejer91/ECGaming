@@ -1,0 +1,7 @@
+body.systole-companion { background:#0a131a; color:#e0d1b5; }
+body.systole-companion button { background:#273c3c; color:#e3d3b1; border-color:#6a7b70; border-radius:0; }
+body.systole-companion input, body.systole-companion select { background:#15242a; color:#e0d1b5; border:1px solid #677d72; border-radius:0; }
+body.systole-companion .session-toolbar, body.systole-companion .session-entry, body.systole-companion .session-flight-status, body.systole-companion .session-sensor, body.systole-companion .flight-game-options, body.systole-companion .flight-crash-panel { background:#101f28eb; color:#e0d1b5; border:1px solid #4e6960; border-radius:0; }
+body.systole-companion .pilot-entry { background:#101f28; border-color:#4e6960; color:#e0d1b5; }
+body.systole-companion .attitude { border-color:#bda579; background:#162b31; }
+body.systole-companion :focus-visible { outline:2px solid #e4c58b; outline-offset:3px; }

@@ -1,13 +1,27 @@
 import { defineConfig } from "vitest/config";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { renderSystolePage } from "./src/systole/page-template";
 
 export default defineConfig({
+  plugins: [{
+    name: "systole-shared-control-document",
+    transformIndexHtml: {
+      order: "pre",
+      handler(html) {
+        return html.includes("systole-shared-control-document")
+          ? renderSystolePage(readFileSync(resolve(import.meta.dirname, "ground-control/index.html"), "utf8"))
+          : html;
+      },
+    },
+  }],
   base: "./",
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       input: {
         home: resolve(import.meta.dirname, "index.html"),
+        systole: resolve(import.meta.dirname, "games/systole/index.html"),
         groundControl: resolve(
           import.meta.dirname,
           "ground-control/index.html",

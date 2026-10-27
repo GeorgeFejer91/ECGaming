@@ -79,4 +79,12 @@ Copies of the applicable Creative Commons legal code and the Magic Games source 
 
 ## Original game assets
 
+### Systole anatomical spacecraft and vessel fragments
+
+`public/assets/systole/anatomy-heart.glb` and `anatomy-vessels.glb` contain **BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International**. [Official grant](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+The heart was converted by [OrganUI](https://github.com/organui/heart-3d) at commit `c72ce6654ff8e282942f97750d3104f55ef4fc3d`. ECGaming separates the original vessel elements without inventing geometry, recolors and positions the heart in an original spacecraft, and animates the vessel meshes as artistic debris. Exact source mappings, hashes, license texts, and the reproduction script ship in `public/assets/systole/`; see [the provenance record](docs/SYSTOLE-ASSET-PROVENANCE.md). Anatomical source limitations and expert-review status are retained there.
+
+Systole's frames, asteroid meshes, spacecraft hardware, interface glyphs, and cover artwork are original project assets. The cover is generated artwork, not a medical illustration. The referenced games' names describe visual inspiration only; their assets are not bundled.
+
 The ECGaming Classic airplane, rings, terrain, clouds, town, audio, and game logic are original procedural work. The social card is an original generated asset. No Unity Asset Store, Synty, or old Unity repository assets/code are redistributed.

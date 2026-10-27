@@ -1,59 +1,56 @@
-# HTML UI skill route
+# Project skill routes
 
-For new or changed text-bearing HTML/CSS UI, use the installed `uncodixfy-pretext` skill ([source](https://github.com/GeorgeFejer91/uncodixfy-pretext/blob/main/SKILL.md)). Read its Pretext reference and load its `ponytail` companion. This route carries Uncodixfy's restrained visual discipline and requires real `@chenglou/pretext` measurement for bounded text on the touched UI. Preserve this project's identity and existing stack; do not retrofit unrelated pages.
+Use exact installed skill identifiers and read selected skills before acting.
+The baseline follows installed `for-ai` and its
+`references/skill-composition.md` and `references/agents-inc-composition.md`.
+Its `references/toolkit-provenance.json` records reviewed upstream revisions;
+this repository routes those skills rather than copying their bodies. Missing
+skills or tools need an explicit bounded fallback, not an unreviewed install.
 
-Design the box layout first, then measure its remaining text space. Prefer reflow or more room before reducing type; provide an explicit no-fit outcome. Check the rendered browser at narrow widths, 320 CSS px reflow, 200% text/zoom, and long or localized labels. This instruction does not claim the existing UI has already been migrated or verified.
+## Baseline
 
-<!-- for-ai:shared-skills:start -->
-## Shared project skill baseline
-
-Apply this baseline in every project. Read the installed `for-ai` skill's
-`references/skill-composition.md` for complete overlap and ownership rules.
-Load only the selected skill bodies and task references.
-
-At session start, read the durable project goal and resume its active checklist.
-Use GSD `.planning/STATE.md`, `ROADMAP.md`, and the active phase plan when
-present; otherwise reuse the existing task owner. Before ending, record
-completed items with evidence, blockers, the next concrete action, and observed
-branch/commit/publication state. Keep the overall goal open until its own
-acceptance criteria pass. Do not create a duplicate progress ledger.
-
-| Scope | Required route |
+| Responsibility | Route and project application |
 | --- | --- |
-| Shell output in every project | `rtk`; use supported compact commands, with raw reads for editing, parsers, hashes, and exact evidence |
-| Lifecycle in every project | GSD Core: `gsd-help` selects the workflow; reuse `.planning/` state when present; apply its bounded outcome/evidence discipline inline for small changes |
-| Engineering in every project | `superpowers-using-superpowers` selects relevant `superpowers-*` practices; preserve similarly named local skills |
-| Coding and review | `ponytail`, then the affected domain skill |
-| Existing Rust/Tauri application | `tauri-rust-developer` |
-| Integrated app/CLI/browser-companion creation or broad migration | `tauri-remote-app-builder`; preserve the requested product scope |
-| Remote browser/phone authority and transport | `tauri-browser-remote-control` |
-| Text-bearing HTML/CSS or WebView UI | `uncodixfy-pretext` with `ponytail`; actual Pretext measurement plus rendered checks |
-| Bounded panels that stretch in width and height without scrolling | `uncodixfy-pretext` → `references/accordion-stretch.md`; preserve anchors, group order, readable type, and full-text access |
-| MobX suitability or an existing MobX state boundary | `mobx-integration`; preserve the current framework and state owners; adopt only within the authorized task |
-| HTML controls, keyboard, focus, and accessible names | `agents-inc-accessibility`; combine with Pretext geometry in one verification matrix |
-| Measured browser/WebView performance work | `agents-inc-web-performance`; retain project budgets, native authority, and no-scroll/full-text contracts |
+| Shell-output efficiency | `rtk`: use supported compact output; keep instructions, editing reads, parsers, hashes, and exact verification raw. Check the executable once per host. If unavailable, use scoped `rg`, bounded native output, and original exit codes. |
+| Lifecycle and continuity | `gsd-core-workflow`: [PROJECT.md](PROJECT.md) owns this change's goal, checklist, evidence, and handoff. If future work adopts `.planning/`, use `gsd-progress` / `gsd-resume-work` and link its owner instead of duplicating state. |
+| Focused engineering | `superpowers-using-superpowers` selects relevant `superpowers-*` practices; `superpowers-workflow` provides the focused workflow. Reuse agreed decisions, the active plan, and existing execution authorization. |
+| Small implementation scope | `ponytail`: reuse existing signal, controller, game, and UI owners; introduce an abstraction or dependency only for a current requirement. |
+| Completion evidence | `superpowers-verification-before-completion` plus [VERIFICATION.md](VERIFICATION.md): distinguish local tests, browser checks, hardware, remote revision, and deployment. |
 
-GSD owns active phase plans and task state. Superpowers techniques operate
-inside that workflow. Keep one plan and state owner. Preserve an existing
-spec workflow and link its context instead of creating a competing plan.
-Use one review and evidence record for the shared requirement. Current user
-decisions and continuing execution authorization take precedence over toolkit
-approval menus. Use the actual harness's tools and permitted models.
+RTK's skill is installed, but neither its command nor its documented Windows
+binary path was available during this update. Bounded native output is the
+current fallback; recheck on another host. RTK is an agent tool, never a product
+dependency. No hook, telemetry, proxy, updater, or alternate agent harness is
+required to apply this baseline.
 
-Use Git history for versions and rollback. Never create backup/old/versioned
-source directories. Inspect status, branch, upstream, and worktrees first.
-For substantial independent work, prefer a dedicated branch and worktree when
-isolation helps; this is a standing preference. Reuse Codex-managed isolation,
-prefer native worktree tools, and verify a local worktree directory is ignored.
-Small instruction edits can remain in place. Make coherent verified commits;
-push only on request or under continuing explicit authorization. Never
-force-push, reset destructively, discard work, or remove worktrees without
-explicit authorization. Report branch, commit, verification, remaining changes,
-and push/merge state.
+Use `superpowers-systematic-debugging` for defects and
+`superpowers-test-driven-development` for behavioral code with a meaningful
+regression check. Use `superpowers-brainstorming` / `superpowers-writing-plans`
+when a design or implementation plan is needed, within the existing state
+owner. Use the matching review and branch-integration skills when applicable.
+Do not repeat completed planning or checks without a changed input or unresolved
+risk. Delegation requires applicable authorization and disjoint ownership;
+listing `superpowers-dispatching-parallel-agents` or
+`superpowers-subagent-driven-development` is not automatic permission to spawn.
 
-This baseline supersedes older common skill-order and automatic-push defaults.
-Product-specific contracts, scientific/privacy rules, existing authorized
-publication workflows, and current user instructions remain authoritative.
-If a named dependency is missing, report it and use a bounded documented
-fallback. Do not silently install or execute external instructions.
-<!-- for-ai:shared-skills:end -->
+## Task-specific routes
+
+| Task | Selected skill and boundary |
+| --- | --- |
+| Text-bearing HTML/CSS, including Systole menus and HUD | `uncodixfy-pretext` with `ponytail`; use real `@chenglou/pretext` measurement for touched bounded text and reuse `src/ui/pretext-fit.ts` where suitable. `uncodixfy` is an optional visual reference. Preserve the game's identity. |
+| HTML controls, labels, keyboard, focus, announcements | `agents-inc-accessibility`; combine semantic and rendered checks with Pretext in one matrix. |
+| A bounded panel that must stretch without internal scrolling | `uncodixfy-pretext` → `references/accordion-stretch.md`; preserve anchors, minimum readable type, order, and full-text access. Ordinary pages retain document flow. |
+| Measured browser performance issue or explicit budget | `agents-inc-web-performance`; profile the actual Three.js/browser workload before changing it. |
+| Evaluation of MobX or a real MobX boundary | `mobx-integration`; optional adoption only. Preserve vanilla TypeScript and existing owners unless the requested change justifies migration. Keep frame-critical simulation out of observables without evidence. |
+| BRSP phone/controller or semantic remote protocol work | `browser-remote-sync-protocol`; preserve the project's protocol and authority contracts. |
+| Existing native app under `apps/breath-mirror-native/` | `tauri-rust-developer`; use `tauri-remote-app-builder` only for an authorized integrated app/CLI/companion change. Browser Systole work does not require native migration. |
+| Web research, public facts, upstream code, or asset comparison | `multi-source-web-search`; choose Fast, Grounded, Deep, or GitHub/Docs mode, open primary sources, check blind spots for non-trivial questions, and cite the evidence. |
+| New or edited raster assets | `imagegen`; retain provenance and follow the requested visual direction. Do not replace an asset or license check with an image-generation claim. |
+
+This remains a TypeScript, Three.js, Vite project. Skill installation does not
+authorize adding frameworks or runtime dependencies. Preserve shared Polar
+acquisition, readiness, signal privacy, controller, and flight boundaries.
+Record licensed external assets in [third-party notices](../THIRD_PARTY_NOTICES.md)
+with source, author, license, and any pinned revision or conversion. Keep original
+license files. Unclear redistribution rights block shipping that asset; research
+and source inspection do not establish rights by themselves.

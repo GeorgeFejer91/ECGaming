@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { isSystole } from "../systole/theme";
+import { SpaceWorld, createSpaceGate } from "../systole/space-world";
 import "./flight-options.css";
 import { PhoneTiltHost } from "../phone-tilt/host";
 import { phoneThrottle } from "../phone-tilt/controls";
@@ -104,11 +106,14 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private xrSession?: XRSession;
   private readonly headsetQuaternion = new THREE.Quaternion();
   private readonly headsetEuler = new THREE.Euler(0, 0, 0, "YXZ");
+  private readonly space = isSystole();
+  private spaceWorld?: SpaceWorld;
+  private get collisionKey() { return this.space ? "systole-collisions-v1" : "ecgaming-mountain-crashes-v1"; }
 
   constructor(private container: HTMLElement) {
     super();
-    this.scene.background = new THREE.Color("#c4ded7");
-    this.scene.fog = new THREE.Fog("#c4ded7", 58, 230);
+    this.scene.background = new THREE.Color(this.space ? "#090e14" : "#c4ded7");
+    this.scene.fog = new THREE.Fog(this.space ? "#090e14" : "#c4ded7", 58, this.space ? 330 : 230);
     this.camera.position.set(0, 6.3, 11.5);
     this.camera.lookAt(0, 2.6, -25);
     this.renderer = new THREE.WebGLRenderer({
@@ -140,16 +145,17 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   private buildOptions() {
     this.options.className = "flight-game-options";
     const summary = document.createElement("summary");
-    summary.textContent = "Flight options";
+    summary.textContent = this.space ? "Navigation options" : "Flight options";
     const label = document.createElement("label");
     const toggle = document.createElement("input");
     toggle.type = "checkbox";
-    try { this.mountainCollisions = localStorage.getItem("ecgaming-mountain-crashes-v1") === "true"; } catch { /* Storage is optional. */ }
+    this.mountainCollisions = this.space;
+    try { const saved = localStorage.getItem(this.collisionKey); if (saved !== null) this.mountainCollisions = saved === "true"; } catch { /* Storage is optional. */ }
     toggle.checked = this.mountainCollisions;
     toggle.addEventListener("change", () => this.setMountainCollisions(toggle.checked));
-    label.append(toggle, "Explode on mountain impact");
+    label.append(toggle, this.space ? "Vessel rupture on impact" : "Explode on mountain impact");
     const hint = document.createElement("p");
-    hint.textContent = "A/D or arrows: gentle bank. Drag and hold: steer. Excitometer: height. RR heartbeat: contraction, wing flex and a smoke puff.";
+    hint.textContent = this.space ? "A/D or arrows: lateral thrusters. Drag and hold: steer. Your selected heart or breathing signal controls height. Each received RR beat pulses the drive. Pass through the luminous gates; avoid the drifting ruins." : "A/D or arrows: gentle bank. Drag and hold: steer. Excitometer: height. RR heartbeat: contraction, wing flex and a smoke puff.";
     this.beatReadout.textContent = "Waiting for Polar RR beats";
     this.beatReadout.setAttribute("data-rr-status", "waiting");
     this.options.append(summary, label, hint, this.beatReadout);
@@ -158,7 +164,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     ecgToggle.type = "checkbox";
     ecgToggle.checked = true;
     ecgToggle.addEventListener("change", () => this.wingEcg.setEnabled(ecgToggle.checked));
-    ecgLabel.append(ecgToggle, "Show local ECG on wings");
+    ecgLabel.append(ecgToggle, this.space ? "Show local ECG on sensor vanes" : "Show local ECG on wings");
     this.ecgReadout.dataset.ecgWings = "waiting";
     this.ecgReadout.textContent = "Wing ECG: waiting for local Polar samples";
     this.options.append(ecgLabel, this.ecgReadout);
@@ -166,9 +172,9 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.crashPanel.hidden = true;
     this.crashPanel.setAttribute("role", "status");
     const title = document.createElement("h2");
-    title.textContent = "Mountain impact";
+    title.textContent = this.space ? "The vessel comes apart." : "Mountain impact";
     const copy = document.createElement("p");
-    copy.textContent = "Your flight has ended. Steer toward the open valley and try again.";
+    copy.textContent = this.space ? "A pulse scatters into the quiet. Your coronary vessels drift among the ruins. Reassemble, and find another passage." : "Your flight has ended. Steer toward the open valley and try again.";
     this.crashRestart.type = "button";
     this.crashRestart.textContent = "Fly again";
     this.crashRestart.addEventListener("click", () => {
@@ -182,6 +188,12 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.container.parentElement?.append(this.options, this.crashPanel);
   }
   private buildLighting() {
+    if (this.space) {
+      this.scene.add(new THREE.HemisphereLight("#a1c2c4", "#23151d", 2));
+      const key = new THREE.DirectionalLight("#e6c8a0", 3.8); key.position.set(-8, 14, 8); this.scene.add(key);
+      const rim = new THREE.DirectionalLight("#68b2b7", 2.5); rim.position.set(10, 2, -12); this.scene.add(rim);
+      return;
+    }
     this.scene.add(new THREE.HemisphereLight("#f2fdff", "#2b5445", 2.8));
     const sun = new THREE.DirectionalLight("#fff0c9", 3.1);
     sun.position.set(-25, 38, 18);
@@ -203,12 +215,20 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     const visual = createProceduralAircraftVisual();
     this.aircraftPulseRoot.add(visual.root);
     this.aircraftVisual = visual.root;
+    if (this.space) visual.root.visible = false;
     this.propellers = visual.propellers;
     this.plane.add(this.aircraftPulseRoot);
     this.plane.position.set(0, 2.4, 0);
     this.scene.add(this.plane);
   }
   private buildWorld() {
+    if (this.space) {
+      this.spaceWorld = new SpaceWorld(this.scene, flightAssetUrl("assets/systole/anatomy-vessels.glb"), matchMedia("(prefers-reduced-motion: reduce)").matches);
+      // Attach rejection immediately; readiness is awaited again before a vessel can launch.
+      void this.spaceWorld.ready().catch(() => undefined);
+      for (let index = 0; index < 4; index++) this.spawnRing(-28 - index * 32);
+      return;
+    }
     this.tissueTexture = new THREE.TextureLoader().load(flightAssetUrl("assets/flight/capillary-tissue.png"));
     this.tissueTexture.colorSpace = THREE.SRGBColorSpace;
     this.tissueTexture.wrapS = this.tissueTexture.wrapT = THREE.RepeatWrapping;
@@ -324,6 +344,12 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.worldActors.push({ object: group, resetZ: -300 });
   }
   private spawnRing(z = -150) {
+    if (this.space) {
+      const group = createSpaceGate();
+      const previous = this.rings.at(-1)?.mesh.position;
+      group.position.set(clamp((previous?.x ?? 0) + (Math.random()-.5)*5, -5.5, 5.5), clamp((previous?.y ?? 3)+(Math.random()-.5)*2.5, 1.2, 5.3), z);
+      this.scene.add(group); this.rings.push({ mesh: group, resolved: false }); return;
+    }
     const group = new THREE.Group(),
       gold = new THREE.MeshStandardMaterial({
         color: "#ffd15a",
@@ -413,9 +439,9 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     const delta = Math.min(0.05, Math.max(0, (time - this.lastTime) / 1000));
     this.lastTime = time;
     if (this.crashed) {
-      if (!this.paused) { this.crashAge += delta; this.effects.update(delta, 0); }
+      if (!this.paused) { this.crashAge += delta; this.effects.update(delta, 0); this.spaceWorld?.updateDebris(delta); }
       this.crashRestart.disabled = this.paused || this.crashAge < 1.2;
-      this.crashRestart.textContent = this.paused ? "Waiting for signal…" : "Fly again";
+      this.crashRestart.textContent = this.paused ? "Waiting for signal…" : this.space ? "Reassemble vessel" : "Fly again";
     } else if (this.running && !this.paused) this.update(delta);
     else if (!this.running) this.updateIdle(delta, time);
     const ecgState = this.wingEcg.update(time);
@@ -499,6 +525,8 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
       );
     this.updateCardiacMotion(delta);
     this.effects.update(delta, speed);
+    this.spaceWorld?.update(delta, speed);
+    if (this.mountainCollisions && this.spaceWorld?.collides(this.previousPlanePosition, this.plane.position, speed * delta)) { this.crash(); return; }
     if (!this.renderer.xr.isPresenting) {
       const follow = this.camera.aspect < .8 ? .92 : .6;
       this.camera.position.x += (this.horizontal*follow-this.camera.position.x)*(1-Math.exp(-5.5*delta));
@@ -586,6 +614,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.crashed = true; this.crashAge = 0;
     this.clearInputs(); this.beatClock.clear();
     this.effects.explode(this.plane.position);
+    this.spaceWorld?.explode(this.plane.position);
     this.plane.visible = false;
     this.crashPanel.hidden = false;
     this.crashRestart.disabled = true;
@@ -608,6 +637,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.dispatchEvent(event("state", this.snapshot()));
   }
   restart() {
+    this.spaceWorld?.reset();
     for (const ring of this.rings) { this.scene.remove(ring.mesh); disposeAircraftVisual(ring.mesh); }
     this.rings = [];
     for (let index = 0; index < 4; index += 1) this.spawnRing(-28 - index * 32);
@@ -641,7 +671,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
   setMountainCollisions(enabled: boolean) {
     this.mountainCollisions = enabled;
     this.options.querySelector("input")!.checked = enabled;
-    try { localStorage.setItem("ecgaming-mountain-crashes-v1", String(enabled)); } catch { /* Storage is optional. */ }
+    try { localStorage.setItem(this.collisionKey, String(enabled)); } catch { /* Storage is optional. */ }
     this.dispatchEvent(event("state", this.snapshot()));
   }
   setHeartbeatSignal(signal: RrHeartbeatSignal) {
@@ -656,8 +686,10 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     let visual;
     let loadError: unknown;
     try {
+      if (this.spaceWorld) await this.spaceWorld.ready();
       visual = await loadAircraftVisual(requestedId);
     } catch (error) {
+      if (this.space) throw error;
       loadError = error;
       visual = createProceduralAircraftVisual();
     }
@@ -794,6 +826,7 @@ export class HeartbeatFlightGame extends EventTarget implements EcgGameModule {
     this.xrSession = undefined;
     this.renderer.setAnimationLoop(null);
     this.effects.dispose();
+    this.spaceWorld?.dispose();
     this.wingEcg.dispose();
     disposeAircraftVisual(this.scene);
     this.tissueTexture?.dispose();

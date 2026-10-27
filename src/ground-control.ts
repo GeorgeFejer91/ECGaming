@@ -1,4 +1,5 @@
 import "./styles.css";
+import { isSystole } from "./systole/theme";
 import { setupCompactGround } from "./ui/compact-ground";
 import { PracticeEcg } from "./signals/practice-ecg";
 import { createPracticeHeart } from "./ui/practice-heart";
@@ -2349,7 +2350,8 @@ async function selectSource(mode: SourceMode) {
 function showView(mode: "ground" | "cockpit", focus = true) {
   const showCockpit = mode === "cockpit";
   cockpit.setVisible(showCockpit);
-  document.title = showCockpit
+  if (isSystole()) window.scrollTo({ top: 0, behavior: "instant" });
+  document.title = isSystole() ? `Systole · ${showCockpit ? "Navigator" : "The Quiet Vessel"}` : showCockpit
     ? "Cockpit · EC Gaming"
     : "Ground Control · EC Gaming";
   history.replaceState(
@@ -2627,7 +2629,8 @@ setupCompactGround(() => cockpit.openRemoteCockpit());
 setupMusicControls();
 traceResizeObserver?.observe(element<HTMLCanvasElement>("raw-ecg-preview"));
 practiceButton = createPracticeHeart(() => { void togglePracticeHeart(); });
-const disposeTextFit = installPretextFit();
+// Systole measures its reflowing layout without shrinking user-enlarged text.
+const disposeTextFit = isSystole() ? () => {} : installPretextFit();
 getPilotReception().start();
 syncSourcePanels();
 showView(
