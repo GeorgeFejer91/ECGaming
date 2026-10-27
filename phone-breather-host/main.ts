@@ -32,8 +32,8 @@ const badgeDot = connectionBadge.querySelector(".badge-dot")!;
 
 const MIN_RADIUS = 40;
 const MAX_RADIUS = 180;
-let currentRadius = 120;
-let targetRadius = 120;
+let currentRadius = (MIN_RADIUS + MAX_RADIUS) / 2;
+let targetRadius = currentRadius;
 let animationFrame = 0;
 
 const breathLink = new BreathLink("target");
