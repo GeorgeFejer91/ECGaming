@@ -193,7 +193,6 @@ body[data-mode="phone"] .phone-only { display: flex; }
   background:
     radial-gradient(circle at 50% 43%, rgba(191,232,203,.11), transparent 30%),
     linear-gradient(180deg, rgba(2,3,2,.68), rgba(2,3,2,.94));
-  backdrop-filter: blur(4px);
 }
 .pair-card, .end-card { width: min(920px, 100%); text-align: center; animation: arrive .7s cubic-bezier(.2,.7,.2,1) both; }
 .eyebrow { margin: 0; color: #7f9a89; font-family: var(--condensed); font-size: .7rem; letter-spacing: .26em; }

@@ -26,7 +26,14 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - id: browser
+        run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.browser.outcome == 'failure'
+        with:
+          name: browser-failure-traces
+          path: test-results
+          retention-days: 7
       - uses: actions/cache@v4
         with:
           path: |

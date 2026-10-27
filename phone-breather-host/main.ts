@@ -282,6 +282,12 @@ function renderTunnel(now: number, dt: number) {
 
 let lastAnimateTime = performance.now();
 
+function setRadius(circle: SVGCircleElement, radius: number) {
+  const value = radius.toFixed(1);
+  // Rewriting an idle radius invalidates the filtered SVG behind entry dialogs.
+  if (circle.getAttribute("r") !== value) circle.setAttribute("r", value);
+}
+
 function animate() {
   const now = performance.now();
   const dt = Math.min(0.05, Math.max(0.001, (now - lastAnimateTime) / 1000));
@@ -289,9 +295,9 @@ function animate() {
 
   currentRadius += (targetRadius - currentRadius) * 0.15;
   const r = radiusForVolume(currentRadius / MAX_RADIUS);
-  breathCircle.setAttribute("r", r.toFixed(1));
-  breathRingOuter.setAttribute("r", (r + 40).toFixed(1));
-  breathRingInner.setAttribute("r", (r * 0.6).toFixed(1));
+  setRadius(breathCircle, r);
+  setRadius(breathRingOuter, r + 40);
+  setRadius(breathRingInner, r * 0.6);
 
   if (tunnelVisible) renderTunnel(now, dt);
   animationFrame = requestAnimationFrame(animate);
