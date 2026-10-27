@@ -3,3 +3,6 @@
 *.glb binary
 *.woff binary
 *.woff2 binary
+# These source records are hashed byte-for-byte in anatomy-provenance.json.
+public/assets/systole/anatomy-* -text
+public/assets/systole/licenses/** -text

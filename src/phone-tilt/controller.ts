@@ -1,4 +1,7 @@
 import "./controller.css";
+import "../systole/companion";
+import { isSystole } from "../systole/theme";
+import { flightAssetUrl } from "../game/aircraft";
 import yokeUrl from "./yoke-surface.svg";
 import { readTiltInvitation } from "./invitation";
 import { CONTROL_RELAY_MS, TiltLink } from "./link";
@@ -22,7 +25,7 @@ const yoke = element<HTMLImageElement>("steering-yoke"), confirmed = element("co
 const liftMeter = element("lift-meter"), liftMeterFill = element("lift-meter-fill"), liftMeterValue = element("lift-meter-value");
 const entryFeedback = element("pilot-entry-feedback");
 const exitPilot = element<HTMLButtonElement>("exit-pilot");
-yoke.src = yokeUrl;
+yoke.src = isSystole() ? flightAssetUrl("assets/systole/steering-yoke.svg") : yokeUrl;
 const directVisit = !location.hash;
 let invitation = readTiltInvitation(location.hash);
 // The fragment is bearer pairing material. Keep it out of history and all subsequent navigation.

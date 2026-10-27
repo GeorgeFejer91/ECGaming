@@ -1,4 +1,5 @@
 import { randomToken } from "../vendor/brsp/src/brsp.js";
+import { companionUrl } from "../systole/theme";
 
 export interface TiltInvitation { room: string; secret: string }
 export function createTiltInvitation(): TiltInvitation {
@@ -13,8 +14,7 @@ export function readTiltInvitation(hash: string): TiltInvitation | undefined {
   return { room, secret };
 }
 export function tiltControllerUrl(pageUrl: string, invitation: TiltInvitation) {
-  const url = new URL("../controller/", pageUrl);
-  url.search = "";
+  const url = companionUrl("controller", pageUrl);
   url.hash = new URLSearchParams({ room: invitation.room, secret: invitation.secret }).toString();
   return url.href;
 }

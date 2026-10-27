@@ -1,0 +1,64 @@
+hierarchy	concept id	name	element file id
+partof	FMA9457	wall of right atrium	FJ2439
+partof	FMA9531	wall of left atrium	FJ2438
+isa	FMA13884	wall of ventricle	FJ2428
+partof	FMA9291	cavity of right ventricle	FJ2423
+partof	FMA9466	cavity of left ventricle	FJ2422
+partof	FMA3736	ascending aorta	FJ3413
+partof	FMA3768	arch of aorta	FJ3411
+partof	FMA8612	pulmonary trunk	FJ2966
+partof	FMA4720	superior vena cava	FJ3645
+partof	FMA50040	left coronary artery	FJ2631
+partof	FMA50040	left coronary artery	FJ2632
+partof	FMA50040	left coronary artery	FJ2633
+partof	FMA50040	left coronary artery	FJ2634
+partof	FMA50040	left coronary artery	FJ2635
+partof	FMA50040	left coronary artery	FJ2636
+partof	FMA50040	left coronary artery	FJ2637
+partof	FMA50040	left coronary artery	FJ2638
+partof	FMA50040	left coronary artery	FJ2639
+partof	FMA50040	left coronary artery	FJ2640
+partof	FMA50040	left coronary artery	FJ2641
+partof	FMA50040	left coronary artery	FJ2642
+partof	FMA50040	left coronary artery	FJ2643
+partof	FMA50040	left coronary artery	FJ2644
+partof	FMA50040	left coronary artery	FJ2645
+partof	FMA50040	left coronary artery	FJ2646
+partof	FMA50040	left coronary artery	FJ2647
+partof	FMA50040	left coronary artery	FJ2648
+partof	FMA50040	left coronary artery	FJ2649
+partof	FMA50040	left coronary artery	FJ2650
+partof	FMA50040	left coronary artery	FJ2651
+partof	FMA50040	left coronary artery	FJ2652
+partof	FMA50040	left coronary artery	FJ2653
+partof	FMA50040	left coronary artery	FJ2654
+partof	FMA50040	left coronary artery	FJ2737
+partof	FMA50039	right coronary artery	FJ2667
+partof	FMA50039	right coronary artery	FJ2668
+partof	FMA50039	right coronary artery	FJ2670
+partof	FMA50039	right coronary artery	FJ2671
+partof	FMA50039	right coronary artery	FJ2672
+partof	FMA50039	right coronary artery	FJ2673
+partof	FMA50039	right coronary artery	FJ2674
+partof	FMA50039	right coronary artery	FJ2675
+partof	FMA50039	right coronary artery	FJ2676
+partof	FMA50039	right coronary artery	FJ2677
+partof	FMA50039	right coronary artery	FJ2692
+partof	FMA50039	right coronary artery	FJ2693
+partof	FMA50039	right coronary artery	FJ2694
+partof	FMA50039	right coronary artery	FJ2695
+partof	FMA50039	right coronary artery	FJ2696
+partof	FMA50039	right coronary artery	FJ2697
+partof	FMA50039	right coronary artery	FJ2698
+partof	FMA50039	right coronary artery	FJ2699
+partof	FMA50039	right coronary artery	FJ2700
+partof	FMA50039	right coronary artery	FJ2714
+partof	FMA50039	right coronary artery	FJ2715
+partof	FMA50039	right coronary artery	FJ2716
+partof	FMA50039	right coronary artery	FJ2717
+partof	FMA50039	right coronary artery	FJ2718
+partof	FMA50039	right coronary artery	FJ2719
+partof	FMA50039	right coronary artery	FJ2720
+partof	FMA50039	right coronary artery	FJ2721
+partof	FMA50039	right coronary artery	FJ2722
+partof	FMA50039	right coronary artery	FJ2723

@@ -1,0 +1,1527 @@
+{
+  "dataset": "BodyParts3D 4.0",
+  "license": "CC-BY-4.0",
+  "retrieved": "2026-10-27",
+  "sourceRepository": "https://github.com/organui/heart-3d",
+  "sourceCommit": "c72ce6654ff8e282942f97750d3104f55ef4fc3d",
+  "sourceFile": "public/models/heart.glb",
+  "sourceSha256": "b80a727d022a4ab07ccfcf15caccc228eaccb6d69ec0e72923324946ac35a946",
+  "runtime": {
+    "file": "anatomy-vessels.glb",
+    "bytes": 875800,
+    "sha256": "82fdd41fec12f99c9fca9278740363fd0f834c67dd453ad74d158e86f4f68e8c"
+  },
+  "changes": "Split six vessel groups at original source-element boundaries. Position and normal bytes unchanged; indices rebased. No new geometry, smoothing, decimation, or transforms.",
+  "coordinates": "Same centered Y-up display coordinates as anatomy-heart.glb; +Z anterior; +X anatomical left. Each mesh still uses the full heart origin. Center geometry around the supplied center before independently rotating fragments.",
+  "verification": "All 58 element triangle indices remain within their original vertex ranges. Reassembled positions, normals and indices exactly match all six original vessel groups.",
+  "elements": [
+    {
+      "node": "ascending-aorta__FJ3413",
+      "structureId": "ascending-aorta",
+      "fma": "FMA3736",
+      "sourceElement": "FJ3413",
+      "sourceObjSha256": "764f23e432a9308e0780c586f9d1638db1fbcc52a5019ae61817b4b1de323870",
+      "vertices": 229,
+      "triangles": 396,
+      "bounds": {
+        "min": [
+          -0.5673195719718933,
+          -0.23160000145435333,
+          -0.1312589943408966
+        ],
+        "max": [
+          0.14798399806022644,
+          0.7251999974250793,
+          0.4842810034751892
+        ]
+      },
+      "center": [
+        -0.20966778695583344,
+        0.246799997985363,
+        0.1765110045671463
+      ]
+    },
+    {
+      "node": "aortic-arch__FJ3411",
+      "structureId": "aortic-arch",
+      "fma": "FMA3768",
+      "sourceElement": "FJ3411",
+      "sourceObjSha256": "9eeb5e5a627e8145f03961c661c9c66d8fdc55ed1234d04b84212b87a21d902c",
+      "vertices": 381,
+      "triangles": 670,
+      "bounds": {
+        "min": [
+          -0.5674852132797241,
+          0.7251999974250793,
+          -1.2676010131835938
+        ],
+        "max": [
+          0.2658799886703491,
+          1.4290000200271606,
+          0.4787609875202179
+        ]
+      },
+      "center": [
+        -0.1508026123046875,
+        1.07710000872612,
+        -0.3944200128316879
+      ]
+    },
+    {
+      "node": "pulmonary-trunk__FJ2966",
+      "structureId": "pulmonary-trunk",
+      "fma": "FMA8612",
+      "sourceElement": "FJ2966",
+      "sourceObjSha256": "7d4fbfbeebdb541b4053e62e6ba9e55bdbc8d1354de8192f94d7c6008812ab3f",
+      "vertices": 871,
+      "triangles": 1302,
+      "bounds": {
+        "min": [
+          -0.20538200438022614,
+          0.21719999611377716,
+          0.06582099944353104
+        ],
+        "max": [
+          0.4106239974498749,
+          0.9593999981880188,
+          0.9127810001373291
+        ]
+      },
+      "center": [
+        0.10262099653482437,
+        0.588299997150898,
+        0.48930099979043007
+      ]
+    },
+    {
+      "node": "superior-vena-cava__FJ3645",
+      "structureId": "superior-vena-cava",
+      "fma": "FMA4720",
+      "sourceElement": "FJ3645",
+      "sourceObjSha256": "5cc007c2ea51255df641225630e83ddbf3e5c4545dffe4814b098c9199ceb26c",
+      "vertices": 318,
+      "triangles": 598,
+      "bounds": {
+        "min": [
+          -0.9635739922523499,
+          0.5834000110626221,
+          -0.19275900721549988
+        ],
+        "max": [
+          -0.5130646228790283,
+          1.283400058746338,
+          0.28102099895477295
+        ]
+      },
+      "center": [
+        -0.7383193075656891,
+        0.93340003490448,
+        0.044130995869636536
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2631",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2631",
+      "sourceObjSha256": "ca7d8c0c82982ef1c838cd2224650c810adc3e52aaf6b345f0cdb77d7b068c5e",
+      "vertices": 1549,
+      "triangles": 3032,
+      "bounds": {
+        "min": [
+          0.2349800020456314,
+          -1.3220000267028809,
+          0.13696099817752838
+        ],
+        "max": [
+          0.8459500074386597,
+          0.23960000276565552,
+          1.0956610441207886
+        ]
+      },
+      "center": [
+        0.5404650047421455,
+        -0.5412000119686127,
+        0.6163110211491585
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2632",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2632",
+      "sourceObjSha256": "74d743ebe7ccb06a69244bccb59789cbb094af1f3b279e24be5541b9d01d2f6c",
+      "vertices": 91,
+      "triangles": 108,
+      "bounds": {
+        "min": [
+          0.46947601437568665,
+          -0.3393999934196472,
+          1.0086009502410889
+        ],
+        "max": [
+          0.568231999874115,
+          -0.303600013256073,
+          1.096580982208252
+        ]
+      },
+      "center": [
+        0.5188540071249008,
+        -0.3215000033378601,
+        1.0525909662246704
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2633",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2633",
+      "sourceObjSha256": "ba9e2eca1abc7946b27b8adb9846f1b626c7cc3e942da1a2cd2301e0c02bcf1f",
+      "vertices": 318,
+      "triangles": 492,
+      "bounds": {
+        "min": [
+          0.8829920291900635,
+          -0.7088000178337097,
+          0.14552100002765656
+        ],
+        "max": [
+          1.1319960355758667,
+          -0.17820000648498535,
+          0.5545009970664978
+        ]
+      },
+      "center": [
+        1.007494032382965,
+        -0.44350001215934753,
+        0.3500109985470772
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2634",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2634",
+      "sourceObjSha256": "575eec8663acbae025b51ad8fa42dc6229f35d6f5d25673912c76cb59f117aec",
+      "vertices": 158,
+      "triangles": 196,
+      "bounds": {
+        "min": [
+          0.9831820130348206,
+          -0.36039999127388,
+          0.1296209990978241
+        ],
+        "max": [
+          1.041975975036621,
+          -0.2345999926328659,
+          0.35854101181030273
+        ]
+      },
+      "center": [
+        1.0125789940357208,
+        -0.29749999195337296,
+        0.24408100545406342
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2635",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2635",
+      "sourceObjSha256": "bc02d461ae79073f21f350b3c9751d7ccb973ea3c74f8c58bc9a2aeafc533281",
+      "vertices": 495,
+      "triangles": 766,
+      "bounds": {
+        "min": [
+          0.63509202003479,
+          -1.2730000019073486,
+          0.8690810203552246
+        ],
+        "max": [
+          0.9154499769210815,
+          -0.36039999127388,
+          1.097661018371582
+        ]
+      },
+      "center": [
+        0.7752709984779358,
+        -0.8166999965906143,
+        0.9833710193634033
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2636",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2636",
+      "sourceObjSha256": "119cc81d1816f1db4c3d64add10efa63c9148e3177b74d10184f7a1e579581e5",
+      "vertices": 282,
+      "triangles": 420,
+      "bounds": {
+        "min": [
+          0.7557880282402039,
+          -0.8163999915122986,
+          0.9923809766769409
+        ],
+        "max": [
+          0.8243200182914734,
+          -0.5246000289916992,
+          1.0811409950256348
+        ]
+      },
+      "center": [
+        0.7900540232658386,
+        -0.6705000102519989,
+        1.0367609858512878
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2637",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2637",
+      "sourceObjSha256": "d4fa7aa9a6e224a3c7fea1264f4d81ea076ec7baaa8b1c8b3da8e1053bbf4e4a",
+      "vertices": 144,
+      "triangles": 160,
+      "bounds": {
+        "min": [
+          0.8278340101242065,
+          -1.2582000494003296,
+          0.800400972366333
+        ],
+        "max": [
+          0.9436020255088806,
+          -1.1995999813079834,
+          0.962020993232727
+        ]
+      },
+      "center": [
+        0.8857180178165436,
+        -1.2289000153541565,
+        0.88121098279953
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2638",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2638",
+      "sourceObjSha256": "bad6520fcbcea112ca400ba5328e52f7b2ff680346b5b2591db2e97394f9b6e5",
+      "vertices": 246,
+      "triangles": 290,
+      "bounds": {
+        "min": [
+          0.9877179861068726,
+          -1.0648000240325928,
+          0.7588009834289551
+        ],
+        "max": [
+          1.0893399715423584,
+          -0.9330000281333923,
+          0.9711610078811646
+        ]
+      },
+      "center": [
+        1.0385289788246155,
+        -0.9989000260829926,
+        0.8649809956550598
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2639",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2639",
+      "sourceObjSha256": "a80ec5085d0430fa9ae5b643042742bb9757cfd23d3f0280e162751b91acda5f",
+      "vertices": 122,
+      "triangles": 150,
+      "bounds": {
+        "min": [
+          0.9913520216941833,
+          -1.2411999702453613,
+          0.6256409883499146
+        ],
+        "max": [
+          1.0333019495010376,
+          -1.1419999599456787,
+          0.8054410219192505
+        ]
+      },
+      "center": [
+        1.0123269855976105,
+        -1.19159996509552,
+        0.7155410051345825
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2640",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2640",
+      "sourceObjSha256": "7391892f7c4a8ab6165bf17e6e5ba1367267f14b2cf845233456cb5945f31e14",
+      "vertices": 218,
+      "triangles": 260,
+      "bounds": {
+        "min": [
+          0.9174140095710754,
+          -1.323799967765808,
+          0.6562010049819946
+        ],
+        "max": [
+          1.0333000421524048,
+          -1.141800045967102,
+          0.8054609894752502
+        ]
+      },
+      "center": [
+        0.9753570258617401,
+        -1.232800006866455,
+        0.7308309972286224
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2641",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2641",
+      "sourceObjSha256": "0a9b2c86202434b7aa66c2499c680c40c5d3ebce6bc3ef73c927018ff2c81718",
+      "vertices": 322,
+      "triangles": 442,
+      "bounds": {
+        "min": [
+          0.4945079982280731,
+          -1.2793999910354614,
+          0.9072409868240356
+        ],
+        "max": [
+          0.6616659760475159,
+          -0.8019999861717224,
+          1.114480972290039
+        ]
+      },
+      "center": [
+        0.5780869871377945,
+        -1.040699988603592,
+        1.0108609795570374
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2642",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2642",
+      "sourceObjSha256": "2f6dbb44742cd505762e3f24eb2ed3e9ed929f7a909ac28db4df68393e098888",
+      "vertices": 525,
+      "triangles": 964,
+      "bounds": {
+        "min": [
+          0.5703759789466858,
+          -1.0174000263214111,
+          0.4009009897708893
+        ],
+        "max": [
+          1.1569499969482422,
+          -0.0406000018119812,
+          0.6843209862709045
+        ]
+      },
+      "center": [
+        0.863662987947464,
+        -0.5290000140666962,
+        0.5426109880208969
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2643",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2643",
+      "sourceObjSha256": "3ee93d012a24f6fb93c92faa6eb35d918a3875b58cb0dd52ca5e3dc010ee55cf",
+      "vertices": 269,
+      "triangles": 478,
+      "bounds": {
+        "min": [
+          0.2414799928665161,
+          -0.125,
+          0.5969610214233398
+        ],
+        "max": [
+          0.5774379968643188,
+          0.02759999968111515,
+          1.1711610555648804
+        ]
+      },
+      "center": [
+        0.4094589948654175,
+        -0.048700000159442425,
+        0.8840610384941101
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2644",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2644",
+      "sourceObjSha256": "91b7c72f9fd221c63dd14932b7e66a0331e96d1b0aff3bfbec21f12187530467",
+      "vertices": 193,
+      "triangles": 306,
+      "bounds": {
+        "min": [
+          0.14575999975204468,
+          -0.046799998730421066,
+          0.9966610074043274
+        ],
+        "max": [
+          0.4363340139389038,
+          0.026200000196695328,
+          1.1514010429382324
+        ]
+      },
+      "center": [
+        0.29104700684547424,
+        -0.01029999926686287,
+        1.07403102517128
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2645",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2645",
+      "sourceObjSha256": "d6dcbc3294545f857df903393a6db47b268e3a97e8a0c87a0ab5bef056469eee",
+      "vertices": 224,
+      "triangles": 318,
+      "bounds": {
+        "min": [
+          0.412663996219635,
+          -0.44119998812675476,
+          0.7891010046005249
+        ],
+        "max": [
+          0.6319800019264221,
+          -0.20280000567436218,
+          1.1571409702301025
+        ]
+      },
+      "center": [
+        0.5223219990730286,
+        -0.32199999690055847,
+        0.9731209874153137
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2646",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2646",
+      "sourceObjSha256": "4549b2c6a0bf1d15057bd6185fdafbec846deecc464b6cbfb19f7cedb68b815c",
+      "vertices": 287,
+      "triangles": 470,
+      "bounds": {
+        "min": [
+          0.3124519884586334,
+          -0.9753999710083008,
+          0.9534410238265991
+        ],
+        "max": [
+          0.6600040197372437,
+          -0.4668000042438507,
+          1.1908210515975952
+        ]
+      },
+      "center": [
+        0.48622800409793854,
+        -0.7210999876260757,
+        1.0721310377120972
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2647",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2647",
+      "sourceObjSha256": "18044f3caa4b23c89e8ce42555df29326c1ff1bdbf4b52559473dfb8368b040a",
+      "vertices": 216,
+      "triangles": 306,
+      "bounds": {
+        "min": [
+          0.3776639997959137,
+          -1.2561999559402466,
+          0.9472209811210632
+        ],
+        "max": [
+          0.5112059712409973,
+          -1.0676000118255615,
+          1.080260992050171
+        ]
+      },
+      "center": [
+        0.4444349855184555,
+        -1.161899983882904,
+        1.013740986585617
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2648",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2648",
+      "sourceObjSha256": "33bdf6f3048e9c940710c1cfc27e59af549f37c14b58ba24bd12f3bd5b284d73",
+      "vertices": 203,
+      "triangles": 286,
+      "bounds": {
+        "min": [
+          1.056388020515442,
+          -0.7110000252723694,
+          0.5548610091209412
+        ],
+        "max": [
+          1.110975980758667,
+          -0.4514000117778778,
+          0.6991810202598572
+        ]
+      },
+      "center": [
+        1.0836820006370544,
+        -0.5812000185251236,
+        0.6270210146903992
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2649",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2649",
+      "sourceObjSha256": "d4833bb0b60ee79f526150ad7ba9124e326aba8cd48000711bf3a6b0997b0ce0",
+      "vertices": 692,
+      "triangles": 1380,
+      "bounds": {
+        "min": [
+          0.2562299966812134,
+          -0.4652000069618225,
+          -0.5248889923095703
+        ],
+        "max": [
+          0.5794780254364014,
+          0.2134000062942505,
+          0.17464099824428558
+        ]
+      },
+      "center": [
+        0.4178540110588074,
+        -0.125900000333786,
+        -0.17512399703264236
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2650",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2650",
+      "sourceObjSha256": "dd2c38fdc784311c955fb8b0420d70dfbdf16f0ce6e236a086dc5f350faae04c",
+      "vertices": 316,
+      "triangles": 396,
+      "bounds": {
+        "min": [
+          0.6748539805412292,
+          -0.9192000031471252,
+          -0.4759710133075714
+        ],
+        "max": [
+          0.7654759883880615,
+          -0.5820000171661377,
+          -0.3492310047149658
+        ]
+      },
+      "center": [
+        0.7201649844646454,
+        -0.7506000101566315,
+        -0.4126010090112686
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2651",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2651",
+      "sourceObjSha256": "864567c4b15c3add5a8184edb142766538936e2ef17af4efa25acca67f4344d8",
+      "vertices": 395,
+      "triangles": 510,
+      "bounds": {
+        "min": [
+          0.7442439794540405,
+          -0.6913999915122986,
+          -0.4193750023841858
+        ],
+        "max": [
+          1.0817879438400269,
+          -0.5483999848365784,
+          0.04652100056409836
+        ]
+      },
+      "center": [
+        0.9130159616470337,
+        -0.6198999881744385,
+        -0.18642700091004372
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2652",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2652",
+      "sourceObjSha256": "fd5ee304558da1d1ffebb01ca7f59b374087667e71d473fe5401f355a2ff161f",
+      "vertices": 240,
+      "triangles": 308,
+      "bounds": {
+        "min": [
+          0.852836012840271,
+          -1.0197999477386475,
+          -0.31810900568962097
+        ],
+        "max": [
+          0.9339759945869446,
+          -0.7206000089645386,
+          -0.11893899738788605
+        ]
+      },
+      "center": [
+        0.8934060037136078,
+        -0.870199978351593,
+        -0.2185240015387535
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2653",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2653",
+      "sourceObjSha256": "74fc42fbc783857619dccb5a753b06cbfce9abc6403f14e38f55bbb9fafdad80",
+      "vertices": 232,
+      "triangles": 252,
+      "bounds": {
+        "min": [
+          1.0440380573272705,
+          -1.1461999416351318,
+          0.12448100000619888
+        ],
+        "max": [
+          1.1057460308074951,
+          -0.9391999840736389,
+          0.30164098739624023
+        ]
+      },
+      "center": [
+        1.0748920440673828,
+        -1.0426999628543854,
+        0.21306099370121956
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2654",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2654",
+      "sourceObjSha256": "4e8467b12ca3374d25807d5de058cfb8d147ad2decd99f6debe57847a83099a1",
+      "vertices": 150,
+      "triangles": 172,
+      "bounds": {
+        "min": [
+          1.0524580478668213,
+          -1.1563999652862549,
+          0.3614409863948822
+        ],
+        "max": [
+          1.0989559888839722,
+          -1.068600058555603,
+          0.5924010276794434
+        ]
+      },
+      "center": [
+        1.0757070183753967,
+        -1.112500011920929,
+        0.4769210070371628
+      ]
+    },
+    {
+      "node": "left-coronary__FJ2737",
+      "structureId": "left-coronary",
+      "fma": "FMA50040",
+      "sourceElement": "FJ2737",
+      "sourceObjSha256": "22aa075132e33f9a3d3be135515362b03ab84f12a0d641edde35e260fb2cd65b",
+      "vertices": 121,
+      "triangles": 204,
+      "bounds": {
+        "min": [
+          0.03691000118851662,
+          0.16619999706745148,
+          0.0815809965133667
+        ],
+        "max": [
+          0.2572239935398102,
+          0.303600013256073,
+          0.20400099456310272
+        ]
+      },
+      "center": [
+        0.1470669973641634,
+        0.23490000516176224,
+        0.1427909955382347
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2667",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2667",
+      "sourceObjSha256": "4a43aa2911b4b1ee153d8948e5edfa99c078f374603a52c69100ab3ae2ef4362",
+      "vertices": 267,
+      "triangles": 360,
+      "bounds": {
+        "min": [
+          -0.16492600739002228,
+          -1.0,
+          1.1222610473632812
+        ],
+        "max": [
+          0.2486640065908432,
+          -0.8158000111579895,
+          1.2147610187530518
+        ]
+      },
+      "center": [
+        0.04186899960041046,
+        -0.9079000055789948,
+        1.1685110330581665
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2668",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2668",
+      "sourceObjSha256": "512479cec370a4390d5f2f0555fbdfc7ba3c2e8fb7b78b242cb4382ede30287f",
+      "vertices": 176,
+      "triangles": 216,
+      "bounds": {
+        "min": [
+          0.04436999931931496,
+          -0.8812000155448914,
+          1.1821409463882446
+        ],
+        "max": [
+          0.28347599506378174,
+          -0.796999990940094,
+          1.2114410400390625
+        ]
+      },
+      "center": [
+        0.16392299719154835,
+        -0.8391000032424927,
+        1.1967909932136536
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2670",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2670",
+      "sourceObjSha256": "e734bab3fcf2ee2bfba0eb6f827f8894fd9ff86e261f4fff0cf1ec37c3f84073",
+      "vertices": 280,
+      "triangles": 442,
+      "bounds": {
+        "min": [
+          -0.29071781039237976,
+          0.027799999341368675,
+          0.7671409845352173
+        ],
+        "max": [
+          0.10653799772262573,
+          0.2687999904155731,
+          1.1279410123825073
+        ]
+      },
+      "center": [
+        -0.09208990633487701,
+        0.1482999948784709,
+        0.9475409984588623
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2671",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2671",
+      "sourceObjSha256": "9ca85be93a017bc2a8aa7d565b3ec320620e4b22e78936b0d6f52b7cf3015be5",
+      "vertices": 313,
+      "triangles": 478,
+      "bounds": {
+        "min": [
+          -0.4225350320339203,
+          -0.46799999475479126,
+          0.9207410216331482
+        ],
+        "max": [
+          0.058788001537323,
+          -0.00419999985024333,
+          1.265841007232666
+        ]
+      },
+      "center": [
+        -0.18187351524829865,
+        -0.2360999973025173,
+        1.093291014432907
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2672",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2672",
+      "sourceObjSha256": "032c1562f06b7c960e1524fd8259fa321d59426ba0a9e6df32b42eb2c79e8e11",
+      "vertices": 447,
+      "triangles": 742,
+      "bounds": {
+        "min": [
+          -0.7166680097579956,
+          -1.0252000093460083,
+          0.9071009755134583
+        ],
+        "max": [
+          0.08972600102424622,
+          -0.5105999708175659,
+          1.1984809637069702
+        ]
+      },
+      "center": [
+        -0.3134710043668747,
+        -0.7678999900817871,
+        1.0527909696102142
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2673",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2673",
+      "sourceObjSha256": "9ffff6952448478f178b3a4debe89cc0cb28035cf392f992c119768406f1cf32",
+      "vertices": 243,
+      "triangles": 338,
+      "bounds": {
+        "min": [
+          -0.20448599755764008,
+          -0.462799996137619,
+          1.1824209690093994
+        ],
+        "max": [
+          0.24141399562358856,
+          -0.26339998841285706,
+          1.2656810283660889
+        ]
+      },
+      "center": [
+        0.018463999032974243,
+        -0.36309999227523804,
+        1.2240509986877441
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2674",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2674",
+      "sourceObjSha256": "e4ff01e6ce03c7f0bfd28d099680623dd2e98829bde7efb9dbd9936029e3961d",
+      "vertices": 186,
+      "triangles": 284,
+      "bounds": {
+        "min": [
+          -0.35213199257850647,
+          -1.0016000270843506,
+          1.091981053352356
+        ],
+        "max": [
+          -0.11872400343418121,
+          -0.7541999816894531,
+          1.154440999031067
+        ]
+      },
+      "center": [
+        -0.23542799800634384,
+        -0.8779000043869019,
+        1.1232110261917114
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2675",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2675",
+      "sourceObjSha256": "18496992ff047cc1578789bb356e181e91fd0bc3f59332f392b64ef02a91cc45",
+      "vertices": 148,
+      "triangles": 200,
+      "bounds": {
+        "min": [
+          -0.559171199798584,
+          -0.8501999974250793,
+          1.0171409845352173
+        ],
+        "max": [
+          -0.4333987832069397,
+          -0.6621999740600586,
+          1.0637409687042236
+        ]
+      },
+      "center": [
+        -0.49628499150276184,
+        -0.756199985742569,
+        1.0404409766197205
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2676",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2676",
+      "sourceObjSha256": "5455ee32b46013949d56fbdbbe87d08988975d7e3504105b270ed942376a13f8",
+      "vertices": 233,
+      "triangles": 304,
+      "bounds": {
+        "min": [
+          -0.062199998646974564,
+          0.15600000321865082,
+          1.0003410577774048
+        ],
+        "max": [
+          0.22360199689865112,
+          0.23999999463558197,
+          1.045361042022705
+        ]
+      },
+      "center": [
+        0.08070099912583828,
+        0.1979999989271164,
+        1.022851049900055
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2677",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2677",
+      "sourceObjSha256": "475b16a4d4a365a732fa8dbc1757f57b81ca99847ef2d36dd160656994dae474",
+      "vertices": 198,
+      "triangles": 252,
+      "bounds": {
+        "min": [
+          -0.012211999855935574,
+          -0.37540000677108765,
+          1.2187010049819946
+        ],
+        "max": [
+          0.2526639997959137,
+          -0.2840000092983246,
+          1.261760950088501
+        ]
+      },
+      "center": [
+        0.12022599996998906,
+        -0.3297000080347061,
+        1.2402309775352478
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2692",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2692",
+      "sourceObjSha256": "c38882cfb2a4ff493aece22ced1f23c9e044bf9cc091f14d40c7256179d34ccf",
+      "vertices": 608,
+      "triangles": 930,
+      "bounds": {
+        "min": [
+          -0.4488121271133423,
+          -1.3952000141143799,
+          0.11960099637508392
+        ],
+        "max": [
+          0.8804799914360046,
+          -1.1039999723434448,
+          0.7564210295677185
+        ]
+      },
+      "center": [
+        0.21583393216133118,
+        -1.2495999932289124,
+        0.4380110129714012
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2693",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2693",
+      "sourceObjSha256": "2f089666f8301e52400250614677a5c824bfa37fee55bfeb545904c8acffc063",
+      "vertices": 480,
+      "triangles": 766,
+      "bounds": {
+        "min": [
+          -0.44649508595466614,
+          -1.4143999814987183,
+          0.08724100142717361
+        ],
+        "max": [
+          0.7219380140304565,
+          -1.0848000049591064,
+          0.4955410063266754
+        ]
+      },
+      "center": [
+        0.1377214640378952,
+        -1.2495999932289124,
+        0.2913910038769245
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2694",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2694",
+      "sourceObjSha256": "8579bbf2af9aa03a93604db0f05283334baf131b26ca17d9bbd9c1ff281ee048",
+      "vertices": 305,
+      "triangles": 424,
+      "bounds": {
+        "min": [
+          -0.0760900005698204,
+          -1.357200026512146,
+          0.09734100103378296
+        ],
+        "max": [
+          0.25869399309158325,
+          -1.263800024986267,
+          0.18278099596500397
+        ]
+      },
+      "center": [
+        0.09130199626088142,
+        -1.3105000257492065,
+        0.14006099849939346
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2695",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2695",
+      "sourceObjSha256": "8a50ff9ad16191e3fd6cadb480943d212796d9cba391659c186be731b8f68d6a",
+      "vertices": 163,
+      "triangles": 236,
+      "bounds": {
+        "min": [
+          0.3219519853591919,
+          -1.4138000011444092,
+          0.31480100750923157
+        ],
+        "max": [
+          0.4986940026283264,
+          -1.3398000001907349,
+          0.43112099170684814
+        ]
+      },
+      "center": [
+        0.41032299399375916,
+        -1.376800000667572,
+        0.37296099960803986
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2696",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2696",
+      "sourceObjSha256": "0d90aa40e3ac1a0d4423d19da7c8a9f4446063bdae1b7246f97669c6db3720df",
+      "vertices": 286,
+      "triangles": 336,
+      "bounds": {
+        "min": [
+          -0.0817440003156662,
+          -1.3533999919891357,
+          0.30480098724365234
+        ],
+        "max": [
+          0.20068800449371338,
+          -1.2868000268936157,
+          0.8114609718322754
+        ]
+      },
+      "center": [
+        0.05947200208902359,
+        -1.3201000094413757,
+        0.5581309795379639
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2697",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2697",
+      "sourceObjSha256": "da528958c3c9784dc6ed9c04cd0a8d1fe6678c66e3792e0c258b1b51c9a07874",
+      "vertices": 188,
+      "triangles": 220,
+      "bounds": {
+        "min": [
+          0.34510600566864014,
+          -1.3949999809265137,
+          0.552901029586792
+        ],
+        "max": [
+          0.40029001235961914,
+          -1.3422000408172607,
+          0.8027009963989258
+        ]
+      },
+      "center": [
+        0.37269800901412964,
+        -1.3686000108718872,
+        0.6778010129928589
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2698",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2698",
+      "sourceObjSha256": "d253c0270030d4f2845f99ec3658e0e0ac9a79bda8e6d2e3ec1cae9d1942c9bd",
+      "vertices": 195,
+      "triangles": 200,
+      "bounds": {
+        "min": [
+          0.35832199454307556,
+          -1.3947999477386475,
+          0.6394410133361816
+        ],
+        "max": [
+          0.4713520109653473,
+          -1.3345999717712402,
+          0.818901002407074
+        ]
+      },
+      "center": [
+        0.4148370027542114,
+        -1.3646999597549438,
+        0.7291710078716278
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2699",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2699",
+      "sourceObjSha256": "4434305060b28d0b294b33cc18cdeb62f7a525f1282500c24dfb558205ec54a5",
+      "vertices": 126,
+      "triangles": 126,
+      "bounds": {
+        "min": [
+          0.7765560150146484,
+          -1.3547999858856201,
+          0.7331209778785706
+        ],
+        "max": [
+          0.9066939949989319,
+          -1.283400058746338,
+          0.8042010068893433
+        ]
+      },
+      "center": [
+        0.8416250050067902,
+        -1.319100022315979,
+        0.7686609923839569
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2700",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2700",
+      "sourceObjSha256": "2c4dacf7f7029de9075b4671085accefcf96200b4dbaba8a130ac1c3b177ebc6",
+      "vertices": 197,
+      "triangles": 280,
+      "bounds": {
+        "min": [
+          0.6981220245361328,
+          -1.3658000230789185,
+          0.7012410163879395
+        ],
+        "max": [
+          0.8239139914512634,
+          -1.2829999923706055,
+          0.8529009819030762
+        ]
+      },
+      "center": [
+        0.7610180079936981,
+        -1.324400007724762,
+        0.7770709991455078
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2714",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2714",
+      "sourceObjSha256": "d7d9ed93cb831b5beb98cdbbb814d2628e38efcc524028a4a291ee6144ea5c03",
+      "vertices": 482,
+      "triangles": 794,
+      "bounds": {
+        "min": [
+          -0.044096000492572784,
+          -1.3528000116348267,
+          -0.39715099334716797
+        ],
+        "max": [
+          0.9355720281600952,
+          -1.016800045967102,
+          0.34672099351882935
+        ]
+      },
+      "center": [
+        0.4457380138337612,
+        -1.1848000288009644,
+        -0.02521499991416931
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2715",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2715",
+      "sourceObjSha256": "f18dda103cde54e3a21c811c33f2dc3cf25f000eaff460703c696e76cc6a0e3f",
+      "vertices": 185,
+      "triangles": 218,
+      "bounds": {
+        "min": [
+          0.9204319715499878,
+          -1.3178000450134277,
+          0.329461008310318
+        ],
+        "max": [
+          1.0409760475158691,
+          -1.1756000518798828,
+          0.42542099952697754
+        ]
+      },
+      "center": [
+        0.9807040095329285,
+        -1.2467000484466553,
+        0.37744100391864777
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2716",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2716",
+      "sourceObjSha256": "0efa7807739a27fd0fd8ee6fb043ebdc17c8c824b1d068ddcf8bc305a138ca19",
+      "vertices": 188,
+      "triangles": 232,
+      "bounds": {
+        "min": [
+          0.9201679825782776,
+          -1.3198000192642212,
+          0.3315410017967224
+        ],
+        "max": [
+          1.010725975036621,
+          -1.2151999473571777,
+          0.517641007900238
+        ]
+      },
+      "center": [
+        0.9654469788074493,
+        -1.2674999833106995,
+        0.4245910048484802
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2717",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2717",
+      "sourceObjSha256": "3fb3cd79b66f9ec1be89382534eef8b9294328d6e7c17a7b48e87dd879316579",
+      "vertices": 259,
+      "triangles": 340,
+      "bounds": {
+        "min": [
+          0.09363400191068649,
+          -1.1274000406265259,
+          -0.49186500906944275
+        ],
+        "max": [
+          0.4157260060310364,
+          -1.0121999979019165,
+          -0.3597089946269989
+        ]
+      },
+      "center": [
+        0.25468000397086143,
+        -1.0698000192642212,
+        -0.4257870018482208
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2718",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2718",
+      "sourceObjSha256": "f08dbbc4cb90043b874b8483b378c0da44a573a6dccbb17530f8f07e8c32ba0c",
+      "vertices": 139,
+      "triangles": 186,
+      "bounds": {
+        "min": [
+          0.3445340096950531,
+          -1.2305999994277954,
+          -0.3549889922142029
+        ],
+        "max": [
+          0.4664979875087738,
+          -1.1513999700546265,
+          -0.2782450020313263
+        ]
+      },
+      "center": [
+        0.40551599860191345,
+        -1.190999984741211,
+        -0.3166169971227646
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2719",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2719",
+      "sourceObjSha256": "56493dd7e056b7c7cb462293402c3fa42dbb82c572dc746dfee5685eb4afe94a",
+      "vertices": 299,
+      "triangles": 380,
+      "bounds": {
+        "min": [
+          0.426613986492157,
+          -1.388800024986267,
+          -0.1714390069246292
+        ],
+        "max": [
+          0.4979200065135956,
+          -1.281599998474121,
+          0.07126100361347198
+        ]
+      },
+      "center": [
+        0.4622669965028763,
+        -1.335200011730194,
+        -0.05008900165557861
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2720",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2720",
+      "sourceObjSha256": "425ff09df45ea552c0d9a6d3cb57ec55a16ca5ca37e0736bf6ba5dea6cdf03a9",
+      "vertices": 233,
+      "triangles": 320,
+      "bounds": {
+        "min": [
+          0.636538028717041,
+          -1.3145999908447266,
+          -0.12741899490356445
+        ],
+        "max": [
+          0.8731020092964172,
+          -1.132200002670288,
+          -0.07839900255203247
+        ]
+      },
+      "center": [
+        0.7548200190067291,
+        -1.2233999967575073,
+        -0.10290899872779846
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2721",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2721",
+      "sourceObjSha256": "36858ad1fc4dd8f39de435eb42715c02b75976da212e9f322723e222d9862922",
+      "vertices": 198,
+      "triangles": 256,
+      "bounds": {
+        "min": [
+          0.8056100010871887,
+          -1.3503999710083008,
+          0.053380999714136124
+        ],
+        "max": [
+          1.0157259702682495,
+          -1.1291999816894531,
+          0.13552099466323853
+        ]
+      },
+      "center": [
+        0.9106679856777191,
+        -1.239799976348877,
+        0.09445099718868732
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2722",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2722",
+      "sourceObjSha256": "ba9b6f6885b2fa65dd32aa1799dd1d3c77f2a95baac9dcab816704ad74fcd0d3",
+      "vertices": 244,
+      "triangles": 320,
+      "bounds": {
+        "min": [
+          0.7889159917831421,
+          -1.4013999700546265,
+          0.07412099838256836
+        ],
+        "max": [
+          0.8396120071411133,
+          -1.3314000368118286,
+          0.42340099811553955
+        ]
+      },
+      "center": [
+        0.8142639994621277,
+        -1.3664000034332275,
+        0.24876099824905396
+      ]
+    },
+    {
+      "node": "right-coronary__FJ2723",
+      "structureId": "right-coronary",
+      "fma": "FMA50039",
+      "sourceElement": "FJ2723",
+      "sourceObjSha256": "cd008769cb9d565a75bf6b91b5ad3bd482932e37c4747837f6c9446cd23b73a2",
+      "vertices": 2255,
+      "triangles": 4502,
+      "bounds": {
+        "min": [
+          -0.8658279776573181,
+          -1.1540000438690186,
+          -0.3984149992465973
+        ],
+        "max": [
+          -0.016106000170111656,
+          0.3086000084877014,
+          0.985381007194519
+        ]
+      },
+      "center": [
+        -0.4409669889137149,
+        -0.42270001769065857,
+        0.2934830039739609
+      ]
+    }
+  ]
+}

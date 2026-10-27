@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { isSystole } from "../systole/theme";
 import { WingEcgProjection } from "./wing-ecg-projection";
 import type { WingEcgFrame } from "../signals/wing-ecg-signal";
 import { cardiacEnvelope, RrBeatClock, type RrHeartbeatSignal } from "./flight-mechanics";
@@ -167,12 +168,13 @@ export class AircraftPreview {
     );
     platform.position.y = -1.62;
     platform.receiveShadow = true;
-    this.scene.add(platform);
+    if (!isSystole()) this.scene.add(platform);
+    else { platform.geometry.dispose(); platform.material.dispose(); }
 
     const halo = new THREE.Mesh(
       new THREE.TorusGeometry(2.28, 0.025, 8, 96),
       new THREE.MeshBasicMaterial({
-        color: "#f4b33a",
+        color: isSystole() ? "#a6bdb0" : "#f4b33a",
         transparent: true,
         opacity: 0.9,
       }),
@@ -198,6 +200,7 @@ export class AircraftPreview {
     try {
       visual = await loadAircraftVisual(id);
     } catch (error) {
+      if (id.startsWith("systole-")) throw error;
       console.warn(`Preview could not load ${id}; using project aircraft.`, error);
       visual = createProceduralAircraftVisual();
     }

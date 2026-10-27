@@ -93,6 +93,7 @@ export function isFreshGameHeartbeatMessage(
 
 export class GameHeartbeatPublisher {
   private readonly channel?: BroadcastChannel;
+  private closed = false;
 
   constructor(private readonly route: GameHeartbeatRoute) {
     try {
@@ -105,11 +106,14 @@ export class GameHeartbeatPublisher {
 
   publish(input: GameHeartbeatInput) {
     const message = createGameHeartbeatMessage(this.route, input);
-    this.channel?.postMessage(message);
+    // Navigation can close the channel before the final animation callback.
+    if (!this.closed) this.channel?.postMessage(message);
     return message;
   }
 
   close() {
+    if (this.closed) return;
+    this.closed = true;
     this.channel?.close();
   }
 }

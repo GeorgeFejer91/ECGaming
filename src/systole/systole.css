@@ -1,0 +1,170 @@
+/* A quiet observatory: parchment type, oxidised metal, cold glass. */
+html[data-game-theme=systole] { scroll-behavior: auto; }
+body.systole {
+  --amber: #dec493; --cyan: #8dbeb7; --line: #3c4243; --muted: #a9b0af;
+  --text: #e5e0d4; --panel: #121b20; color: var(--text); background: #090f14;
+  height: auto; min-height: 100dvh; overflow: auto; color-scheme: dark;
+}
+body.systole::before { display: none; }
+body.systole * { box-sizing: border-box; }
+body.systole :focus-visible { outline: 2px solid #e5c98e; outline-offset: 4px; }
+body.systole button, body.systole summary { touch-action: manipulation; }
+body.systole .unified-flight-shell { height: auto; min-height: 100dvh; --unified-header-height: 132px; }
+body.systole .unified-header {
+  position: sticky; top: 0; z-index: 20; height: auto; min-height: 132px; padding: 16px 4vw 12px;
+  border-bottom: 1px solid #414344; background: #10171b; box-shadow: none;
+  grid-template-columns: minmax(160px,1fr) auto minmax(160px,1fr); gap: 12px;
+}
+body.systole .unified-header .brand { color: #dfd1b4; font: 600 14px/1.4 Inter,sans-serif; letter-spacing: .08em; }
+body.systole .brand svg { width: 34px; height: 34px; fill: none; stroke: #c3ac80; stroke-width: 1; }
+body.systole .brand small { font-size: 11px; color: #91b2b0; }
+body.systole .unified-header .header-state { font-size: 11px; color: #d6cdbd; }
+body.systole .view-mode-button { background: transparent; color: #b7c2bf; border: 0; border-bottom: 1px solid transparent; border-radius: 0; min-height: 44px; height: auto; }
+body.systole .view-mode-button[aria-pressed=true] { color: #ead6ac; background: #222b2c; border-bottom-color: #d4b77d; box-shadow: none; }
+body.systole .view-mode-widget svg, body.systole .remote-connection-bar svg, body.systole .cardiac-aircraft-choices svg { fill: none; stroke: currentColor; stroke-width: 1.2; }
+body.systole .remote-connection-bar > button { background: transparent; border-color: #42494a; color: #bac9c5; border-radius: 0; min-height: 44px; height: auto; font-size: 12px; }
+body.systole .systole-intro { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding: 30px 4vw 24px; }
+body.systole .systole-kicker { margin: 0 0 7px; color: #b4a184; font: 600 10px/1.5 Inter,sans-serif; letter-spacing: .22em; }
+body.systole h1 { font: 400 62px/1 "Cormorant Garamond",Georgia,serif; letter-spacing: -.02em; margin: 0; color: #e4d7bf; }
+body.systole h1 span { display: inline-block; margin-left: 22px; font: italic 400 24px/1.2 "Cormorant Garamond",Georgia,serif; letter-spacing: 0; color: #aab7b0; }
+body.systole .systole-caption { font: italic 400 18px/1.5 "Cormorant Garamond",Georgia,serif; color: #a5b3b0; margin: 0; }
+body.systole .systole-settings-button { background: transparent; border: 1px solid #5d6963; padding: 10px 16px; min-height: 44px; color: #d5c5a4; font: 500 12px/1.5 Inter,sans-serif; cursor: pointer; }
+body.systole .systole-settings { width: min(760px,calc(100vw - 28px)); padding: 24px; }
+body.systole .systole-settings .ground-control-setup-internals { display: block; }
+body.systole .systole-settings .accordion-body { height: auto; max-height: none; overflow: visible; }
+body.systole .systole-settings .accordion-item { margin-top: 14px; }
+body.systole .systole-settings .accordion-trigger { color: #e3d0ab; }
+body.systole .systole-settings .field span { font-size: 13px; }
+body.systole .systole-settings h2 { font: 400 32px/1.2 "Cormorant Garamond",Georgia,serif; }
+body.systole .unified-flight-shell .control-workspace { padding: 0 4vw 20px; height: auto; min-height: 600px; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 30px; }
+body.systole .unified-flight-shell .control-panel { height: auto; overflow: visible; grid-template-rows: minmax(370px,1fr) auto; gap: 16px; }
+body.systole .aircraft-showcase { grid-template-rows: 24px minmax(320px,1fr) auto auto; gap: 10px; }
+body.systole .aircraft-showcase-header { display: flex; font: 500 10px/1.4 Inter,sans-serif; color: #a6b7b2; letter-spacing: .12em; }
+body.systole .aircraft-preview-frame { background: linear-gradient(#081117b8,#081117ed),url("/assets/systole/quiet-void.png") center/cover; border: 1px solid #39464a; grid-template-rows: minmax(240px,1fr) auto; }
+body.systole .aircraft-nameplate { display: block; padding: 12px 15px; height: auto; background: #111b21; border-color: #39464a; }
+body.systole #ground-aircraft-name { font: 500 25px/1.15 "Cormorant Garamond",Georgia,serif !important; color: #e0d1b4; }
+body.systole #ground-aircraft-tagline { display: block; font: italic 15px/1.5 "Cormorant Garamond",Georgia,serif; color: #a4b4b1; margin: 4px 0 0; }
+body.systole #ground-aircraft-status { display: block; color: #bac9c5; font: 400 11px/1.5 Inter,sans-serif; margin: 5px 0 0; }
+body.systole .aircraft-preview-pulse-label { background: #0a131bd9; border-color: #3d5154; color: #c0d0c7; font-size: 11px; }
+body.systole .cardiac-aircraft-choices { min-height: 50px; }
+body.systole .cardiac-aircraft-choices button { color: #b4c5bf; background: #111c22; border-color: #354649; border-radius: 0; min-height: 48px; font-size: 12px; flex-direction: row; }
+body.systole .cardiac-aircraft-choices button[aria-pressed=true] { background: #28322e; color: #e9d2a5; border-color: #ac976e; }
+body.systole #polar-source-controls, body.systole .flight-gate { padding: 16px; border-color: #3d4647; background: #141e23; }
+body.systole .flight-gate { justify-content: space-between; }
+body.systole .status-card-copy strong { font-size: 12px !important; color: #d0d9d3; }
+body.systole #flight-gate-title { font: 500 22px/1.2 "Cormorant Garamond",Georgia,serif !important; color: #e3d2ae; }
+body.systole #flight-gate-state { font-size: 10px !important; background: transparent; border: 0; }
+body.systole #flight-gate-copy { font-size: 12px !important; line-height: 1.5 !important; color: #b4c2bf; }
+body.systole .unified-flight-shell #polar-source-controls .button-row { display: flex; flex-direction: column; }
+body.systole #connect-polar, body.systole .flight-gate-start { min-height: 48px; height: auto; padding: 12px; border-radius: 0; background: #c9af7c; color: #141c1e; border: 1px solid #dec69d; font-size: 12px; }
+body.systole .flight-gate-start:disabled { background: #303b3b; color: #adb7b2; border-color: #485653; opacity: 1; }
+body.systole .flight-gate-start .action-button-copy strong { font: 600 13px/1.5 Inter,sans-serif !important; }
+body.systole #practice-heart { position: static; width: 100%; min-height: 48px; padding: 8px; display: flex; flex-direction: row; justify-content: center; gap: 10px; border: 1px solid #596057; border-radius: 0; background: #19262a; color: #d7ceb9; font-size: 12px; }
+body.systole #practice-heart img { width: 28px; height: 28px; }
+body.systole #practice-heart[aria-pressed=true] { background: #3e382c; color: #f4da9e; border-color: #c6ab79; }
+body.systole .avionics-display { height: auto; min-height: 0; display: flex; flex-direction: column; gap: 18px; background: none; border: 0; }
+body.systole .altitude-metric-panel { flex: none; padding: 0; min-height: 190px; gap: 12px; background: none; border: 0; }
+body.systole .altitude-metric-panel h2 { font: 400 26px/1.2 "Cormorant Garamond",Georgia,serif; color: #e1d3ba; }
+body.systole .altitude-metric-panel > p { display: block; font: 400 12px/1.5 Inter,sans-serif; color: #aebbb7; margin: 0; }
+body.systole .metric-widget-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: auto; gap: 8px; }
+body.systole .metric-widget-button { border: 1px solid #3b4b4b; border-radius: 0; padding: 10px; gap: 8px; min-height: 64px; height: auto; background: #142126; color: #c3d0c8; }
+body.systole .metric-widget-button[aria-pressed=true], body.systole .metric-widget-button.is-selected { background: #33413d; border-color: #c8b287; color: #f1dfb7; box-shadow: none; }
+body.systole .metric-widget-button img { width: 30px; height: 30px; filter: none; }
+body.systole .metric-widget-button strong { font: 500 12px/1.4 Inter,sans-serif; white-space: normal; }
+body.systole .signal-displays { flex: 1; min-height: 270px; gap: 14px; }
+body.systole .ecg-instrument { background: #111c21; border: 1px solid #35484b; padding: 12px; min-height: 145px; box-shadow: none; }
+body.systole .instrument-header { gap: 10px; min-height: 28px; flex-wrap: wrap; }
+body.systole .instrument-header h2 { font: 500 16px/1.5 "Cormorant Garamond",Georgia,serif; letter-spacing: .02em; color: #d6c5a5; }
+body.systole .instrument-header > strong { font: 500 10px/1.5 Inter,sans-serif; color: #a7bcb7; }
+body.systole .ecg-screen { min-height: 96px; background: #0b171e; border-color: #344347; box-shadow: none; }
+body.systole .scope-metric-badge { background: #111f25e8; }
+body.systole .music-quick-controls { display: grid; grid-template-columns: minmax(0,1fr); min-height: 92px; background: #141f23; border: 1px solid #3a4747; padding: 12px; gap: 10px; }
+body.systole .music-quick-copy strong { font-size: 13px; color: #d5c9b0; }
+body.systole .music-quick-copy { display: block; }
+body.systole .music-quick-copy strong { font: 500 13px/1.5 Inter,sans-serif; letter-spacing: 0; }
+body.systole .music-quick-copy small { display: block; color: #a5b4af; font-size: 11px; }
+body.systole .music-quick-variant { display: flex; gap: 12px; align-items: center; font-size: 12px; }
+body.systole .music-quick-variant select { min-height: 38px; max-width: 100%; color: #ded5c3; background: #192b30; border-color: #4f615f; }
+body.systole .systole-credits { margin: 0 4vw 26px; border-top: 1px solid #374547; padding-top: 12px; max-width: 1100px; font: 400 12px/1.7 Inter,sans-serif; color: #adbbb5; }
+body.systole .systole-credits summary { cursor: pointer; min-height: 40px; color: #cbb991; }
+body.systole .systole-credits a { color: #d9c18e; text-decoration: underline; }
+body.systole dialog { background: #162128 !important; border: 1px solid #65716b !important; color: #e2daca !important; border-radius: 1px !important; max-width: calc(100vw - 28px); max-height: calc(100dvh - 28px); overflow: auto; }
+body.systole dialog::backdrop { background: #02080bd9; }
+body.systole dialog input, body.systole dialog select { background: #0b161c; color: #e0d8c8; border: 1px solid #61716c; min-height: 44px; max-width: 100%; }
+body.systole dialog button { min-height: 44px; border-radius: 0; }
+body.systole dialog .mapping-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+body.systole dialog .mapping-grid > *, body.systole dialog .mapping-grid input, body.systole dialog .mapping-grid select { min-width: 0; overflow-wrap: anywhere; }
+body.systole .cockpit-view { height: calc(100dvh - 132px); min-height: 480px; background: #090f14; }
+body.systole.cockpit-mode .unified-flight-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+body.systole.cockpit-mode .unified-header { flex: 0 0 auto; }
+body.systole.cockpit-mode .cockpit-view { flex: 1 1 0; height: auto; min-height: 0; }
+body.systole .cockpit-topbar h2, body.systole .cockpit-topbar strong { font: 500 16px/1.3 "Cormorant Garamond",Georgia,serif; letter-spacing: .08em; }
+body.systole .cockpit-hud strong { font-family: Inter,sans-serif; font-size: 20px; color: #d9c7a5; }
+body.systole .cockpit-hud span, body.systole .hud-button, body.systole .cockpit-bottom { font-family: Inter,sans-serif; letter-spacing: .03em; }
+body.systole:has(#cockpit-view:not([hidden])) { overflow: hidden; }
+body.systole .cockpit-topbar { background: #101a22de; border-color: #475551; }
+body.systole .cockpit-hud { background: #101d25d9; border: 1px solid #405653; border-radius: 0; }
+body.systole .hud-button { border-radius: 0; min-height: 40px; background: #15252bd9; color: #dfcfb0; border-color: #4d605a; }
+body.systole .cockpit-runway-panel, body.systole .pause-panel, body.systole .flight-crash-panel { color: #e2d3b8; border: 1px solid #70817a; border-radius: 0; background: #101c24ed; box-shadow: 0 20px 80px #0008; }
+body.systole .cockpit-runway-panel h3, body.systole .flight-crash-panel h2 { font: 400 34px/1.1 "Cormorant Garamond",Georgia,serif; }
+body.systole .flight-crash-panel button { color: #10191d; background: #cfb98e; min-height: 48px; border-radius: 0; }
+body.systole .flight-game-options { border-radius: 0; background: #10202be8; border-color: #4d635e; color: #d5dbcc; max-width: min(370px,calc(100% - 28px)); }
+body.systole .flight-game-options summary { min-height: 40px; padding: 10px; }
+body.systole .mobile-steer-button { background: #152c35d9; color: #d5c298; border-color: #6e8b80; box-shadow: none; border-radius: 0; }
+body.systole .cockpit-reward { border: 1px solid #b59e72; border-radius: 0; background: #20362ddd; color: #e3d09f; }
+body.systole [data-systole-measured=reflow] { white-space: normal; overflow-wrap: anywhere; height: auto; min-height: min-content; }
+@media(max-width:1000px) {
+  body.systole .unified-header { grid-template-columns: 1fr auto; }
+  body.systole .header-state { display: none; }
+  body.systole .systole-intro { padding-top: 24px; }
+  body.systole .systole-caption { display: none; }
+  body.systole h1 { font-size: 52px; }
+  body.systole .unified-flight-shell .control-workspace { gap: 18px; }
+  body.systole .metric-widget-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+  body.systole .unified-header { display: flex; flex-wrap: wrap; flex-direction: row; justify-content: space-between; min-height: 156px; gap: 10px; padding: 12px 4vw; }
+  body.systole .unified-header .brand { display: flex; font-size: 12px; }
+  body.systole .unified-header .brand > span:last-child { display: inline; }
+  body.systole .view-mode-block { margin: 0; }
+  body.systole .view-mode-button { padding: 8px; font-size: 12px; }
+  body.systole .view-mode-widget { display: none; }
+  body.systole .remote-connection-bar { width: 100%; gap: 6px; }
+  body.systole .remote-connection-bar > button { font-size: 11px; flex-direction: column; min-height: 60px; padding: 6px; }
+  body.systole .unified-flight-shell { --unified-header-height: 156px; }
+  body.systole h1 { font-size: 48px; }
+  body.systole h1 span { display: block; font-size: 22px; margin: 6px 0 0; }
+  body.systole .unified-flight-shell .control-workspace { display: flex; flex-direction: column; height: auto; min-height: 0; padding: 0 4vw 20px; }
+  body.systole .unified-flight-shell .control-panel { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto auto; gap: 10px; }
+  body.systole .aircraft-showcase { grid-column: 1/-1; grid-row: 1; grid-template-rows: auto 350px auto auto; }
+  body.systole #polar-source-controls { grid-column: 1; grid-row: 2; padding: 12px; }
+  body.systole .flight-gate { grid-column: 2; grid-row: 2; padding: 12px; }
+  body.systole .flight-gate-head { flex-direction: column; align-items: start; }
+  body.systole #ground-aircraft-status { white-space: normal; }
+  body.systole #connect-polar { font-size: 12px; flex-direction: column; }
+  body.systole .cardiac-aircraft-choices button { font-size: 12px; }
+  body.systole .avionics-display .altitude-metric-panel { flex: none; min-height: 0; padding: 8px 0; }
+  body.systole .metric-widget-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  body.systole .signal-displays { min-height: 320px; flex: none; }
+  body.systole .ecg-screen { min-height: 120px; }
+  body.systole .cockpit-view { height: calc(100dvh - 156px); min-height: 0; }
+  body.systole .cockpit-topbar { flex-wrap: wrap; gap: 6px; padding: 8px; }
+  body.systole .cockpit-topbar .hud-button { font-size: 11px; padding: 7px; }
+  body.systole .cockpit-runway-panel { max-width: calc(100% - 32px); }
+}
+@media(max-width:370px) {
+  body.systole .unified-header .brand small { display: none; }
+  body.systole .systole-intro { padding-top: 20px; }
+  body.systole #polar-source-controls, body.systole .flight-gate { padding: 8px; }
+  body.systole .cardiac-aircraft-choices button { padding: 8px 4px; gap: 4px; }
+}
+@media(prefers-reduced-motion:reduce) { body.systole *, body.systole *::before, body.systole *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media(max-height:500px) {
+  body.systole.cockpit-mode .unified-header { min-height: 52px; height: 52px; padding: 4px 12px; grid-template-rows: auto; }
+  body.systole.cockpit-mode .unified-header .remote-connection-bar { display: none; }
+  body.systole.cockpit-mode .unified-header .brand { display: none; }
+  body.systole.cockpit-mode .view-mode-block { grid-column: 1/-1; justify-self: center; }
+  body.systole.cockpit-mode .cockpit-topbar { padding-block: 5px; }
+  body.systole.cockpit-mode .cockpit-hud { top: 52px; padding: 5px; min-height: 45px; }
+  body.systole.cockpit-mode .cockpit-hud strong { font-size: 16px; }
+}

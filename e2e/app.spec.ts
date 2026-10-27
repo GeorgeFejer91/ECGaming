@@ -112,7 +112,8 @@ test("home opens the EC Games menu without entering Ground Control", async ({ pa
   await page.goto("./");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".landing-shell")).toBeVisible();
-  await expect(page.locator(".game-menu-card")).toHaveCount(6);
+  await expect(page.locator(".game-menu-card")).toHaveCount(7);
+  await expect(page.getByRole("link", { name: "Play Systole: The Quiet Vessel" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Polar Plane Ground Control" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Phone Breather" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Play Other Side" })).toBeVisible();

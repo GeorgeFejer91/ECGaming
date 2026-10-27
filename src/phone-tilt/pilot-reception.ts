@@ -1,4 +1,5 @@
 import { getFlightSessionHub } from "../flight-session/hub";
+import { companionUrl } from "../systole/theme";
 import { createTiltInvitation, type TiltInvitation } from "./invitation";
 import type { TiltLink } from "./link";
 import { cleanTowerName, PilotLobby, type PilotMessage } from "./pilot-lobby";
@@ -111,13 +112,13 @@ class PilotReception extends EventTarget {
     });
   }
   url() {
-    const url = new URL("../controller/", location.href);
+    const url = companionUrl("controller", location.href);
     url.searchParams.set("tower", this.lobby.towerId);
     if (this.nameConfirmed) url.searchParams.set("towerName", this.name);
     return url.href;
   }
   cockpitUrl() {
-    const url = new URL("../session-cockpit/", location.href);
+    const url = companionUrl("session-cockpit", location.href);
     url.searchParams.set("tower", this.lobby.towerId);
     if (this.nameConfirmed) url.searchParams.set("towerName", this.name);
     return url.href;
