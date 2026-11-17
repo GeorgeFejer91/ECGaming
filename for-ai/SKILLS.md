@@ -54,3 +54,7 @@ Record licensed external assets in [third-party notices](../THIRD_PARTY_NOTICES.
 with source, author, license, and any pinned revision or conversion. Keep original
 license files. Unclear redistribution rights block shipping that asset; research
 and source inspection do not establish rights by themselves.
+
+## SAIA task routing
+
+Apply `saia-task-router` before delegation or subagent spawn. Use local tools for deterministic work and offload only provider-authorized inputs. Continue in the current agent if SAIA is unavailable.
